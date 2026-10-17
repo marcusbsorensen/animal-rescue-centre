@@ -1,13 +1,23 @@
 /**
  * road-router.ts
  *
- * Pure router over the Birchie road graph (built offline by
- * tools/build-road-graph.py from birchie-roads.svg into birchie-graph.json).
+ * Pure router over the Birchie road graph (birchie-graph.json, written offline
+ * by tools/simplify-road-graph.py, which also writes the road layer of
+ * birchie-roads.svg from the same graph, so the roads a child sees are the
+ * roads the van can drive).
  * Nodes are map fractions [fx, fy]; edges carry a road class. Dijkstra finds a
  * road-following route between two map points, gently preferring bigger roads
  * (like real sat-nav). Falls back to a straight line if the points can't be
  * connected on the network, so the GPS never draws nothing.
+ *
+ * Routing can be vehicle-aware: an adjacency built for a vehicle leaves out the
+ * roads that vehicle must not use (Trikey, the pedal trike, never rides the
+ * A28). Built with no vehicle, every road is in, as it always was, the A28
+ * two-way whatever OSM's oneway says (trunk-carriageways.ts). Trikey's whole
+ * network, her paths and the two crossings she may use, is trikey-links.ts.
  */
+import type { VehicleType } from '@arc/game-logic';
+import type { Carriageway, TrunkCarriageways } from './trunk-carriageways';
 
 export interface RoadGraph {
   nodes: [number, number][];
@@ -29,12 +39,38 @@ function segLen(a: [number, number], b: [number, number]): number {
   return Math.hypot((a[0] - b[0]) * ASPECT, a[1] - b[1]);
 }
 
-/** Build a weighted adjacency list once per graph. */
-export function buildAdjacency(g: RoadGraph): Adjacency {
+/** The routing weight of an edge: its length, scaled by how much the router
+ *  prefers its class. In map units, as segLen. */
+export function roadWeight(g: RoadGraph, a: number, b: number, cls: string): number {
+  return segLen(g.nodes[a], g.nodes[b]) * (CLASS_MULT[cls] ?? 1);
+}
+
+/**
+ * Road classes a vehicle never routes over. Trikey never rides along the A28
+ * (OSM `trunk`), whatever stretch of it: rule 18A, port plan 2026-10-11,
+ * section 5, answer 10. Where she may cross it is trikey-links.ts.
+ */
+export const ROADS_BARRED: Partial<Record<VehicleType, readonly string[]>> = {
+  'pedal-trike': ['trunk'],
+};
+
+/** Whether a vehicle may drive a road of this class. No vehicle: every road. */
+export function roadAllowedFor(vehicle: VehicleType | undefined, roadClass: string): boolean {
+  if (!vehicle) return true;
+  return !(ROADS_BARRED[vehicle]?.includes(roadClass) ?? false);
+}
+
+/**
+ * Build a weighted adjacency list once per graph (and per vehicle, when one is
+ * given: roads it may not use are left out, so every route over this adjacency
+ * avoids them, and a place reachable only by such a road is unreachable).
+ */
+export function buildAdjacency(g: RoadGraph, vehicle?: VehicleType): Adjacency {
   const adj: Adjacency = g.nodes.map(() => []);
   for (const [a, b, cls] of g.edges) {
     if (a < 0 || b < 0 || a >= g.nodes.length || b >= g.nodes.length) continue;
-    const w = segLen(g.nodes[a], g.nodes[b]) * (CLASS_MULT[cls] ?? 1);
+    if (!roadAllowedFor(vehicle, cls)) continue;
+    const w = roadWeight(g, a, b, cls);
     adj[a].push({ to: b, w });
     adj[b].push({ to: a, w });
   }
@@ -96,6 +132,19 @@ export interface RoadClassRun {
   roadClass: string;
   /** Progress fraction (0..1) at which this run of road ends. */
   untilProgress: number;
+  /** On a trunk run, what the A28 really is there, when the profile was built
+   *  with the carriageway data. */
+  carriageway?: Carriageway;
+}
+
+/** Shortest run, as a progress fraction, the profile keeps; see smoothRuns. */
+const PROFILE_MIN_SPAN = 0.08;
+
+/** Runs are the same road when class, and on the A28 kind and limit, agree. */
+function sameRoad(a: RoadClassRun, b: RoadClassRun): boolean {
+  return a.roadClass === b.roadClass
+    && a.carriageway?.kind === b.carriageway?.kind
+    && a.carriageway?.maxspeedMph === b.carriageway?.maxspeedMph;
 }
 
 /**
@@ -104,8 +153,14 @@ export interface RoadClassRun {
  * Lets the drive switch road *type* where the map changes (e.g. joining the
  * A-road becomes a dual carriageway). Progress is by aspect-corrected length,
  * matching the drive's own progress.
+ *
+ * Given the carriageway data, trunk runs also split where the A28 changes
+ * kind or limit, so a speed verdict can tell the dual carriageway from the
+ * road through The Square.
  */
-export function routeProfile(g: RoadGraph, adj: Adjacency, from: RoutePoint, to: RoutePoint): RoadClassRun[] {
+export function routeProfile(
+  g: RoadGraph, adj: Adjacency, from: RoutePoint, to: RoutePoint, carriageways?: TrunkCarriageways,
+): RoadClassRun[] {
   if (g.nodes.length === 0) return [];
   const s = nearestNode(g, from.fx, from.fy);
   const t = nearestNode(g, to.fx, to.fy);
@@ -119,22 +174,71 @@ export function routeProfile(g: RoadGraph, adj: Adjacency, from: RoutePoint, to:
   const pts: RoutePoint[] = [from, ...path.map((i) => ({ fx: g.nodes[i][0], fy: g.nodes[i][1] })), to];
   // Class per segment of `pts` (path.length+1 segments). The two stub segments
   // (from→firstNode, lastNode→to) inherit the adjacent edge's class.
-  const segClass: string[] = [classOf(path[0], path[1])];
-  for (let i = 0; i < path.length - 1; i++) segClass.push(classOf(path[i], path[i + 1]));
-  segClass.push(classOf(path[path.length - 2], path[path.length - 1]));
+  const segEdge: [number, number][] = [[path[0], path[1]]];
+  for (let i = 0; i < path.length - 1; i++) segEdge.push([path[i], path[i + 1]]);
+  segEdge.push([path[path.length - 2], path[path.length - 1]]);
+  const segClass = segEdge.map(([a, b]) => classOf(a, b));
 
   const lens: number[] = [];
   for (let i = 1; i < pts.length; i++) lens.push(segLen([pts[i - 1].fx, pts[i - 1].fy], [pts[i].fx, pts[i].fy]));
   const total = lens.reduce((a, b) => a + b, 0) || 1;
 
-  const runs: RoadClassRun[] = [];
+  const ends: number[] = [];
   let cum = 0;
+  for (const l of lens) { cum += l; ends.push(cum / total); }
+
+  const runs: RoadClassRun[] = [];
   for (let i = 0; i < segClass.length; i++) {
-    cum += lens[i];
-    if (runs.length && runs[runs.length - 1].roadClass === segClass[i]) runs[runs.length - 1].untilProgress = cum / total;
-    else runs.push({ roadClass: segClass[i], untilProgress: cum / total });
+    if (runs.length && runs[runs.length - 1].roadClass === segClass[i]) runs[runs.length - 1].untilProgress = ends[i];
+    else runs.push({ roadClass: segClass[i], untilProgress: ends[i] });
   }
-  return smoothRuns(runs, 0.08);
+  const smoothed = smoothRuns(runs, PROFILE_MIN_SPAN);
+  if (!carriageways) return smoothed;
+
+  // Split each trunk run where the A28 changes kind or limit, after the class
+  // smoothing, so the classes along the route are exactly what they were
+  // without the data. Inside a run, a segment the smoothing absorbed (not
+  // trunk itself) takes the carriageway before it, or the first one after.
+  const segCarriageway = segEdge.map(([a, b], i) => (segClass[i] === 'trunk' ? carriageways.between(a, b) ?? undefined : undefined));
+  const out: RoadClassRun[] = [];
+  let seg = 0;
+  for (let r = 0; r < smoothed.length; r++) {
+    const run = smoothed[r];
+    const start = r === 0 ? 0 : smoothed[r - 1].untilProgress;
+    const inRun: number[] = [];
+    for (; seg < segClass.length && ends[seg] <= run.untilProgress + 1e-9; seg++) inRun.push(seg);
+    if (run.roadClass !== 'trunk') { out.push(run); continue; }
+    const subs: RoadClassRun[] = [];
+    let last = inRun.map((i) => segCarriageway[i]).find(Boolean);
+    for (const i of inRun) {
+      last = segCarriageway[i] ?? last;
+      const sub: RoadClassRun = { roadClass: 'trunk', untilProgress: ends[i] - start };
+      if (last) sub.carriageway = last;
+      if (subs.length && sameRoad(subs[subs.length - 1], sub)) subs[subs.length - 1].untilProgress = sub.untilProgress;
+      else subs.push(sub);
+    }
+    if (subs.length === 0) { out.push(run); continue; }
+    subs[subs.length - 1].untilProgress = run.untilProgress - start;
+    for (const sub of smoothRuns(subs, PROFILE_MIN_SPAN)) out.push({ ...sub, untilProgress: sub.untilProgress + start });
+  }
+  return out;
+}
+
+/**
+ * The road class at a progress fraction along a profile: the run it falls in,
+ * the last run beyond the end, and undefined for an empty profile (no graph,
+ * or no route).
+ */
+export function roadClassAt(profile: readonly RoadClassRun[], progress: number): string | undefined {
+  return roadRunAt(profile, progress)?.roadClass;
+}
+
+/** The whole run at a progress fraction, carriageway and all; as roadClassAt. */
+export function roadRunAt(profile: readonly RoadClassRun[], progress: number): RoadClassRun | undefined {
+  for (const run of profile) {
+    if (progress <= run.untilProgress + 1e-6) return run;
+  }
+  return profile[profile.length - 1];
 }
 
 /**
@@ -148,7 +252,7 @@ export function smoothRuns(input: RoadClassRun[], minSpan: number): RoadClassRun
   const startOf = (i: number) => (i === 0 ? 0 : runs[i - 1].untilProgress);
   const coalesce = () => {
     for (let i = 1; i < runs.length; ) {
-      if (runs[i].roadClass === runs[i - 1].roadClass) { runs[i - 1].untilProgress = runs[i].untilProgress; runs.splice(i, 1); }
+      if (sameRoad(runs[i], runs[i - 1])) { runs[i - 1].untilProgress = runs[i].untilProgress; runs.splice(i, 1); }
       else i++;
     }
   };

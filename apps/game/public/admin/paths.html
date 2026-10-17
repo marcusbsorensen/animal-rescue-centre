@@ -20,12 +20,7 @@
     --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    /* Handwritten stack for sign text — matches the painted crayon logo.
-       Kalam everywhere, self-hosted. 'Chalkboard SE' used to lead this
-       stack and is a macOS-only face, so the Mac rendered these signs in
-       one hand and the iPad in another — and every Mac screenshot of a
-       sign screen misreported its own typeface.
-       chunkier fallback for the sign titles. */
+    /* The type is declared once, in /fonts/fonts.css: --headline-font (titles only) and --body-font (everything else a child reads). */
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -90,6 +85,7 @@
     overflow: hidden;
     container-type: size;     /* enables @container queries on size */
     container-name: welcome;
+    background: #2a2018;
   }
   /* Background scene — a room the conflict is happening in, blurred so the
      modal plaque in front is the reading priority. Dark wash dims the room
@@ -99,7 +95,8 @@
     background-image: url('/assets/bg/bg-room-dog.png');
     background-size: cover; background-position: center;
     filter: blur(3px) saturate(0.85) brightness(0.85);
-    transform: scale(1.05);   /* hide blur edge */
+    /* not scaled up to hide the blurred edge: a scaled box counts as scrollable overflow
+       (9-21px of scroll); the edge fades into the root's dark ground instead. */
     z-index: 0;
   }
   .welcome::after {
@@ -169,18 +166,8 @@
     flex: 0 0 auto;
   }
   .paths-header-text { flex: 1 1 0; min-width: 0; }
-  .paths-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(20px, 3.4cqh, 28px);
-    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
-    -webkit-background-clip: text; background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
-    line-height: 1.1;
-  }
+  /* The title's style (white on a darker plank, larger) is shared by every story board
+     and lives in _story-title.css. */
   .paths-subtitle {
     font-family: var(--sign-font);
     font-size: clamp(var(--fs-floor), 1.9cqh, 16px);
@@ -190,15 +177,23 @@
     opacity: 0.9;
     line-height: 1.25;
   }
-  /* 3-card grid — stacks on narrow screens */
+  /* Up to 4 cards — stacks on narrow screens. The host hides the paths an
+     animal does not have (no wild for a cat, no family for a hedgehog) and
+     sets --path-cards to how many are left, so two cards share the row
+     rather than leaving a gap where the third was. */
   .paths-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(var(--path-cards, 3), 1fr);
     gap: clamp(10px, 1.8cqw, 16px);
     padding: clamp(10px, 1.8cqh, 16px) 0;
   }
   @container welcome (max-width: 700px) {
     .paths-grid { grid-template-columns: 1fr; }
+  }
+  /* A snake can have all four (family, wild, a safe home, stay), and four
+     across is too narrow to read. Two by two. */
+  @container welcome (min-width: 701px) {
+    .paths-grid[data-cards="4"] { grid-template-columns: repeat(2, 1fr); }
   }
   .path-card {
     text-align: left;
@@ -218,6 +213,7 @@
     position: relative;
   }
   .path-card:hover { transform: translateY(-2px); }
+  .path-card[hidden] { display: none; }
   .path-rehome {
     background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
     border-color: #7a4b15;
@@ -225,6 +221,10 @@
   .path-rewild {
     background: linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
     border-color: #3c5238;
+  }
+  .path-place {
+    background: linear-gradient(180deg, #6fb3c8 0%, #4a8fa8 55%, #2f6479 100%);
+    border-color: #25495a;
   }
   .path-work {
     background: linear-gradient(180deg, #b89ad5 0%, #8a6eb2 55%, #5f4780 100%);
@@ -257,14 +257,14 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.25);
   }
   .path-name {
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-size: clamp(18px, 2.6cqh, 22px);
     font-weight: 700;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
   }
   .path-blurb {
     font-size: clamp(var(--fs-floor), 1.7cqh, 16px);
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     opacity: 0.92;
     line-height: 1.2;
   }
@@ -275,6 +275,10 @@
     font-size: clamp(var(--fs-floor), 1.7cqh, 16px);
     margin-top: clamp(4px, 0.6cqh, 6px);
   }
+  /* `display` above beats the `hidden` attribute, so the checklists the markup
+     marks hidden were being drawn — invented ticks, and "✕ Wild species"
+     struck through on the card for an animal that is about to be let go. */
+  .path-criteria[hidden] { display: none; }
   .path-criteria li {
     padding-left: 22px;
     position: relative;
@@ -296,7 +300,7 @@
     border-radius: 999px;
     background: rgba(255,251,232,0.25);
     border: 1px solid rgba(255,251,232,0.5);
-    font-family: 'Caveat', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(var(--fs-floor), 1.9cqh, 16px);
     text-align: center;
@@ -505,7 +509,7 @@
   }
   .choice-hint {
     font-size: clamp(var(--fs-floor), 1.6cqh, 16px);
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     opacity: 0.9;
     line-height: 1.1;
   }
@@ -683,7 +687,7 @@
     border: 2px solid #1d5c2a;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-family: var(--headline-font); font-weight: 700;
+    font-family: var(--body-font); font-weight: 800;
     font-size: clamp(var(--fs-floor), 2.2cqh, 20px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.35),
                 inset 0 2px 3px rgba(255,255,255,0.2);
@@ -835,7 +839,7 @@
   .btn-primary {
     width: 100%;
     padding: clamp(14px, 2.6cqh, 22px) clamp(24px, 4cqw, 32px);
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-size: clamp(24px, 4cqh, 36px); font-weight: 700;
     /* Cream paint text on weathered wood, with a dark shadow for depth */
     color: #fffbe8;
@@ -1076,10 +1080,9 @@
     gap: clamp(2px, 0.4cqh, 4px);
     position: relative; z-index: 5;
   }
-  /* Handwritten-scrawl credits — cursive green, designed to look like
-     a blade of grass at first glance and read as a signature on closer look. */
+  /* The credits in the corner: green, in the body face like everything else a child reads. */
   .credit-scrawl {
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(var(--fs-floor), 1.9cqh, 17px);
     color: #2f6a32;
@@ -1232,6 +1235,7 @@
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
 <link rel="stylesheet" href="/admin/_signpost-physics.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 
@@ -1265,7 +1269,7 @@
             <img class="paths-portrait" src="/assets/animals/dog-collie-sheltered.png" alt="">
             <div class="paths-header-text">
               <div class="paths-title">What happens to Luna next?</div>
-              <div class="paths-subtitle">Pick a future for Luna. You can change your mind later. Every animal needs something different to be happy.</div>
+              <div class="paths-subtitle" id="paths-subtitle">Pick a future for Luna. You can change your mind later. Every animal needs something different to be happy.</div>
             </div>
           </div>
           <!-- The .path-criteria lists below are hidden, not deleted. Every
@@ -1304,12 +1308,24 @@
               <!-- This lock is load-bearing: the click handler below returns
                    early on .path-state-locked. It said "Not for collies" on
                    every animal, so the rewild path was dead for foxes and
-                   hedgehogs too — the species was never checked, because no
-                   rewildable-species rule exists anywhere in game-logic yet.
-                   Kept locked (enabling a path with no eligibility rule is a
-                   design decision, not a bug fix) but no longer blaming the
-                   animal for it. -->
+                   hedgehogs too — the species was never checked. It still
+                   starts locked, so a page that never hears from its host
+                   offers nothing it cannot deliver. The host's init message
+                   (below) now says whether the species has a wild home —
+                   the rule is game-logic/exits.ts, which this static page
+                   cannot import — and unlocks the card, or hides it for a
+                   cat or dog, who have none. -->
               <div class="path-state path-state-locked">🔒 Not yet</div>
+            </button>
+            <!-- Hidden until the host sends a `place` card: keepers who look
+                 after an animal for good (game-logic/exits.ts, PLACEMENTS).
+                 Which animals have one, and the words, are the host's, so a
+                 page that hears nothing offers nothing. -->
+            <button class="path-card path-place" data-path="place" hidden>
+              <div class="path-badge">🏡</div>
+              <div class="path-name">A safe home</div>
+              <div class="path-blurb"></div>
+              <div class="path-state">Choose this</div>
             </button>
             <button class="path-card path-work" data-path="work">
               <div class="path-badge">🎖️</div>
@@ -1352,7 +1368,7 @@
       try { parent.postMessage({ source: 'arc-game', type, payload }, '*'); } catch (_) {}
     };
     // Path-card click — map each card to an aspire-* action.
-    const pathToAction = { rehome: 'aspire-rehome', rewild: 'aspire-rewild', work: 'aspire-stay' };
+    const pathToAction = { rehome: 'aspire-rehome', rewild: 'aspire-rewild', place: 'aspire-place', work: 'aspire-stay' };
     for (const card of document.querySelectorAll('.path-card')) {
       card.addEventListener('click', () => {
         const path = card.dataset.path;
@@ -1365,22 +1381,80 @@
     }
     // "← Back to Luna" button
     document.querySelector('[data-action="close"]')?.addEventListener('click', () => send('close'));
+    // Which paths this animal has. The host decides (game-logic/exits.ts):
+    // cats, dogs and parrots have no wild home, and no household takes a
+    // hedgehog, so those cards are not drawn rather than drawn and dead. Only an explicit
+    // `false` hides a card, so a host that sends nothing leaves all three.
+    function applyPaths(payload) {
+      const rehome = document.querySelector('.path-rehome');
+      const rewild = document.querySelector('.path-rewild');
+      if (rehome) rehome.hidden = payload.canRehome === false;
+      if (rewild) {
+        rewild.hidden = payload.canRewild === false;
+        if (payload.canRewild === true) {
+          const state = rewild.querySelector('.path-state');
+          if (state) {
+            state.classList.remove('path-state-locked');
+            state.textContent = 'Choose this';
+          }
+        }
+      }
+      // The keepers' card is drawn only when the host sends its words. They
+      // are the host's (game-logic/exits.ts) because which animals have one,
+      // and what to call the place, are rules this static page cannot import.
+      const place = document.querySelector('.path-place');
+      if (place) {
+        const p = payload.place;
+        const ok = p && typeof p === 'object' && typeof p.name === 'string' && p.name.trim();
+        place.hidden = !ok;
+        if (ok) {
+          const badge = place.querySelector('.path-badge');
+          const title = place.querySelector('.path-name');
+          const blurb = place.querySelector('.path-blurb');
+          if (badge && typeof p.badge === 'string' && p.badge) badge.textContent = p.badge;
+          if (title) title.textContent = p.name;
+          if (blurb && typeof p.blurb === 'string') blurb.textContent = p.blurb;
+        }
+      }
+      const shown = document.querySelectorAll('.path-card:not([hidden])').length;
+      const grid = document.querySelector('.paths-grid');
+      if (grid) {
+        grid.style.setProperty('--path-cards', String(Math.max(1, shown)));
+        grid.dataset.cards = String(Math.max(1, shown));
+      }
+    }
     // Personalise the title from ?animalName=… if the host sent an init payload
     window.addEventListener('message', (e) => {
       const m = e.data;
       if (m?.source !== 'arc-game-host' || m.type !== 'init' || !m.payload) return;
+      applyPaths(m.payload);
       const name = typeof m.payload.animalName === 'string' ? m.payload.animalName : null;
       if (name) {
         const titleEl = document.querySelector('.paths-title');
         if (titleEl) titleEl.textContent = `What happens to ${name} next?`;
         const backBtn = document.querySelector('[data-action="close"]');
         if (backBtn) backBtn.textContent = `← Back to ${name}`;
+        // The subtitle and the portrait were also fixed to "Luna" and a
+        // collie, over a hedgehog's two cards.
+        const subEl = document.getElementById('paths-subtitle');
+        if (subEl) {
+          subEl.textContent = `Pick a future for ${name}. You can change your mind later. ` +
+            'Every animal needs something different to be happy.';
+        }
+        const portrait = document.querySelector('.paths-portrait');
+        if (portrait && typeof m.payload.animalSpriteSrc === 'string' && m.payload.animalSpriteSrc) {
+          portrait.src = m.payload.animalSpriteSrc;
+        }
         // The three card blurbs also name the animal, and only the title
         // and back button were ever rewritten — so a child reading about
         // their hedgehog was told what "Luna" would become.
+        const where = typeof m.payload.habitatPhrase === 'string' && m.payload.habitatPhrase
+          ? m.payload.habitatPhrase : null;
         const blurbs = {
           '.path-rehome': `Find ${name} a loving home with a human family`,
-          '.path-rewild': `Release ${name} to the wild once they're ready`,
+          '.path-rewild': where
+            ? `Take ${name} home to ${where}`
+            : `Take ${name} back to the wild`,
           '.path-work': `${name} becomes a working animal at the centre`,
         };
         for (const [sel, text] of Object.entries(blurbs)) {

@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<!--
+  drive-spike.html — the rotating-world driving model, before it touches the game.
+
+  Why it exists: the driving scene draws a straight corridor and scrolls rows of
+  it towards you. The model Lily's game uses instead pins the vehicle to one spot
+  on screen and rotates the whole world underneath it, so a bend is the world
+  turning rather than the van steering. That is a different renderer, not a
+  tweak, and it is cheaper to prove here on a plain canvas than inside a 3,600
+  line Phaser scene.
+
+  What it proves, and nothing else:
+    - the real Birchie graph (937 nodes) drives the geometry, so the roads here
+      are the roads the child sees on the map
+    - the camera rotates to the route's heading and the van never moves
+    - the scale: a lane is 110px on a 390pt phone, the van 53px across, against
+      28px and 16px in the game today
+    - hold-to-go, gears, handbrake, and swerving between lanes (a finger, the
+      mouse button or a touchpad press held on the road is go; Space or B
+      held is the handbrake; see "input" below)
+    - the gears, handbrake and horn on the van's own dashboard, a strip
+      below the van, with a live speedometer, GPS and cargo-comfort gauge
+      (drive-spike/dashboard.js)
+    - the guide line, and what the screen looks like with it switched off:
+      a brass switch on the dashboard beside the GPS, on by default and
+      remembered (Marcus, 2026-10-11: the game has no settings screen)
+
+  Open it at /admin/drive-spike.html with the dev server running.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>A.R.C. — driving spike</title>
+<style>
+  :root { color-scheme: light; --sab: env(safe-area-inset-bottom, 0px); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2c2c2c;
+    font-family: "Nunito", system-ui, -apple-system, sans-serif; }
+  #wrap { position: relative; height: 100%; display: grid; place-items: center; }
+  canvas { display: block; touch-action: none; background: #8fbf6a; }
+  /* The chips, and under them the grown-up's tools, folded behind "dev" so
+     the child's controls are only the dashboard's. */
+  #top { position: absolute; top: 10px; left: 10px; right: 10px; display: flex;
+    flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; }
+  #hud { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; font-size: 13px; }
+  /* The chips (Marcus, 2026-10-13, 72B and 73A: "the pills at the top of the
+     page need to be designed so they don't look like just space holders in a
+     wireframe"): road-sign badges, a white plate with a black edge. There is
+     no gear or speed chip, as the dashboard's gear window and speedometer
+     show them. The lane chip is a blue sign (not shown where the road has no
+     lanes), and the road chip takes the colours of that road's real signs
+     (data-road, set by updateHud()). The
+     warning chip follows it only while the gear does not suit the road: a
+     red warning triangle and what that costs ("slow down", "dust!",
+     "beeping"), data-state 'fast' red on white, 'slow' on yellow. Each chip
+     holds an icon (.ci, drawn by chipIcon()) and its value (.cv). */
+  .chip { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px 0 5px;
+    border-radius: 7px; font-size: 14px; font-weight: 800; white-space: nowrap; color: #111; background: #fff;
+    box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 3.5px #111, 0 2px 4px rgba(0,0,0,.3); }
+  .chip[hidden] { display: none; }
+  .chip .ci { display: block; flex: none; width: 20px; height: 20px; }
+  .chip .ci svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor;
+    stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .chip .cv { font-weight: inherit; }
+  #laneChip { color: #fff; background: #1d5fa8; box-shadow: inset 0 0 0 2px #1d5fa8, inset 0 0 0 3.5px #fff, 0 2px 4px rgba(0,0,0,.3); }
+  #roadChip[data-road="trunk"], #roadChip[data-road="secondary"] { color: #ffd200; background: #00703c;
+    box-shadow: inset 0 0 0 2px #00703c, inset 0 0 0 3.5px #fff, 0 2px 4px rgba(0,0,0,.3); }
+  #roadChip[data-road="track"] { color: #fff; background: #6b3f1f;
+    box-shadow: inset 0 0 0 2px #6b3f1f, inset 0 0 0 3.5px #fff, 0 2px 4px rgba(0,0,0,.3); }
+  #roadChip[data-road="path"], #roadChip[data-road="crossing"] { color: #fff; background: #1d5fa8;
+    box-shadow: inset 0 0 0 2px #1d5fa8, inset 0 0 0 3.5px #fff, 0 2px 4px rgba(0,0,0,.3); }
+  #warnChip .ci { color: #d4202a; }
+  #warnChip .ci svg { fill: #fff; stroke-width: 2.4; }
+  #warnChip[data-state="fast"] { box-shadow: inset 0 0 0 3.5px #d4202a, 0 2px 4px rgba(0,0,0,.3); }
+  #warnChip[data-state="slow"] { background: #ffd200;
+    box-shadow: inset 0 0 0 2px #ffd200, inset 0 0 0 3.5px #111, 0 2px 4px rgba(0,0,0,.3); }
+  #panel button { color: #555; background: rgba(240,240,240,.8); border-radius: 6px; padding: 4px 8px;
+    box-shadow: inset 0 0 0 1.5px #888; }
+  #panel #devTools button { border-radius: 9px; padding: 5px 9px; }
+  #panel button[aria-pressed="true"] { background: #4b8b3b; color: #fff; }
+  #devTools { display: contents; }
+  #devTools[hidden] { display: none; }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 11px;
+    padding: 5px 9px; background: rgba(255,252,246,.85); color: #3a3226;
+    box-shadow: 0 1px 4px rgba(0,0,0,.18); }
+  button[aria-pressed="true"] { background: #4b8b3b; color: #fff; }
+  /* The chips give way while the look-ahead window covers them. */
+  #top { transition: opacity .2s; }
+  #top.away { opacity: 0; }
+  #top.away #panel { pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { #top { transition: none; } }
+  #note { color: #fffcf6; font-size: 11px; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+  /* Placed by toast() below the van, or beside it held sideways: never over
+     the road ahead. A cream paper label, like the chips, so it reads on
+     tarmac, grass or snow without a heavy shadow. */
+  #toast { position: absolute; top: 70%; left: 0; width: 100%; display: flex;
+    justify-content: center; align-items: center; pointer-events: none;
+    transform: translateY(-50%); opacity: 0; transition: opacity .25s; }
+  #toast span { max-width: calc(100% - 24px); padding: 7px 16px 8px; border-radius: 18px;
+    background: rgba(255,250,238,.95); border: 2px solid #e6cf9f; color: #3a3226;
+    font-size: 21px; font-weight: 900; line-height: 1.2; text-align: center;
+    box-shadow: 0 2px 8px rgba(40,30,20,.22); }
+  #toast.on { opacity: 1; }
+</style>
+
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="top">
+    <div id="hud">
+      <div class="chip" id="laneChip"><i class="ci"></i><b class="cv">left lane</b></div>
+      <div class="chip" id="roadChip"><i class="ci"></i><b class="cv">—</b></div>
+      <div class="chip" id="warnChip" hidden><i class="ci"></i><b class="cv"></b></div>
+    </div>
+    <div id="panel">
+      <button id="devBtn" aria-pressed="false">dev</button>
+      <span id="devTools" hidden>
+        <button id="routeBtn">new route</button>
+        <button id="trunkBtn">to big road</button>
+        <button id="a28Btn">to A28 town</button>
+      </span>
+    </div>
+    <div id="note" hidden>hold the road (finger, mouse button or touchpad press) to go · swipe right or hold → to look out, further to overtake · swipe left or ← to come back · space or B = handbrake · 1–3 gears · H = horn · G = guide line · P or tap the box = the crossing button (Trikey) · F = fill up (grown-ups; ?fuel=0..1 sets it)</div>
+  </div>
+  <div id="toast"></div>
+</div>
+
+<script type="module">
+// Scenery and traffic live in their own modules so each can be built without
+// touching this file. Their contracts are documented at the top of each.
+import * as scenery from './drive-spike/scenery.js';
+import * as traffic from './drive-spike/traffic.js';
+import * as crossings from './drive-spike/crossings.js';
+import * as look from './drive-spike/vehicle-look.js';
+import * as roadPaint from './drive-spike/road-paint.js';   // ?road=0|1|2
+// The gears, handbrake and horn, in a strip along the bottom styled as the
+// van's own dashboard (Marcus, 2026-10-11). The road view is the canvas above
+// that strip.
+import * as dashboard from './drive-spike/dashboard.js';
+import * as fuel from './drive-spike/fuel.js';
+// The look-ahead window over the top of the road view while she pokes out
+// to look (Lily and Marcus, 2026-10-12).
+import * as lookAhead from './drive-spike/look-ahead.js';
+// The trip strip up the left edge, with the sights on the way and their signs
+// at the roadside (Lily, 2026-10-12).
+import * as tripStrip from './drive-spike/trip-strip.js';
+// Trikey's own roads (Marcus 15D/18A): never along the A28, across it only at
+// the lights, the game's trikey-links.ts in plain JS.
+import * as trikeyRoads from './drive-spike/trikey-roads.js';
+// Her crossings of the A28 are toucans: she stops at the kerb, the child
+// presses the button, she rides over on the green cycle (Marcus, 62A).
+import * as lights from './drive-spike/lights.js';
+
+// ---------------------------------------------------------------- the world
+
+/** The map is 1800x1121 over roughly 6.2km x 3.9km, so one unit of fy is this
+ *  many metres and fx is scaled by the aspect to match. Same convention as
+ *  road-router.ts, which is why a route computed there lands here unchanged. */
+const ASPECT = 1800 / 1121;
+const METRES_PER_UNIT = 3900;
+
+/** Pixels per metre. Chosen so a 5m lane draws 110px wide on a 390pt phone —
+ *  the reference game gives its car about half a lane and we match that. */
+const PPM = 22;
+
+/** Road widths in metres by OSM class. A trunk road gets two lanes each way,
+ *  everything else one each way; a track is single and unmarked. */
+const ROAD_M = { secondary: 10, tertiary: 10, unclassified: 9, residential: 8, track: 5,
+  path: 3, crossing: 3 };   // Trikey's cycleways and paths, and her crossing at the lights
+const LANE_M = 5;
+
+/** The dual carriageway keeps its true width, 21.6m, which at PPM would fill
+ *  a 390pt phone edge to edge. So the camera eases out to BIG_ROAD_ZOOM as the
+ *  van approaches one: the van shrinks a little and she sees further ahead at
+ *  the road's top speed. Marcus chose this on 2026-10-11 over narrowing the
+ *  big road's lanes, which would have made them narrower than a country
+ *  road's — the kind of mismatch a child spots. */
+const BIG_ROAD_ZOOM = 0.62;
+const TRUNK_LANE_M = 5;
+const RESERVATION_M = 1.6;   // the grass strip between the two carriageways
+const TRUNK_M = 4 * TRUNK_LANE_M + RESERVATION_M;
+
+/** The A28 as it really is (docs/driving-rebuild-2026-10-11.md, 17A/18A):
+ *  only its 1.7 km west of Brooksend is the dual carriageway above. A
+ *  'divided' stretch is two one-way carriageways at 30-40 mph that the graph
+ *  draws as one line, so it is drawn as a two-way road split by a narrow
+ *  kerbed island, with the data's lanes each way; a 'single' stretch is an
+ *  ordinary two-way A-road with a centre line, as wide as the other main
+ *  roads. cw is the edge's carriageway record, or null for a dual without
+ *  one (the data not loaded). */
+const ISLAND_M = 1.2;
+function roadWidth(cls, cw) {
+  if (cls !== 'trunk') return ROAD_M[cls] ?? 8;
+  if (!cw || cw.kind === 'dual') return TRUNK_M;
+  if (cw.kind === 'divided') return 2 * Math.max(1, cw.lanes) * LANE_M + ISLAND_M;
+  return ROAD_M.secondary;
+}
+let zoom = 1;
+
+/** Where the van sits across the screen, measured off Lily's game: 53.5%
+ *  across in every frame of 35 seconds. */
+const VAN_SX = 0.535;
+
+/** View parameters for comparing layouts, not settings: ?full=1 drops the
+ *  430px width cap (to see landscape), ?pin= moves the van's height on screen
+ *  (a fraction of the road view, as below), ?zoomx= scales every zoom. */
+const VIEW_Q = new URLSearchParams(location.search);
+const FULL_WIDTH = VIEW_Q.get('full') === '1';
+
+/** How far down the road view the van sits. The reference game has it 59%
+ *  down; Lily, 2026-10-12: "it would be better for the vehicle we are
+ *  driving to be a bit further down / back on the road so we have more open
+ *  road ahead to be seen, as we don't ever reverse". So upright it sits 75%
+ *  down, which gives the road ahead about a quarter more of the screen, and
+ *  held sideways, where there was least road ahead, 86%. Held sideways the
+ *  camera also pulls back (Marcus, 2026-10-11). */
+const VAN_PIN = { port: 0.75, land: 0.86 };
+function vanSY(w, h) { return Number(VIEW_Q.get('pin')) || (w > h ? VAN_PIN.land : VAN_PIN.port); }
+function zoomX(w, h) { return Number(VIEW_Q.get('zoomx')) || (w > h ? 0.75 : 1); }
+
+/** Road kept in view behind the van's tail, in CSS px, so it never looks
+ *  parked on the dashboard. */
+const BEHIND_PX = 16;
+
+/** The van's height on screen: the pin is a fraction of the road view above
+ *  the dashboard, not of the whole screen, so the strip covers only road
+ *  already driven. Pulled up close at a gate, or held sideways, the pin
+ *  would put the van's tail under the dashboard, so then it rises just
+ *  enough to keep the whole van and a strip of road behind it in view. w and
+ *  h are the screen's, which decide upright or sideways. */
+function vanScreenY(w, h, roadH, ppm) {
+  const halfLen = (car.length || VAN_W_M * 2) * ppm / 2;
+  return Math.min(roadH * vanSY(w, h), roadH - halfLen - BEHIND_PX);
+}
+
+/** Every vehicle at its true width relative to Henry, and Henry at the size
+ *  measured against the reference (13.5% of a phone's width), Marcus's choice
+ *  of 2026-10-11. Real widths from `fleet-art.ts` VEHICLE_WIDTH_M. ?van= picks
+ *  the vehicle, ?vanw= overrides the width for comparisons. */
+const VAN_ID = VIEW_Q.get('van') || 'henry';
+const REAL_W_M = { trikey: 0.75, henry: 1.75, bea: 1.80, spark: 2.00, 'big-tilly': 2.30 };
+const HENRY_DRAWN_M = 2.4;
+const VAN_W_M = Number(VIEW_Q.get('vanw'))
+  || (REAL_W_M[VAN_ID] ?? REAL_W_M.henry) * HENRY_DRAWN_M / REAL_W_M.henry;
+
+const GEARS = { 1: 7, 2: 13, 3: 20 };   // metres per second
+/** Each vehicle's own speed in a gear is the gear's times the game's
+ *  VEHICLE_SPEED for it (apps/game/src/scenes/PtvDriveScene.ts:129, "Trikey
+ *  crawls, Spark zips"; docs/driving-port-plan-2026-10-11.md question 10).
+ *  Only Trikey's is used here so far (Marcus, 2026-10-12: "make Trikey
+ *  slower"): pedal power, half of every gear, about 8, 15 and 22 mph, which
+ *  her cloth strip's 0 to 20 spans. Her gears set her top speed and her
+ *  speed camera; GEARS stays the world's, for what goes by speed alone (the
+ *  camera's zoom, the dust). */
+const VAN_SPEED = VAN_ID === 'trikey' ? 0.5 : 1;
+const VAN_GEARS = { 1: GEARS[1] * VAN_SPEED, 2: GEARS[2] * VAN_SPEED, 3: GEARS[3] * VAN_SPEED };
+const ACCEL = 9, BRAKE = 14, HANDBRAKE = 34;  // m/s^2
+
+/** Which gears suit which road, and what it costs to get it wrong. The point
+ *  of the gearbox is choosing a speed for the circumstances, so the graph's
+ *  own road class is the teacher: third on a farm track throws up dust the
+ *  animals breathe, first on the dual carriageway has a queue behind you
+ *  beeping. The graph already carries the class on every edge, so this is a
+ *  lookup rather than new content. */
+const ROAD_NAME = {
+  trunk: 'dual carriageway', secondary: 'main road', tertiary: 'country road',
+  unclassified: 'lane', residential: 'houses', track: 'farm track',
+  path: 'cycle path', crossing: 'crossing',
+};
+const GEAR_OK = {
+  trunk: [2, 3], secondary: [1, 2, 3], tertiary: [1, 2, 3],
+  unclassified: [1, 2], residential: [1, 2], track: [1],
+  path: [1, 2], crossing: [1],
+};
+const TOO_FAST = { track: 'dust!', unclassified: 'too fast', residential: 'slow down' };
+const TOO_SLOW = { trunk: 'beeping' };
+
+/** Every gear works on every road (Marcus, 2026-10-12, 30A): "Any gear is
+ *  available in any car at any time, but that doesn't mean that it's correct
+ *  for the road that one is on. The same with bicycle gears." The gear sets
+ *  the top speed on every road; the lists above are what suits the road, the
+ *  knob prompt asks for the road's best (its top suiting gear, because what
+ *  she feels is the speed), and a wrong gear costs what the doc's 'Getting it
+ *  wrong' column says (see gearCosts in step()).
+ *
+ *  The A28 is not one road (trunk-carriageways.json, road-gears.ts): on a
+ *  trunk edge whose carriageway is known, the gears whose speed is within its
+ *  limit suit it, and on the real dual carriageway not first, where traffic
+ *  queues behind. So third is fine at 50 mph west of Brooksend and too fast
+ *  at 30 mph through The Square. A trunk edge with no record is a dual. */
+const MPS_PER_MPH = 0.44704;
+function gearsFor(cls, cw) {
+  if (cls === 'trunk' && cw) {
+    const within = [1, 2, 3].filter(g => VAN_GEARS[g] <= cw.maxspeedMph * MPS_PER_MPH);
+    return cw.kind === 'dual' ? within.filter(g => GEAR_OK.trunk.includes(g)) : within;
+  }
+  return GEAR_OK[cls] ?? [1, 2, 3];
+}
+/** The chip's name: a divided or single stretch of the A28 is a main road. */
+function roadNameFor(cls, cw) {
+  if (cls === 'trunk' && cw && cw.kind !== 'dual') return 'main road';
+  return ROAD_NAME[cls] ?? cls;
+}
+/** road-gears.ts's gearVerdict: null when the gear suits the road (or the
+ *  van is barely moving: pulling away in third on a lane is not speeding),
+ *  else 'fast' or 'slow'. */
+function gearVerdict(cls, cw, gear, v) {
+  const ok = gearsFor(cls, cw);
+  if (ok.includes(gear) || v < 1) return null;
+  return gear > Math.max(...ok) ? 'fast' : 'slow';
+}
+const gearBest = (cls, cw) => Math.max(...gearsFor(cls, cw));
+
+/** Changing down while holding go, the van slows to the new gear's speed at
+ *  this rate rather than braking: the engine is holding her back, not her
+ *  foot, so the animals do not feel it. */
+const ENGINE_EASE = 4;   // m/s^2
+
+/** Too fast for the road. The speed camera flashes once per stretch of road
+ *  (a stretch is a run of one class, and on the A28 one carriageway kind);
+ *  under reduced motion a toast says so instead of the white flash (port
+ *  plan section 5, Q5 and Q7). While it lasts the animals are jostled
+ *  harder, the comfort gauge falling at this many points a second on top of
+ *  its settling, and on a farm track the van throws up a dust cloud they
+ *  breathe. The van's own hard stops for traffic and crossing animals come
+ *  sooner at speed by themselves, and each one counts as rough driving. */
+const SPEEDING_JOSTLE = { track: 11, default: 8 };   // per second, against 6 settling
+const FLASH_S = 0.18, CAMERA_MARK_S = 1.6;
+
+/** The last few m/s before the gear's top come on slowly, so holding go in
+ *  first on a main road is a needle that leans and stops, not one that snaps
+ *  to 15 mph: she feels the gear holding the van back. */
+const TOP_OUT = 3.5;   // m/s over which the pull fades
+const TOP_PULL = 0.18; // what is left of it at the very top
+
+/** The prompt waits this long after the road changes before glowing, so a
+ *  short stretch of another class at a junction does not flicker the knobs. */
+const HINT_DELAY = 0.6;   // seconds
+
+/** A gear change lurches the van in the frame: back a little on an up-change,
+ *  forward on a down-change, over LURCH_S. Not under reduced motion. */
+const LURCH_M = 0.14, LURCH_S = 0.2;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+/** The gear lever. Every gear is always there, and picking one that suits
+ *  the road is what stops the prompt (gearHint): it stays her choice, and
+ *  so is ignoring it. */
+function setGear(n) {
+  if (n === car.gear) return;
+  const dir = Math.sign(n - car.gear);
+  car.gear = n;
+  car.lurch = { at: performance.now(), dir };
+  if (dash) dashboard.clunk(dash, dir);
+}
+
+/** Which knob glows: only while the gear she is in does not suit the road
+ *  (33A, Marcus, 2026-10-12), and then the road's best gear, once it has
+ *  wanted that knob for HINT_DELAY. In any suiting gear nothing glows, so
+ *  in second on a main road, where every gear suits, no knob does. It is a
+ *  hint she may ignore. road-gears.ts's stepGearHint. */
+function gearHint(dt) {
+  const suits = gearsFor(car.road, car.cw).includes(car.gear);
+  const want = car.arrived || suits ? 0 : gearBest(car.road, car.cw);
+  car.hintT = want && want === car.hintWant ? (car.hintT ?? 0) + dt : 0;
+  car.hintWant = want;
+  return car.hintT >= HINT_DELAY ? want : 0;
+}
+
+/** Metres the van sits off its pin in the frame, along its length: positive
+ *  is back down the screen. */
+function lurchM() {
+  if (!car.lurch || reduceMotion.matches) return 0;
+  const t = (performance.now() - car.lurch.at) / 1000 / LURCH_S;
+  return t >= 1 ? 0 : car.lurch.dir * LURCH_M * Math.sin(Math.PI * t);
+}
+
+/** What the gear she is in costs on this road, this frame. Returns whether
+ *  she is going faster than the road's best gear would take her in a gear
+ *  too fast for it. Too slow (first on the dual carriageway) is
+ *  traffic.js's: the traffic behind queues and beeps. */
+function gearCosts() {
+  car.verdict = gearVerdict(car.road, car.cw, car.gear, car.v);
+  const fast = car.verdict === 'fast';
+  if (fast && car.cameraStretch !== stretchAtS(car.s)) {
+    car.cameraStretch = stretchAtS(car.s);
+    car.cameraAt = performance.now();
+    car.cameras = (car.cameras ?? 0) + 1;   // for a test
+    if (reduceMotion.matches) toast('camera');
+  }
+  // The camera goes by the gear, as road-gears.ts's speedCameraFires does;
+  // the jostle and the dust go by the speed itself, so crawling behind a
+  // tractor in third rattles no one.
+  return fast && car.v > VAN_GEARS[gearBest(car.road, car.cw)] + 0.5;
+}
+
+/** The dust cloud on a farm track: puffs left behind the van's tail in the
+ *  world, so they stay where they were thrown up and the van drives out of
+ *  them, swelling and thinning over DUST_LIFE. */
+const DUST_LIFE = 1.8, DUST_RATE = 26;   // seconds; puffs a second
+const dust = [];
+let dustDue = 0;
+function stepDust(dt, raising, pos) {
+  for (const d of dust) d.age += dt;
+  while (dust.length && dust[0].age > DUST_LIFE) dust.shift();
+  if (!raising) { dustDue = 0; return; }
+  dustDue += dt * DUST_RATE * Math.min(1, car.v / GEARS[2]);
+  const back = (car.length || 4.8) / 2 + 0.4;
+  const cx = car.x - Math.cos(pos.h) * back, cy = car.y - Math.sin(pos.h) * back;
+  const nx = -Math.sin(pos.h), ny = Math.cos(pos.h);
+  for (; dustDue >= 1; dustDue--) {
+    const side = (Math.random() - 0.5) * VAN_W_M * 1.1;
+    dust.push({
+      x: cx + nx * side, y: cy + ny * side, age: 0, r: 0.6 + Math.random() * 0.5,
+      vx: nx * side * 0.5 - Math.cos(pos.h) * 1.2, vy: ny * side * 0.5 - Math.sin(pos.h) * 1.2,
+    });
+  }
+}
+function drawDust() {
+  const col = { spring: '200,184,146', summer: '214,196,152', autumn: '176,152,112', winter: '160,152,140' }[SEASON];
+  for (const d of dust) {
+    const f = d.age / DUST_LIFE;
+    const x = d.x + d.vx * d.age, y = d.y + d.vy * d.age, r = d.r + 3.2 * Math.sqrt(f);
+    ctx.fillStyle = `rgba(${col},${(0.68 * (1 - f) ** 1.3).toFixed(3)})`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+/** The speed camera going off: a brief white flash over the road (not under
+ *  reduced motion, where gearCosts toasts instead) and a small camera mark
+ *  at the top right of the road view, held a moment and faded. */
+function drawSpeedCamera(w, roadH, win) {
+  if (!car.cameraAt) return;
+  const t = (performance.now() - car.cameraAt) / 1000;
+  if (t < FLASH_S && !reduceMotion.matches) {
+    ctx.fillStyle = `rgba(255,255,255,${(0.7 * (1 - t / FLASH_S)).toFixed(3)})`;
+    ctx.fillRect(0, 0, w, roadH);
+  }
+  if (t >= CAMERA_MARK_S) return;
+  const a = Math.min(1, (CAMERA_MARK_S - t) / 0.4);
+  // Below the look-ahead window while it is open.
+  const x = w - 46, y = Math.max(Math.min(96, roadH * 0.25), win ? win.y + win.h + 10 : 0);
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.fillStyle = 'rgba(255,252,246,.94)';
+  ctx.beginPath(); ctx.roundRect(x - 4, y - 4, 40, 30, 9); ctx.fill();
+  ctx.fillStyle = '#3a3226';
+  ctx.beginPath(); ctx.roundRect(x + 3, y + 5, 26, 15, 3); ctx.fill();   // body
+  ctx.fillRect(x + 8, y + 1.5, 8, 4);                                     // top
+  ctx.fillStyle = '#f2d36b';
+  ctx.beginPath(); ctx.arc(x + 17, y + 12.5, 4.6, 0, Math.PI * 2); ctx.fill();   // lens
+  ctx.fillStyle = '#fffcf6';
+  ctx.beginPath(); ctx.arc(x + 25.5, y + 8.5, 1.6, 0, Math.PI * 2); ctx.fill();  // flash
+  ctx.restore();
+}
+
+/** One pixel of the child's map (birchie-roads.svg, 1800 x 1121) in metres,
+ *  the same on both axes. Graph node (fx, fy) is map pixel (fx*1800, fy*1121). */
+const METRES_PER_MAP_PX = METRES_PER_UNIT / 1121;
+function mapToWorld(px, py) { return { x: px * METRES_PER_MAP_PX, y: py * METRES_PER_MAP_PX }; }
+
+/** Where shadows fall, in world metres per metre of height. Fixed in the
+ *  world, so when the camera turns every shadow — the van's included — swings
+ *  round on screen together, as a real sun would. */
+const SUN = { x: 0.45, y: 0.3 };
+
+/** The season follows the real date (docs/world-coherence-rule-2026-10-11.md
+ *  section 7), on the British meteorological calendar. ?season= overrides it
+ *  so each can be looked at. */
+const SEASON = (() => {
+  const q = new URLSearchParams(location.search).get('season');
+  if (['spring', 'summer', 'autumn', 'winter'].includes(q)) return q;
+  const m = new Date().getMonth() + 1;
+  return m >= 3 && m <= 5 ? 'spring' : m >= 6 && m <= 8 ? 'summer' : m >= 9 && m <= 11 ? 'autumn' : 'winter';
+})();
+
+/** How hard the van stops itself when the child has not braked for something
+ *  ahead. There is never an accident; this stop is the cost, felt by whoever
+ *  is in the back. */
+const EMERGENCY = 26;  // m/s^2
+const FELT_S = 0.1;    // s: how long a stop takes to be felt
+
+const canvas = document.getElementById('c');
+let ctx = canvas.getContext('2d');   // let: the look-ahead window borrows it to paint its ground (groundInto)
+
+let graph = null, adj = null, route = [], routeLen = 0;
+/** Trikey's own roads on ?van=trikey (trikeyRoads.create): her graph, the
+ *  game graph without the A28 plus her paths, its junctions split by side and
+ *  joined only at the lights she may cross at. Every route she drives is
+ *  found over it, as the game's trikey-links.ts finds it. null for a van. */
+let trike = null, trikeShown = null;
+/** Her toucan crossings on this route (lights.js), or null. */
+let lit = null;   // and where her nodes are drawn (trikeyRoads.clearOfA28)
+const TRIKEY = VAN_ID === 'trikey';
+/** The graph a route's nodes index: hers for Trikey, the game graph else. */
+function routeGraph() { return trike ? trike.tg : graph; }
+let vanImg = null;
+let scn = null, trf = null, xing = null;
+let fuelState = null;   // the van's fuel or Spark's battery (drive-spike/fuel.js)
+let dash = null, roads = null;   // the dashboard, and every road in metres for its GPS
+const la = lookAhead.create({ atDistance, laneOffset, length: () => routeLen });
+
+// -------------------------------------------------------------- graph + route
+
+/** OSM class of the edge between two nodes, either way round. The route knows
+ *  which edges it uses, so its road class is a lookup, not a nearest-edge
+ *  search that can flicker between two roads at a junction. */
+const edgeCls = new Map();
+const edgeKey = (i, j) => i * 4096 + j;
+
+/** What each A28 (trunk) edge really is, from trunk-carriageways.json, keyed
+ *  like edgeCls: { kind: 'dual'|'divided'|'single', maxspeedMph, lanes }.
+ *  Without the file every trunk edge is a dual carriageway, as before. */
+const edgeCw = new Map();
+const cwByEdge = new Map();   // graph edge index -> record
+function loadCarriageways(json) {
+  for (const c of json?.edges ?? []) {
+    const e = graph.edges[c.edge];
+    if (!e || e[2] !== 'trunk' || e[0] !== c.nodes[0] || e[1] !== c.nodes[1]) continue;   // a stale file
+    const rec = { kind: c.kind, maxspeedMph: c.maxspeedMph, lanes: c.lanes };
+    cwByEdge.set(c.edge, rec);
+    edgeCw.set(edgeKey(e[0], e[1]), rec); edgeCw.set(edgeKey(e[1], e[0]), rec);
+  }
+}
+
+function buildAdjacency(g) {
+  const a = g.nodes.map(() => []);
+  for (const [i, j, cls] of g.edges) {
+    if (i < 0 || j < 0 || i >= g.nodes.length || j >= g.nodes.length) continue;
+    const w = segLen(g.nodes[i], g.nodes[j]);
+    a[i].push([j, w]); a[j].push([i, w]);
+    edgeCls.set(edgeKey(i, j), cls); edgeCls.set(edgeKey(j, i), cls);
+  }
+  return a;
+}
+function segLen(p, q) { return Math.hypot((p[0] - q[0]) * ASPECT, p[1] - q[1]); }
+
+/** Dijkstra, plain array frontier — 937 nodes, run once per route. */
+function shortestPath(s, t) {
+  const n = adj.length, dist = new Float64Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1);
+  const done = new Uint8Array(n);
+  dist[s] = 0;
+  for (;;) {
+    let u = -1, best = Infinity;
+    for (let i = 0; i < n; i++) if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
+    if (u < 0 || u === t) break;
+    done[u] = 1;
+    for (const [v, w] of adj[u]) if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; prev[v] = u; }
+  }
+  if (dist[t] === Infinity) return null;
+  const path = []; for (let v = t; v >= 0; v = prev[v]) path.push(v);
+  return path.reverse();
+}
+
+/** Node path to a world-space polyline in metres, with cumulative distance. */
+function toPolyline(path) {
+  // Each point and the node it stands for. Trikey's are where clearOfA28
+  // draws them, and her step over the A28 goes by the lights: along the
+  // pavement, straight over, along the far pavement (trikeyRoads.routePoints).
+  const pts = trikeShown
+    ? trikeyRoads.routePoints(trike, trikeShown, path).map(p => ({ x: p.x, y: p.y, s: 0, cls: p.cls, node: p.node }))
+    : path.map(i => ({ x: graph.nodes[i][0] * ASPECT * METRES_PER_UNIT, y: graph.nodes[i][1] * METRES_PER_UNIT, s: 0, node: i }));
+  pts.nodes = pts.map(p => p.node);
+  for (let i = 1; i < pts.length; i++) {
+    pts[i].s = pts[i - 1].s + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    if (!trikeShown) pts[i].cls = edgeCls.get(edgeKey(path[i - 1], path[i])) ?? 'tertiary';
+    pts[i].cw = pts[i].cls === 'trunk' ? edgeCw.get(edgeKey(path[i - 1], path[i])) ?? null : null;
+  }
+  pts[0].cls = pts[1]?.cls ?? 'tertiary';
+  pts[0].cw = pts[1]?.cw ?? null;
+  // A stretch is a run of one class (and on the A28, one carriageway kind):
+  // the speed camera flashes at most once on each.
+  const kindOf = p => p.cls + ':' + (p.cw?.kind ?? '');
+  for (let i = 0; i < pts.length; i++) {
+    pts[i].stretch = i > 1 && kindOf(pts[i]) === kindOf(pts[i - 1]) ? pts[i - 1].stretch : i;
+  }
+  return pts;
+}
+
+/** The index of the route point ending the segment s falls on. */
+function segAtS(s) {
+  const p = route;
+  let i = 1;
+  while (i < p.length - 1 && p[i].s < s) i++;
+  return Math.min(i, p.length - 1);
+}
+/** The road class at distance s: the class of the segment s falls on. */
+function classAtS(s) { return route[segAtS(s)].cls; }
+/** The A28 carriageway at s, or null off it (or without the data). */
+function cwAtS(s) { return route[segAtS(s)].cw ?? null; }
+/** What traffic.js should take the road at s for: its 'trunk' is the dual
+ *  carriageway (fast traffic, a queue behind a van in first), so the A28's
+ *  divided and single stretches are main roads to it. Their lanes are the
+ *  page's laneOffset, which traffic.js reads for where the oncoming lane is. */
+function trafficClassAt(s) {
+  const cls = classAtS(s);
+  if (cls === 'crossing') return 'path';   // no traffic drives along her crossing
+  return cls === 'trunk' && !bigRoadAt(s) ? 'secondary' : cls;
+}
+/** Whether a lane change is possible at s: not on a divided stretch with one
+ *  lane each way, where a kerbed island splits the road. */
+function canOvertakeAt(s) {
+  const c = classAtS(s) === 'trunk' ? cwAtS(s) : null;
+  return !(c && c.kind === 'divided' && c.lanes < 2);
+}
+function stretchAtS(s) { return route[segAtS(s)].stretch; }
+/** world-camera.ts's bigRoadAt: the real dual carriageway, or a trunk edge
+ *  with no record, which counts as one as every trunk edge did before. */
+function bigRoadAt(s) {
+  if (classAtS(s) !== 'trunk') return false;
+  const c = cwAtS(s);
+  return !c || c.kind === 'dual';
+}
+
+/** Position and heading at distance s along the route. */
+function atDistance(s) {
+  const p = route;
+  if (s <= 0) return { x: p[0].x, y: p[0].y, h: Math.atan2(p[1].y - p[0].y, p[1].x - p[0].x) };
+  let i = 1;
+  while (i < p.length - 1 && p[i].s < s) i++;
+  const a = p[i - 1], b = p[i];
+  const t = (s - a.s) / Math.max(1e-6, b.s - a.s);
+  return {
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+    h: Math.atan2(b.y - a.y, b.x - a.x),
+  };
+}
+
+/** The destinations' own names, as `packages/game-logic/src/destinations.ts`
+ *  labels them, keyed by the graph's anchor ids. */
+const PLACE_NAME = {
+  'arc': 'A.R.C.', 'vet': 'Bay Road Vets', 'village-hall': 'Village Hall',
+  'bramble-farm': 'Bramble Farm', 'cove-harbour': 'Cove Harbour',
+  'pinebark-medical': 'Pinebark Medical', 'goose-end-farm': 'Goose End Farm',
+  'bay-chapel': 'Bay Chapel', 'moorland': 'Moorland', 'woodland': 'Woodland',
+  'sea-cliffs': 'Sea Cliffs', 'deep-forest': 'Deep Forest', 'wetlands': 'Wetlands',
+  'hog-hospital': "Freckle's Little Hog Hospital", 'wilderwood': 'Wilderwood',
+};
+let dest = null, from = null, routeNodes = [];
+
+/** A route between two destinations. From `fromId` when given, so that after
+ *  pulling up somewhere the next drive sets off from there. */
+function pickRoute(fromId, toId) {
+  const ids = Object.keys(graph.anchors);
+  // Trikey: only to a place she can ride to on her own roads, never one too
+  // far for Trikey (trikeyRoads.pickTrip), from where she pulled up.
+  for (let tries = 0; trike && tries < 40; tries++) {
+    const trip = trikeyRoads.pickTrip(trike, Math.random, fromId);
+    if (!trip || trip.path.length < 2) continue;
+    route = toPolyline(trip.path);
+    routeLen = route[route.length - 1].s;
+    dest = trip.to; from = trip.from; routeNodes = route.nodes;
+    if (trip.path.length >= 12 && routeLen > 1200) break;
+  }
+  for (let tries = 0; !trike && tries < 40; tries++) {
+    const aId = fromId ?? ids[(Math.random() * ids.length) | 0];
+    const bId = toId ?? ids[(Math.random() * ids.length) | 0];
+    if (aId === bId) continue;
+    const path = shortestPath(graph.anchors[aId], graph.anchors[bId]);
+    if (!path || path.length < 12) continue;
+    route = toPolyline(path);
+    routeLen = route[route.length - 1].s;
+    dest = bId; from = aId; routeNodes = path;
+    if (routeLen > 1200) break;
+  }
+  tripStrip.setRoute(strip, {
+    route, nodes: routeNodes, graph: routeGraph(), total: routeLen - STOP_SHORT_M, from, dest,
+    nameOf: id => PLACE_NAME[id], atDistance,
+    toWorld: (fx, fy) => ({ x: fx * ASPECT * METRES_PER_UNIT, y: fy * METRES_PER_UNIT }),
+    roadHalfAt: s => roadWidth(classAtS(s), cwAtS(s)) / 2,
+  });
+  car.arrived = 0;
+  car.cameraStretch = null;
+  trf = traffic.create({
+    length: routeLen,
+    atDistance,
+    laneOffset,
+    roadClassAt: trafficClassAt,
+    laneWidth: LANE_M,
+  });
+  xing = crossings.create({
+    length: routeLen, atDistance, laneOffset, roadClassAt: classAtS, laneWidth: LANE_M,
+  }, { graph, mapToWorld, season: SEASON });
+  window.__xing = xing;   // as window.__drive: lets a test find a crossing
+  // Her toucan crossings of the A28 on this route (lights.js), each with the
+  // A28's own traffic there.
+  lit = trike ? lights.create({ points: route, length: routeLen, atDistance }, {
+    graph, insideA28: trikeShown.insideA28, lane: LANE_M, island: ISLAND_M,
+    toWorld: (fx, fy) => ({ x: fx * ASPECT * METRES_PER_UNIT, y: fy * METRES_PER_UNIT }),
+    a28Of: k => {
+      const cw = cwByEdge.get(k) ?? null;
+      return { kind: cw?.kind ?? 'dual', lanes: cw?.lanes ?? 2, mph: cw?.maxspeedMph ?? 30, half: roadWidth('trunk', cw) / 2 };
+    },
+  }) : null;
+  window.__lights = lit;
+  // And what this route is: its places, its roads by class, and for Trikey
+  // whether it keeps her rule (trikeyRoads.a28Breaches, empty when it does).
+  window.__routeInfo = () => {
+    const classes = {};
+    for (let i = 1; i < route.length; i++) classes[route[i].cls] = (classes[route[i].cls] ?? 0) + (route[i].s - route[i - 1].s);
+    for (const k in classes) classes[k] = Math.round(classes[k]);
+    const crossingsAt = [];
+    for (let i = 1; i < route.length; i++) if (route[i].cls === 'crossing') crossingsAt.push([Math.round(route[i - 1].s), Math.round(route[i].s)]);
+    return { van: VAN_ID, from, dest, metres: Math.round(routeLen), classes, crossingsAt,
+      breaches: trike ? trikeyRoads.a28Breaches(trike, routeNodes.filter((n, i) => !i || n !== routeNodes[i - 1])) : null,
+      reachable: trike ? trikeyRoads.reachableFrom(trike, from) : null };
+  };
+  window.__trf = trf;     // and see why the overtaking lane is refused (__trf.last.unsafe)
+}
+
+// ---------------------------------------------------------------- the driving
+
+const car = { s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, road: 'tertiary', jostle: 0,
+  ask: 0, peek: true, peekT: 0, peekSafe: false, returning: false,
+  gears: VAN_GEARS };   // its own speed in each gear, for traffic.js to plan an overtake at
+
+/** Poking out to look before overtaking (Marcus, 2026-10-12, 37A). Her
+ *  swipe towards the middle of the road (or how long she holds →) is
+ *  car.ask, 0 to 1. Up to halfway the van eases out that share of PEEK_T
+ *  across, to look past what is in front; let go before halfway and it
+ *  eases back. Past halfway it overtakes, but only when traffic.js says
+ *  the road allows it: otherwise it stays at the look, and eases back when
+ *  she lets go. The look never goes further than traffic.js's peekMax,
+ *  which keeps it clear of anything coming the other way. A sign by the
+ *  centre line ahead of the van says wait or go while she looks. */
+const PEEK_T = 0.38;          // the furthest look: her offside wheels just over the centre line
+const SWIPE_FULL_PX = 96;     // a swipe this far right asks for the whole way; half of it overtakes
+const KEY_FULL_S = 1.4;       // holding → this long asks for the whole way (0.7 s to overtake)
+let keyRight = false, prevWant = 0;
+function peekStep(dt, t) {
+  const mayOvertake = !t.laneBlocked && canOvertakeAt(car.s);
+  if (car.laneWant === 1) car.returning = false;
+  else if (prevWant === 1) car.returning = true;           // coming back in from an overtake
+  if (car.returning && car.laneT <= 0.001) car.returning = false;
+  if (car.laneWant === 0 && !car.returning) {
+    if (keyRight) car.ask = Math.min(1, car.ask + dt / KEY_FULL_S);
+    if (car.ask >= 0.5 && mayOvertake) { car.laneWant = 1; car.ask = 0; }
+  } else car.ask = 0;
+  prevWant = car.laneWant;
+  car.peek = car.laneWant === 0 && !car.returning;
+  car.peekT = car.peek && canOvertakeAt(car.s)
+    ? Math.min(1, car.ask / 0.5) * Math.min(PEEK_T, t.peekMax ?? 0) : 0;
+  car.peekSafe = mayOvertake;
+}
+/** Let go: a look not yet past halfway eases back in. */
+function letGo() { if (car.laneWant === 0) car.ask = 0; }
+
+/** The camera's own heading, which is NOT the route's. The route is straight
+ *  segments between graph nodes, so its tangent snaps by up to 55 degrees at a
+ *  corner — measured, and it is exactly the jerkiness the corridor renderer was
+ *  blamed for. Two things fix it: aim at a point some way ahead rather than at
+ *  the current segment, and ease towards that aim instead of jumping to it.
+ *
+ *  Drawing the van at the difference between its own heading and the camera's
+ *  is what gives the reference game its look: the world swings through a bend
+ *  while the car turns only a little in the frame. */
+let camH = null;
+const LOOKAHEAD_M = 20, LOOKAHEAD_MAX_M = 28;
+const CAM_EASE = 3.4;       // per second
+
+function wrapAngle(a) { return Math.atan2(Math.sin(a), Math.cos(a)); }
+
+/** How close the camera sits, by speed and by place. Marcus, 2026-10-11:
+ *  going fast is for overview, seeing far ahead; going slowly, on the small
+ *  lanes and pulling up at a farm or a rewilding site, is for detail — a
+ *  small animal crossing the road. So the zoom is set by how fast the van is
+ *  going, sits closer on the small roads, closer still at the destination,
+ *  and never closer than the dual carriageway's width allows. 1 is the scale
+ *  measured against the reference: van 13.6% of the screen's width. */
+const ZOOM_FAST = 0.66;                          // at top speed
+const ZOOM_STILL = { lane: 1.35, road: 1.15 };   // standing, small road / other
+const ZOOM_ARRIVE = 1.6;                         // pulled up at the gate
+const ARRIVE_ZOOM_M = 120;                       // how far out the arrival zoom begins
+const SMALL_ROADS = new Set(['residential', 'unclassified', 'track', 'path', 'crossing']);
+const PULL_UP = 2.5;          // m/s^2, the gentle stop at the destination
+const STOP_SHORT_M = 6;       // stop this far before the anchor node
+const ARRIVED_WAIT_MS = 3500; // then set off for somewhere new
+
+/** In a town or a village, held upright, the camera pulls back so the
+ *  houses either side of the street show (Marcus, 2026-10-12, 59A: "only
+ *  about 5 m of roadside shows, so the buildings and the landmark
+ *  fingerposts barely appear"): there it sits no closer than ZOOM_TOWN.
+ *  The van shrinks a little and stays the biggest thing on the street.
+ *  Lanes and tracks in open country keep their close-up for the animals,
+ *  and so does a street where an animal is about to cross; the close-in at
+ *  the gate still wins on arrival. Held sideways the screen is wide enough
+ *  already, so nothing changes there. town is 0 to 1 (scenery.js's
+ *  townAt: inside an OSM housing area, or where houses line the road),
+ *  eased, so the pull comes and goes with the speed-and-place zoom's own
+ *  easing. */
+const TOWN_Q = VIEW_Q.get('townzoom');   // ?townzoom= tries another; 0 turns it off
+const ZOOM_TOWN = TOWN_Q === '0' ? Infinity : Number(TOWN_Q) || 0.72;
+const TOWN_AHEAD_M = 30;      // look this far up the road too, to pull back before the first houses
+const TOWN_EASE = 1.5;        // per second
+
+function zoomTarget(bigAhead, toGo) {
+  const still = SMALL_ROADS.has(car.road) ? ZOOM_STILL.lane : ZOOM_STILL.road;
+  const f = Math.min(1, car.v / GEARS[3]);
+  let z = still + (ZOOM_FAST - still) * f;
+  if (car.town > 0) z += (Math.min(z, ZOOM_TOWN) - z) * car.town;
+  if (toGo < ARRIVE_ZOOM_M) z += (ZOOM_ARRIVE - z) * (1 - toGo / ARRIVE_ZOOM_M);
+  if (bigAhead) z = Math.min(z, BIG_ROAD_ZOOM);
+  return z;
+}
+/** How much the road here and just ahead is a town's or a village's, 0 to
+ *  1, for ZOOM_TOWN: 0 held sideways, on a farm track, and where an animal
+ *  is about to cross. */
+function townHere() {
+  if (!scn || window.innerWidth > window.innerHeight || car.road === 'track') return 0;
+  const animal = xing?.crossings?.some(c => c.state !== 'none' && c.state !== 'gone'
+    && c.s > car.s - 5 && c.s - car.s < 60);
+  if (animal) return 0;
+  const a = atDistance(car.s), b = atDistance(Math.min(routeLen, car.s + TOWN_AHEAD_M));
+  return Math.max(scenery.townAt(scn, a.x, a.y), scenery.townAt(scn, b.x, b.y));
+}
+let throttle = false, handbrake = false;
+
+/** The guide line's switch is on the dashboard (Marcus, 2026-10-11, answer
+ *  11C: the game has no settings screen). On by default, because a younger
+ *  child cannot read the road fast enough without it. The choice is kept in
+ *  localStorage under the key and the 'off' marker the game's own
+ *  `lib/guide-line-preference.ts` uses, so the port inherits it; only the
+ *  departure from the default is written. Storage can refuse (a private
+ *  window), so every access is guarded and the choice then lasts the session. */
+const GUIDE_KEY = 'arc_guide_line', GUIDE_OFF = 'off';
+let showGuide = (() => {
+  try { return localStorage.getItem(GUIDE_KEY) !== GUIDE_OFF; } catch { return true; }
+})();
+function setGuide(on) {
+  showGuide = on;
+  try {
+    if (on) localStorage.removeItem(GUIDE_KEY); else localStorage.setItem(GUIDE_KEY, GUIDE_OFF);
+  } catch { /* the choice still holds for this session */ }
+}
+
+/** Lateral offset of a lane's centre from the route's centreline, metres,
+ *  negative to the left. Lane 0 is ours (keep left), lane 1 is the overtaking
+ *  side: the oncoming lane on an ordinary road, the fast lane on the dual
+ *  carriageway, where both our lanes sit left of the grass strip. A track is
+ *  single and unmarked, so the van drives down its middle. Without s it
+ *  answers for an ordinary 10m road, which is what traffic.js assumes. */
+function laneOffset(lane, s) {
+  const cls = s == null ? null : classAtS(s);
+  const cw = cls === 'trunk' ? cwAtS(s) : null;
+  if (cls === 'trunk' && (!cw || cw.kind === 'dual')) {
+    const w = TRUNK_LANE_M;
+    return -(RESERVATION_M / 2 + (lane === 0 ? 1.5 : 0.5) * w);
+  }
+  // Divided: our carriageway is left of the island. Two lanes each way, and
+  // lane 1 is our own fast lane, as on the dual; one each way, and there is
+  // no overtaking across a kerb, so lane 1 is lane 0.
+  if (cw && cw.kind === 'divided') {
+    return -(ISLAND_M / 2 + (cw.lanes >= 2 && lane === 0 ? 1.5 : 0.5) * LANE_M);
+  }
+  if (cls === 'track' || cls === 'path' || cls === 'crossing') return 0;
+  const quarter = (cls ? roadWidth(cls, cw) : 2 * LANE_M) / 4;   // a lane is half the road
+  return lane === 0 ? -quarter : quarter;
+}
+
+function step(dt) {
+  car.length = VAN_W_M * (vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0);
+  car.width = VAN_W_M;
+  // Every vehicle, either way, stops for an animal crossing; an animal steps
+  // out only when every vehicle can (Marcus, 2026-10-12).
+  const t = trf ? traffic.step(trf, dt, car, { closed: xing ? crossings.closed(xing) : [] })
+    : { speedCap: Infinity, laneBlocked: false, events: [] };
+  const x = xing ? crossings.step(xing, dt, car, trf ? trf.vehicles : []) : { speedCap: Infinity, events: [] };
+  t.speedCap = Math.min(t.speedCap, x.speedCap);
+  // At her crossing of the A28 she stops at the kerb by herself and waits
+  // for the green cycle: a safety stop, never a jostle.
+  const lt = lit ? lights.step(lit, dt, car, throttle) : null;
+  if (lt) { t.speedCap = Math.min(t.speedCap, lt.speedCap); t.events.push(...lt.events); }
+  car.nudge = lt ? lt.nudge : 0;
+  if (t.laneBlocked || !canOvertakeAt(car.s)) car.laneWant = 0;
+  // Something is alongside in our own lane: a swipe back now would be a
+  // side-on touch, so traffic holds the van out until there is room.
+  if (t.laneHold) car.laneWant = 1;
+  peekStep(dt, t);
+  for (const ev of [...t.events, ...x.events]) toast(ev, TOAST_MS[ev]);
+
+  // Pulling up at the destination. The van eases to a stop at the gate on
+  // its own, as the route steers on its own: the stop lowers the speed she
+  // can ask for, so it is a gentle stop, not a jostle.
+  const toGo = routeLen - car.s;
+  const arriveCap = Math.sqrt(2 * PULL_UP * Math.max(0, toGo - STOP_SHORT_M));
+  // The gear sets how fast go is, on every road: third on a lane is third.
+  const gearV = VAN_GEARS[car.gear];
+  // Out of fuel she cannot go: the van pulls onto the verge for the tow.
+  const target = Math.min(throttle && (!fuelState || fuel.canGo(fuelState)) ? gearV : 0, arriveCap);
+  let emergency = 0, capped = 0;
+  if (car.v > t.speedCap) {
+    // Something is ahead and the child has not braked: the van does it.
+    const v0 = car.v;
+    car.v = Math.max(t.speedCap, car.v - EMERGENCY * dt);
+    capped = (v0 - car.v) / dt;
+  } else if (handbrake) car.v = Math.max(0, car.v - HANDBRAKE * dt);
+  else if (car.v < target) {
+    const pull = Math.max(TOP_PULL, Math.min(1, (gearV - car.v) / TOP_OUT));
+    car.v = Math.min(target, t.speedCap, car.v + ACCEL * pull * dt);
+  } else if (throttle && target === gearV) car.v = Math.max(target, car.v - ENGINE_EASE * dt);
+  else car.v = Math.max(target, car.v - BRAKE * dt);
+  // Only a genuinely hard stop, harder than letting go, is felt in the back:
+  // settling in behind a slower vehicle trims the speed a little at a time
+  // and is not rough driving (it used to count, every frame of a follow).
+  // Felt over a tenth of a second, as a body would.
+  car.felt = (car.felt ?? 0) + (capped - (car.felt ?? 0)) * (1 - Math.exp(-dt / FELT_S));
+  if (capped > 0 && car.felt > BRAKE + 0.5) emergency = car.felt;
+  car.gearHint = gearHint(dt);
+  const speeding = gearCosts();
+
+  car.s = Math.min(routeLen - STOP_SHORT_M, car.s + car.v * dt);
+  if (toGo <= STOP_SHORT_M + 0.5 && car.v < 0.2) {
+    if (!car.arrived) { car.arrived = performance.now(); toast(PLACE_NAME[dest] ?? dest); }
+    else if (performance.now() - car.arrived > ARRIVED_WAIT_MS) {
+      pickRoute(dest); car.s = 0; car.v = 0; car.base = null; camH = null;
+    }
+  }
+
+  // Two things move the van sideways and only one is a swerve. laneT is the
+  // child's choice of lane, 0 to 1 across, eased at 7 m/s of sidestep: that
+  // is what the animals feel. base is the road's own shape moving under the
+  // van — a lane widening, joining the dual carriageway — eased separately
+  // and never counted, because following the road is not rough driving.
+  const off0 = laneOffset(0, car.s), off1 = laneOffset(1, car.s);
+  const span = Math.abs(off1 - off0) || LANE_M;
+  const stepT = 7 * dt / span;
+  const goal = car.laneWant === 1 ? 1 : car.peek ? car.peekT : 0;
+  const dT = Math.max(-stepT, Math.min(stepT, goal - car.laneT));
+  car.laneT += dT;
+  if (car.base == null) car.base = off0;
+  car.base += Math.max(-4 * dt, Math.min(4 * dt, off0 - car.base));
+  car.lane = car.base + car.laneT * (off1 - off0);
+  // Run dry, the van pulls over onto the verge on the left (fuel.js).
+  if (fuelState) car.lane += fuel.vergeT(fuelState) * Math.sign(off0 - off1 || -1) * (LANE_M / 2 - VAN_W_M / 2 + 0.9);
+
+  // How much the animals in the back feel it. Hard braking and swerving both
+  // count; it settles while the driving is smooth. With animals aboard enough
+  // of this means pulling over to calm them. On a delivery run with no animals
+  // it costs cargo instead, and the child may drive as badly as they like.
+  const swerve = Math.abs(dT) * span / Math.max(1e-6, dt);
+  const decel = emergency || (handbrake ? HANDBRAKE : 0);
+  const rattle = speeding ? (SPEEDING_JOSTLE[car.road] ?? SPEEDING_JOSTLE.default) : 0;
+  car.jostle = Math.max(0, Math.min(100,
+    car.jostle + (swerve * 1.6 + decel * 0.5 + rattle) * dt - 6 * dt));
+  if (emergency) car.selfStops = (car.selfStops ?? 0) + dt;   // for a test: rough driving
+
+  const pos = atDistance(car.s);
+  const nx = Math.cos(pos.h + Math.PI / 2), ny = Math.sin(pos.h + Math.PI / 2);
+  car.x = pos.x + nx * car.lane; car.y = pos.y + ny * car.lane;
+  car.road = classAtS(car.s);
+  car.cw = cwAtS(car.s);
+  car.heading = pos.h;
+  if (fuelState) fuel.step(fuelState, dt, car.v * dt, car.road, car);
+  stepDust(dt, speeding && car.road === 'track', pos);
+
+  // Zoom out before the dual carriageway, not on it, so the wider road is
+  // already framed when the van arrives. Out is quicker than in: seeing
+  // ahead when speeding up matters more than detail when slowing down.
+  const bigAhead = bigRoadAt(car.s) || bigRoadAt(car.s + 40);
+  const townNow = townHere();
+  car.town = (car.town ?? townNow) + (townNow - (car.town ?? townNow)) * (1 - Math.exp(-TOWN_EASE * dt));
+  const zt = zoomTarget(bigAhead, toGo);
+  const rate = zt < zoom ? 1.5 : 0.7;
+  zoom *= Math.exp(Math.log(zt / zoom) * (1 - Math.exp(-rate * dt)));
+  car.zoom = zoom;
+
+  // Aim at where the route is some way ahead, not at the segment underfoot:
+  // 20 metres, or further when the view shows more road ahead (the van sits
+  // low, and pulled out at speed), so the road up the screen stays in view
+  // through a bend.
+  const aimM = Math.min(LOOKAHEAD_MAX_M, Math.max(LOOKAHEAD_M, 0.7 * (car.view?.ahead ?? 0)));
+  const ahead = atDistance(Math.min(routeLen - 1, car.s + aimM));
+  const aim = Math.atan2(ahead.y - pos.y, ahead.x - pos.x);
+  if (camH === null) camH = aim;
+  else camH += wrapAngle(aim - camH) * Math.min(1, CAM_EASE * dt);
+  car.camH = camH;
+
+  lookAhead.step(la, dt, lookOut(), reduceMotion.matches);
+  window.__drive = car;   // so a test can read the state without a screenshot
+}
+
+/** How far the look-ahead window is in, 0 to 1: as far as she is poking out
+ *  to look (how far the van has eased out, or how far she has asked to,
+ *  where something coming stops it easing); all the way while she
+ *  overtakes into the oncoming lane, closing as she comes back in. Shut
+ *  where the sign by the centre line is not shown, and in her own second
+ *  lane on the dual carriageway, where there is nothing coming to see. */
+function lookOut() {
+  if (!canOvertakeAt(car.s) || car.arrived) return 0;
+  if (Math.abs(laneOffset(1, car.s) - laneOffset(0, car.s)) < 1e-3) return 0;
+  if (car.peek) return Math.min(1, Math.max(car.laneT / PEEK_T, car.ask / 0.5));
+  const ownLane = bigRoadAt(car.s) || (car.cw?.kind === 'divided' && car.cw.lanes >= 2);
+  if (ownLane) return 0;
+  return car.laneWant === 1 ? 1 : car.laneT;
+}
+
+/** What makes the overtaking lane unsafe now, for the look-ahead window to
+ *  ring: the nearest vehicle coming the other way, the bend, the change of
+ *  road or the farm track, as traffic.js's last step found it (its
+ *  T.last.unsafe and its own lists, read and never changed). null when it
+ *  is safe, or the reason is not one it can point at. */
+function lookReason() {
+  const why = trf?.last?.unsafe;
+  if (!why) return null;
+  const front = car.s + (car.length || 4.8) / 2;
+  if (why === 'oncoming') {
+    let best = null;
+    for (const w of trf.vehicles) {
+      if (w.dir < 0 && w.s + w.L / 2 > car.s - 2 && (!best || w.s < best.s)) best = w;
+    }
+    return best && { s: best.s, lat: best.d, r: Math.max(best.L, best.W) / 2 + 0.8 };
+  }
+  const first = list => {
+    let b = null;
+    for (const x of list ?? []) if (x >= front - 10 && (b === null || x < b)) b = x;
+    return b;
+  };
+  const at = why === 'bend' ? first(trf.bends) : why === 'road ends' ? first(trf.boundaries) : null;
+  if (at !== null) return { s: at, lat: 0, r: 5 };
+  if (why === 'track') {
+    for (const [a, b] of trf.tracks ?? []) if (b >= car.s - 5) return { s: Math.max(a, front), lat: 0, r: 5 };
+  }
+  return null;
+}
+
+/** How far up the road the window looks when nothing makes it unsafe:
+ *  about as far as an overtake there needs to be clear. */
+const LOOK_CLEAR_M = 100;
+
+// ------------------------------------------------------------------ rendering
+
+function resize() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const landscape = window.innerWidth > window.innerHeight;
+  const w = FULL_WIDTH || landscape ? window.innerWidth : Math.min(window.innerWidth, 430), h = window.innerHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function draw() {
+  // The canvas's own CSS size: resize() caps its pixel ratio at 2, so
+  // dividing by devicePixelRatio came out short on a 3x phone.
+  const w = parseFloat(canvas.style.width) || canvas.width;
+  const h = parseFloat(canvas.style.height) || canvas.height;
+  const pos = atDistance(car.s);
+
+  // The van rides at a lateral offset from the route's centreline, so the
+  // camera still follows the route and only the van moves between lanes.
+  const nx = Math.cos(pos.h + Math.PI / 2), ny = Math.sin(pos.h + Math.PI / 2);
+  const camX = pos.x + nx * car.lane, camY = pos.y + ny * car.lane;
+
+  // The road view is the canvas above the dashboard; the van's spot is
+  // measured within it.
+  const stripH = dash ? dashboard.height(dash, w, h) : 0;
+  const roadH = h - stripH;
+  const ppm = PPM * zoom * zoomX(w, h);
+  const vanY = vanScreenY(w, h, roadH, ppm);
+
+  ctx.save();
+  ctx.fillStyle = '#8fbf6a';
+  ctx.fillRect(0, 0, w, h);
+
+  // Rotate the world so the route's heading points up the screen, and place
+  // the van's world position at its fixed spot.
+  ctx.translate(w * VAN_SX, vanY);
+  ctx.rotate(-(camH ?? pos.h) - Math.PI / 2);
+  ctx.scale(ppm, ppm);
+  ctx.translate(-camX, -camY);
+
+  const view = {
+    cx: camX, cy: camY, radius: Math.hypot(w, h) / ppm, camH: camH ?? pos.h,
+    ppm, season: SEASON, sun: SUN, dpr: canvas.width / w, reduce: reduceMotion.matches,
+  };
+  look.nextFrame();
+  const worldM = ctx.getTransform();
+  drawWorld(view, Math.max(w, h) / ppm);
+  ctx.restore();
+
+  drawVan(w, vanY, ppm);
+  // The crowns that reach over a wooded lane, over the van too (108A), faded
+  // round all she needs to see.
+  if (scn) {
+    ctx.save();
+    ctx.setTransform(worldM);
+    scenery.drawCanopy(ctx, scn, view, canopyHoles(view, camX, camY, pos));
+    ctx.restore();
+  }
+  drawPeekSign(w, vanY, ppm);
+  const vanTop = vanY - (car.length || 4.8) * ppm / 2;
+  const win = drawLookAhead(w, h, vanTop, pos);
+  drawSpeedCamera(w, roadH, win);
+  if (dash) {
+    dashboard.draw(ctx, dash, w, h, {
+      v: car.v, gear: car.gear, tooFast: car.verdict === 'fast', gearHint: car.gearHint,
+      handbrake, guide: showGuide, jostle: car.jostle,
+      fuel: fuelState ? fuel.level(fuelState) : null, fuelLow: !!fuelState && fuel.low(fuelState),
+      x: car.x, y: car.y, camH: camH ?? pos.h, route, s: car.s, roads,
+    });
+  }
+  // What a test needs to measure the view: metres of road ahead of the van.
+  car.view = { stripH, roadH, vanY, ppm, ahead: vanY / ppm, guide: showGuide, lightsMs,
+    look: win && { ...win, q: la.q, ms: la.drawn?.ms, scale: la.drawn?.scale, prof: la.drawn?.prof } };
+  updateHud(win);
+}
+
+/** What the crossing's drawing cost this frame, ms (for a test). */
+let lightsMs = 0;
+/** Everything in the world, under the road view's transform. */
+function drawWorld(view, roadR) {
+  if (scn) scenery.drawGround(ctx, scn, view);
+  drawRoads(view.cx, view.cy, roadR);
+  const l0 = performance.now();
+  if (lit) lights.drawGround(ctx, lit, view);
+  lightsMs = performance.now() - l0;
+  if (scn) scenery.drawObjects(ctx, scn, view);
+  tripStrip.drawSigns(ctx, strip, view);
+  if (showGuide) drawGuide();
+  if (trf) traffic.draw(ctx, trf, view);
+  const l1 = performance.now();
+  if (lit) lights.draw(ctx, lit, view);
+  lightsMs += performance.now() - l1;
+  if (xing) crossings.draw(ctx, xing, view);
+  if (dust.length) drawDust();
+}
+
+/** The look-ahead window (look-ahead.js), while she pokes out. Returns its
+ *  outside on screen, or null while it is shut. */
+function drawLookAhead(w, h, vanTop, pos) {
+  if (la.q <= 0) return null;
+  return lookAhead.draw(ctx, la, w, h, {
+    van: { s: car.s, front: car.s + (car.length || 4.8) / 2, id: VAN_ID },
+    reason: lookReason(), horizon: car.s + LOOK_CLEAR_M,
+    safe: car.laneWant === 1 ? !trf?.last?.unsafe : car.peekSafe,
+    vanTop, season: SEASON, sun: SUN, reduce: reduceMotion.matches,
+  }, { ground: groundInto, scenery: scn, traffic: trf, footprint: traffic.footprint }, dash && {
+    frame: (g, x, y, ww, hh, b) => dashboard.windowFrame(g, dash, x, y, ww, hh, b),
+    glass: (g, R) => dashboard.windowGlass(g, R),
+  });
+}
+
+/** The ground and the roads, without anything upright, into another canvas
+ *  g under a transform it has set: the look-ahead window's view from behind
+ *  the van lays this flat on the road and stands everything else up. */
+function groundInto(g, view, roadR) {
+  const own = ctx;
+  ctx = g;
+  try {
+    if (scn) scenery.drawGround(g, scn, view);
+    drawRoads(view.cx, view.cy, roadR);
+  } finally { ctx = own; }
+}
+
+/** Stroke the segment (ax,ay)-(bx,by) shifted sideways by off metres. The
+ *  path is rebuilt at the offset: a canvas fixes a path's points when they
+ *  are added, so translating before stroke() moves nothing — which is how the
+ *  spike's first edge lines all landed on the centreline. */
+function strokeOffset(ax, ay, bx, by, off) {
+  const a = Math.atan2(by - ay, bx - ax) + Math.PI / 2;
+  const ox = Math.cos(a) * off, oy = Math.sin(a) * off;
+  ctx.beginPath(); ctx.moveTo(ax + ox, ay + oy); ctx.lineTo(bx + ox, by + oy); ctx.stroke();
+}
+
+/** Every edge whose midpoint is within the view radius, stroked by class. One
+ *  pass over 970 edges per frame is nothing, so there is no spatial index. */
+function drawRoads(cx, cy, radius) {
+  // The painted surface and hand-painted lines; at ?road=0 the flat look below.
+  if (roadPaint.draw(ctx, cx, cy, radius)) return;
+  const r2 = radius * radius;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const pass of ['surface', 'marking']) {
+    for (let k = 0; k < graph.edges.length; k++) {
+      const [i, j, cls] = graph.edges[k];
+      if (i < 0 || j < 0 || i >= graph.nodes.length || j >= graph.nodes.length) continue;
+      const a = graph.nodes[i], b = graph.nodes[j];
+      const ax = a[0] * ASPECT * METRES_PER_UNIT, ay = a[1] * METRES_PER_UNIT;
+      const bx = b[0] * ASPECT * METRES_PER_UNIT, by = b[1] * METRES_PER_UNIT;
+      const mx = (ax + bx) / 2 - cx, my = (ay + by) / 2 - cy;
+      if (mx * mx + my * my > r2 * 1.6) continue;
+      const cw = cls === 'trunk' ? cwByEdge.get(k) ?? null : null;
+      const kind = cls !== 'trunk' ? null : cw ? cw.kind : 'dual';
+      const width = roadWidth(cls, cw);
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+      if (pass === 'surface') {
+        ctx.strokeStyle = '#6c6f6b'; ctx.lineWidth = width; ctx.setLineDash([]); ctx.stroke();
+        if (cls === 'track') continue;
+        ctx.strokeStyle = '#f2ead8'; ctx.lineWidth = 0.3;
+        strokeOffset(ax, ay, bx, by, width / 2 - 0.4);
+        strokeOffset(ax, ay, bx, by, -(width / 2 - 0.4));
+      } else if (kind === 'divided') {
+        // A narrow kerbed island down the middle, a kerb line each side of
+        // it, and with two lanes each way a dashed line between them.
+        const half = ISLAND_M / 2;
+        ctx.strokeStyle = '#b9b3a3'; ctx.lineWidth = ISLAND_M; ctx.stroke();
+        ctx.strokeStyle = '#f2ead8'; ctx.lineWidth = 0.25;
+        strokeOffset(ax, ay, bx, by, half); strokeOffset(ax, ay, bx, by, -half);
+        if (cw.lanes >= 2) {
+          ctx.strokeStyle = '#f7f2e4'; ctx.lineWidth = 0.28; ctx.setLineDash([3, 4]);
+          strokeOffset(ax, ay, bx, by, half + LANE_M); strokeOffset(ax, ay, bx, by, -(half + LANE_M));
+          ctx.setLineDash([]);
+        }
+      } else if (kind === 'dual') {
+        // Two carriageways: a grass strip down the middle with a kerb line
+        // each side, and a dashed line between each pair of lanes.
+        const lw = TRUNK_LANE_M, half = RESERVATION_M / 2;
+        ctx.strokeStyle = '#7fae5c'; ctx.lineWidth = RESERVATION_M; ctx.stroke();
+        ctx.strokeStyle = '#f2ead8'; ctx.lineWidth = 0.25;
+        strokeOffset(ax, ay, bx, by, half); strokeOffset(ax, ay, bx, by, -half);
+        ctx.strokeStyle = '#f7f2e4'; ctx.lineWidth = 0.28; ctx.setLineDash([3, 4]);
+        strokeOffset(ax, ay, bx, by, half + lw); strokeOffset(ax, ay, bx, by, -(half + lw));
+        ctx.setLineDash([]);
+      } else if (cls !== 'track') {
+        ctx.strokeStyle = '#f7f2e4'; ctx.lineWidth = 0.28;
+        ctx.setLineDash([3, 4]); ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+  }
+}
+
+/** The guide line's points, world metres: the route ahead in her lane, each
+ *  with the kind of surface it lies on (road-paint.js's: main, worn, old or
+ *  track), which is what tints the line. */
+function guidePoints() {
+  const ahead = 90, out = [];
+  for (let d = 0; d <= ahead; d += 4) {
+    const p = atDistance(Math.min(routeLen, car.s + d));
+    const nx = Math.cos(p.h + Math.PI / 2), ny = Math.sin(p.h + Math.PI / 2);
+    const lane = car.laneWant === 1 || (car.peek && car.peekSafe && car.laneT > 0.02) ? 1 : 0;
+    const off = d < 12 ? car.lane : laneOffset(lane, car.s + d);
+    out.push([p.x + nx * off, p.y + ny * off, roadPaint.surfaceFor(classAtS(Math.min(routeLen, car.s + d)))]);
+  }
+  return out;
+}
+
+/** What the canopy over a lane must never hide (108A), as lines through
+ *  world points with a width in metres: the van, every vehicle, every
+ *  animal waiting or crossing, the guide line ahead and the fingerposts. */
+function canopyHoles(view, camX, camY, pos) {
+  const holes = [], r2 = (view.radius + 12) ** 2;
+  const body = (x, y, h, L, W, pad) => {
+    const ux = Math.cos(h), uy = Math.sin(h), half = Math.max(0, L / 2 - W / 2);
+    holes.push({ pts: [[x - ux * half, y - uy * half], [x + ux * half, y + uy * half]], w: W + 2 * pad });
+  };
+  body(camX, camY, car.heading ?? pos.h, car.length || 4.8, VAN_W_M, 0.7);
+  for (const v of trf?.vehicles ?? []) {
+    const fp = traffic.footprint(trf, v);
+    if ((fp.x - view.cx) ** 2 + (fp.y - view.cy) ** 2 < r2) body(fp.x, fp.y, fp.h, fp.L, fp.W, 0.7);
+  }
+  if (xing) for (const a of crossings.animals(xing, camH ?? pos.h)) body(a.x, a.y, a.h, a.len, a.wid, 0.6);
+  if (showGuide) holes.push({ pts: guidePoints(), w: dashboard.GUIDE.lineW + 0.4 });
+  // A fingerpost: from its foot up through its boards, which stand above
+  // it on the screen (trip-strip.js drawSigns lays them out in CSS px).
+  for (const g of strip.signs ?? []) {
+    const bw = Math.max(g.board?.w ?? 0, g.board2?.w ?? 0), bh = (g.board?.h ?? 0) + (g.board2 ? g.board2.h + 3 : 0);
+    if (!bw || (g.x - view.cx) ** 2 + (g.y - view.cy) ** 2 > r2) continue;
+    const th = g.h + Math.PI / 2, c = Math.cos(th), sn = Math.sin(th), q = 1 / view.ppm;
+    const at = (lx, ly) => [g.x + (lx * c - ly * sn) * q, g.y + (lx * sn + ly * c) * q];
+    holes.push({ pts: [at(0, 0), at(-bw / 2 + 7, -12 - bh / 2), at(-bw / 2 + 7, -12 - bh)], w: (bw + 8) * q });
+  }
+  return holes;
+}
+
+/** The line Lily's game draws from the car's nose along the route ahead. Ours
+ *  is the route we already compute for the GPS, drawn instead of spoken. */
+function drawGuide() {
+  const pts = guidePoints(), n = pts.length, G = dashboard.GUIDE;
+  // A hint, not a painted line (Marcus, 2026-10-14): one soft translucent gold
+  // band, no edge, tinted for the surface under it. Each run of one surface
+  // is a single stroke (so the alpha never doubles where it bends) with butt
+  // ends that meet at the shared point.
+  ctx.lineCap = 'butt'; ctx.lineJoin = 'round'; ctx.lineWidth = G.lineW;
+  for (let a = 0; a < n - 1;) {
+    const surf = pts[a][2];
+    let b = a + 1;
+    while (b < n && pts[b][2] === surf) b++;
+    const [colour, alpha] = G.tint[surf] ?? G.tint.old;
+    ctx.beginPath();
+    for (let k = a; k <= Math.min(b, n - 1); k++) (k === a ? ctx.moveTo : ctx.lineTo).call(ctx, pts[k][0], pts[k][1]);
+    ctx.globalAlpha = alpha; ctx.strokeStyle = colour; ctx.stroke();
+    a = b;
+  }
+  ctx.globalAlpha = 1; ctx.lineCap = 'round';   // as it was left for what draws next
+}
+
+/** While she pokes out to look (37A): a small round sign by the centre
+ *  line just ahead of the van, green with an arrow when the road allows an
+ *  overtake, amber with a pause when it does not. No words. It fades in as
+ *  she eases out and away as she comes back. */
+function drawPeekSign(w, vanY, ppm) {
+  if (!car.peek || !canOvertakeAt(car.s)) return;
+  const off0 = laneOffset(0, car.s), off1 = laneOffset(1, car.s);
+  if (Math.abs(off1 - off0) < 1e-3) return;
+  const k = Math.min(1, Math.max(car.ask * 2.5, car.laneT / (PEEK_T * 0.5)));
+  if (k < 0.02) return;
+  const x = w * VAN_SX + ((off0 + off1) / 2 - car.lane) * ppm;
+  const y = vanY - ((car.length || 4.8) / 2 + 2.4) * ppm;
+  const r = Math.max(13, 0.62 * ppm);
+  // An arrow up the road and over for go; two bars for wait.
+  lookAhead.cue(ctx, x, y, r, car.peekSafe, k);
+}
+
+/** How far her nudge against the brakes moves her, drawn and not ridden:
+ *  holding go at the kerb on red does no more than this. */
+const NUDGE_M = 0.14;
+function drawVan(w, vanY, ppm) {
+  // A gear change's lurch, and at the lights her nudge against the brakes.
+  const px = w * VAN_SX, py = vanY + lurchM() * ppm - (car.nudge ?? 0) * NUDGE_M * ppm;
+  const wpx = VAN_W_M * ppm;
+  const aspect = vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0;
+  const hpx = wpx * aspect;
+  const name = VAN_ID + '-rear';
+  // Only the difference between where the van points and where the camera
+  // points, so it turns a little in the frame while the world turns a lot.
+  const turn = wrapAngle((car.heading ?? 0) - (camH ?? 0));
+
+  // The shadow falls along the world's sun, not a fixed screen offset, so it
+  // agrees with every tree and roof shadow when the camera turns. Rotating
+  // the sun vector by the camera turns it into screen space. The body is
+  // ~1.9m tall. Cast from the outlined silhouette, as traffic's are.
+  const rot = -(camH ?? 0) - Math.PI / 2;
+  const sx = (SUN.x * Math.cos(rot) - SUN.y * Math.sin(rot)) * 1.9 * ppm;
+  const sy = (SUN.x * Math.sin(rot) + SUN.y * Math.cos(rot)) * 1.9 * ppm;
+  ctx.save();
+  ctx.translate(px + sx, py + sy);
+  ctx.rotate(turn);
+  if (!look.shadow(ctx, name, vanImg, VAN_W_M, wpx, hpx)) {
+    ctx.fillStyle = 'rgba(40,46,38,.22)';
+    ctx.beginPath(); ctx.ellipse(0, 0, wpx * 0.46, hpx * 0.46, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(turn);
+  // Outlined like the hedges, its tyres turning by the distance driven.
+  if (!look.body(ctx, name, vanImg, VAN_W_M, wpx, hpx, { key: 'van', odo: car.s, nose: 'up' })) {
+    ctx.fillStyle = '#749c66'; ctx.fillRect(-wpx / 2, -hpx / 2, wpx, hpx);
+  }
+  if (fuelState) fuel.drawHazards(ctx, fuelState, wpx, hpx, performance.now());
+  ctx.restore();
+}
+
+
+/** A one-off word over the road — "CLOSE!" for a clean overtake. Praise for
+ *  skill, never a score. */
+const TOAST_TEXT = { close: 'CLOSE! 😱', beep: 'beep beep!', camera: '📸 speed camera!',
+  'press-button': 'press the button 👆' };
+const TOAST_MS = { 'press-button': 2600 };
+let toastTimer = 0;
+function toast(ev, ms = 1100) {
+  const el = document.getElementById('toast');
+  const label = document.createElement('span');
+  label.textContent = TOAST_TEXT[ev] ?? ev;
+  el.replaceChildren(label);
+  // Over road already driven, between the van's tail and the dashboard; held
+  // sideways there is no room there, so beside the van, over the left verge.
+  // Never over the road ahead, where the animals and the traffic are.
+  const v = car.view, r = canvas.getBoundingClientRect(), wrap = el.parentElement.getBoundingClientRect();
+  if (v && v.ppm) {
+    const x0 = r.left - wrap.left, y0 = r.top - wrap.top;
+    const half = (car.length || 4.8) * v.ppm / 2, tail = v.vanY + half;
+    const room = v.roadH - tail;
+    if (room >= 56) {
+      Object.assign(el.style, { left: x0 + 'px', width: r.width + 'px', top: (y0 + tail + room / 2) + 'px' });
+    } else {
+      const side = r.width * VAN_SX - VAN_W_M * v.ppm / 2 - 14;
+      Object.assign(el.style, { left: x0 + 'px', width: Math.max(140, side) + 'px', top: (y0 + v.vanY) + 'px' });
+    }
+  }
+  el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), ms);
+}
+
+/** The trip strip (trip-strip.js): a rail up the left edge of the road view,
+ *  below the chips and below where the look-ahead window opens, above the
+ *  dashboard. Where the chips end is measured when they change size. */
+const strip = tripStrip.create(document.getElementById('wrap'));
+const stripAt = { chips: 0, left: 0, top: 0 };
+function measureStrip() {
+  const t = document.getElementById('top'), wrapTop = t.parentElement.getBoundingClientRect().top;
+  stripAt.chips = Math.max(...[...t.children].map(e => e.hidden ? 0 : e.getBoundingClientRect().bottom)) - wrapTop;
+  stripAt.left = canvas.offsetLeft; stripAt.top = canvas.offsetTop;
+  strip.key = '';
+}
+const stripRO = new ResizeObserver(measureStrip);
+stripRO.observe(document.getElementById('top')); stripRO.observe(canvas);
+window.addEventListener('resize', measureStrip);
+/** Every animal on the screen as a box in the canvas's px, for the strip to
+ *  keep clear of: the corners of its drawn box (crossings.animals, in world
+ *  metres) through the world's own transform (draw()), and their bounds. */
+function animalBoxes(w, v) {
+  const out = [];
+  if (!xing) return out;
+  // Only when a crossing is within the view (ahead of the van by the metres
+  // shown, or behind it by the road view's depth below it, and a margin for a
+  // family's line): crossings.animals() poses every animal on the route.
+  const back = (v.roadH - v.vanY) / v.ppm + 12, fore = v.ahead + 12;
+  if (!xing.crossings.some(c => c.state !== 'none' && c.state !== 'gone' && c.s - car.s < fore && car.s - c.s < back)) return out;
+  const rot = -(car.camH ?? 0) - Math.PI / 2, cr = Math.cos(rot), sr = Math.sin(rot);
+  for (const a of crossings.animals(xing, car.camH)) {
+    const ux = Math.cos(a.h) * a.len / 2, uy = Math.sin(a.h) * a.len / 2;
+    const vx = -Math.sin(a.h) * a.wid / 2, vy = Math.cos(a.h) * a.wid / 2;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [i, j] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const dx = (a.x + i * ux + j * vx - car.x) * v.ppm, dy = (a.y + i * uy + j * vy - car.y) * v.ppm;
+      const px = w * VAN_SX + dx * cr - dy * sr, py = v.vanY + dx * sr + dy * cr;
+      x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+    }
+    if (x1 > 0 && x0 < w && y1 > 0 && y0 < v.roadH) out.push({ x0, y0, x1, y1 });
+  }
+  return out;
+}
+function updateTrip() {
+  const v = car.view;
+  if (!v) return;
+  const w = parseFloat(canvas.style.width) || canvas.width, h = parseFloat(canvas.style.height) || canvas.height;
+  const vanTop = v.vanY - (car.length || 4.8) * v.ppm / 2;
+  tripStrip.layout(strip, {
+    left: stripAt.left, top: stripAt.top, w, h, roadH: v.roadH, clearTop: stripAt.chips,
+    look: lookAhead.rect({ q: 1 }, w, h, vanTop),
+  });
+  tripStrip.update(strip, { s: car.s, arrived: !!car.arrived, animals: animalBoxes(w, v) });
+}
+
+/** The chips and the dev button fade while the look-ahead
+ *  window (in the canvas's own px) is over any of them, and come back when
+ *  it goes. */
+const topEl = document.getElementById('top');
+const topParts = ['hud', 'panel'].map(id => document.getElementById(id));
+let topAway = false;
+function giveWay(win) {
+  let away = false;
+  if (win) {
+    const c = canvas.getBoundingClientRect();
+    const L = c.left + win.x, T = c.top + win.y, R = L + win.w, B = T + win.h;
+    away = topParts.some(el => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.left < R && r.right > L && r.top < B && r.bottom > T;
+    });
+  }
+  if (away !== topAway) { topAway = away; topEl.classList.toggle('away', away); }
+}
+
+/** The chips' icons, in a 24 box, stroked in the chip's colour. */
+const CHIP_ICON = {
+  'lane-left': 'M5 3v18M19 3v18M12 4v3M12 10.5v3M12 17v3M8.5 9v9M6.5 11l2-2.5 2 2.5',
+  'lane-right': 'M5 3v18M19 3v18M12 4v3M12 10.5v3M12 17v3M15.5 9v9M13.5 11l2-2.5 2 2.5',
+  'lane-look': 'M5 3v18M19 3v18M12 4v3M12 10.5v3M12 17v3M8.5 18c0-5 2-7 7-9M13 7l2.5 2-2 2.5',
+  trunk: 'M3 3v18M9 3v18M15 3v18M21 3v18M6 5v2M6 11v2M6 17v2M18 5v2M18 11v2M18 17v2',
+  secondary: 'M5 3v18M19 3v18M12 4v3M12 10.5v3M12 17v3',
+  tertiary: 'M6 21c0-6 6-6 6-11s-3-6-3-7M15 21c0-6 6-6 6-11s-3-6-3-7',
+  unclassified: 'M8 21c0-6 7-6 7-11s-3-6-3-7M13 21c0-6 7-6 7-11',
+  residential: 'M4 11l8-7 8 7M6 9.5V20h12V9.5M10 20v-5h4v5',
+  track: 'M8 21l2-18M16 21l-2-18M9 8h2M13 8h2M8.5 14h2.5M13 14h2.5',
+  path: 'M6 17.5a3.5 3.5 0 1 0 0 .01M18 17.5a3.5 3.5 0 1 0 0 .01M6 17.5l4-7h6l2 7M10 10.5l-1.5-3H6M16 10.5l-1-4h2.5M12 17.5l-2-7',
+  crossing: 'M4 5h16M4 9.5h16M4 14h16M4 18.5h16',
+  warn: 'M12 3.5l9.5 16.5h-19zM12 10v4.5M12 17.5v.5',
+};
+const chipIcons = new Map();
+/** Puts icon `name` in a chip, only when it changes. */
+function chipIcon(chip, name) {
+  if (chipIcons.get(chip) === name) return;
+  chipIcons.set(chip, name);
+  chip.querySelector('.ci').innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${CHIP_ICON[name] ?? ''}"/></svg>`;
+}
+const chipEl = Object.fromEntries(['lane', 'road', 'warn'].map(k => {
+  const c = document.getElementById(k + 'Chip');
+  return [k, { c, v: c.querySelector('.cv'), text: null, state: null }];
+}));
+chipIcon(chipEl.warn.c, 'warn');
+/** Writes a chip's value and state, only what changed. A chip with no value
+ *  is not shown (the warning, while the gear suits the road). */
+function setChip(k, text, state = '') {
+  const e = chipEl[k];
+  if (text !== e.text) { e.text = text; e.v.textContent = text; e.c.hidden = text === ''; }
+  if (state !== e.state) { e.state = state; if (state) e.c.dataset.state = state; else delete e.c.dataset.state; }
+}
+
+const NO_LANES = new Set(['track', 'path', 'crossing']);   // the roads with no lanes
+function updateHud(win) {
+  updateTrip();
+  giveWay(win);
+  const verdict = gearVerdict(car.road, car.cw, car.gear, car.v);
+  // Where the road has no lanes (a cycle path, a farm track) there is no lane
+  // to be in, so the lane chip is not shown and the road chip stands alone
+  // (Marcus, 2026-10-14). laneOffset() takes the same roads for laneless.
+  const lane = NO_LANES.has(car.road) ? ''
+    : car.laneWant === 0 ? (car.peek && car.laneT > 0.02 ? 'looking' : 'left lane')
+    : bigRoadAt(car.s) || (car.cw?.kind === 'divided' && car.cw.lanes >= 2) ? 'fast lane' : 'overtaking';
+  setChip('lane', lane);
+  if (lane) chipIcon(chipEl.lane.c, lane === 'left lane' ? 'lane-left' : lane === 'looking' ? 'lane-look' : 'lane-right');
+  const cls = car.road === 'trunk' && car.cw && car.cw.kind !== 'dual' ? 'secondary' : car.road;
+  if (chipEl.road.c.dataset.road !== cls) chipEl.road.c.dataset.road = cls;
+  setChip('road', roadNameFor(car.road, car.cw));
+  chipIcon(chipEl.road.c, cls);
+  // The warning comes last in the row, so nothing else moves when it comes
+  // and goes. The dashboard's gear knob pulses for the same reason (33A).
+  setChip('warn', !verdict ? '' : verdict === 'fast' ? (TOO_FAST[car.road] ?? 'too fast') : (TOO_SLOW[car.road] ?? 'too slow'), verdict ?? '');
+}
+// For a test: one HUD update, to time it (window.__hudTick()).
+window.__hudTick = () => updateHud(null);
+
+// --------------------------------------------------------------------- input
+
+// Each finger is tracked on its own, so she can hold the road with one and
+// pull the handbrake or change gear with another. A touch that starts on the
+// dashboard is for the dashboard and is never "go"; only one that starts on
+// the road holds the throttle or swipes between lanes.
+//
+// At a computer (Marcus, from Lily's play, 2026-10-12: "The Handbrake should
+// be the Space bar, and pressing the touch pad / clicking the mouse down is
+// Go"): the mouse button or a touchpad press held on the road is go, exactly
+// as a finger is, and dragging it sideways is the same swipe. A click on the
+// dashboard's gears, horn, handbrake or guide switch does only that. Space
+// held is the handbrake, and so is B. → held eases out to look and then
+// overtakes, ← comes back, 1–3 pick a gear, H is the horn, G the guide line.
+// On Trikey, P presses the crossing button at the lights, as a tap on its
+// box does (a tap there is never go). Only the main button counts, so a right-click is never go. Each press is
+// captured to the canvas, so letting go outside the window still stops the
+// van, and the window losing focus lets go of everything.
+const goPointers = new Set();
+const brakeKeys = new Set();   // ' ' and 'b' while held
+let brakePointer = null;
+let dragId = null, dragX = null, dragLane = 0;
+function setThrottle() { throttle = goPointers.size > 0; }
+function setHandbrake() { handbrake = brakeKeys.size > 0 || brakePointer !== null; }
+function honk() { if (dash) dashboard.honk(dash); toast('beep'); }
+function hold(e) { try { canvas.setPointerCapture(e.pointerId); } catch { /* already gone */ } }
+
+function onDown(e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const r = canvas.getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  const what = dash ? dashboard.hit(dash, x, y) : null;
+  if (what) {
+    if (what === 'handbrake') { brakePointer = e.pointerId; hold(e); setHandbrake(); }
+    else if (what === 'horn') honk();
+    else if (what === 'guide') setGuide(!showGuide);
+    else if (what.startsWith('gear')) setGear(Number(what.slice(4)));
+    return;
+  }
+  // The crossing button's box, tapped: a press, never go.
+  if (lit && lights.hit(lit, x, y, car)) return;
+  hold(e);
+  goPointers.add(e.pointerId); setThrottle();
+  if (dragId === null) { dragId = e.pointerId; dragX = e.clientX; dragLane = car.laneWant; }
+}
+function onMove(e) {
+  if (e.pointerId !== dragId || dragX === null) return;
+  // The swipe is measured from where it started, or from where the van last
+  // changed lane under it, or from as far left as it has been.
+  if (car.laneWant !== dragLane) { dragLane = car.laneWant; dragX = e.clientX; }
+  let dx = (e.clientX ?? dragX) - dragX;
+  if (car.laneWant === 1) {
+    if (dx < -26) { car.laneWant = 0; dragLane = 0; dragX = e.clientX; }
+    return;
+  }
+  if (dx < 0) { dragX = e.clientX; dx = 0; }
+  if (!car.returning) car.ask = Math.min(1, dx / SWIPE_FULL_PX);
+}
+function onUp(e) {
+  goPointers.delete(e.pointerId); setThrottle();
+  if (e.pointerId === dragId) { dragId = null; dragX = null; letGo(); }
+  if (e.pointerId === brakePointer) { brakePointer = null; setHandbrake(); }
+}
+canvas.addEventListener('pointerdown', onDown);
+canvas.addEventListener('pointermove', onMove);
+canvas.addEventListener('lostpointercapture', onUp);
+window.addEventListener('pointerup', onUp);
+window.addEventListener('pointercancel', onUp);
+// A ctrl-click or two-finger click would open a menu that swallows the
+// release, so the road has none.
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+/** Space or B, as the set of held handbrake keys knows them. */
+function brakeKey(e) {
+  if (e.key === ' ' || e.code === 'Space') return ' ';
+  if (e.key === 'b' || e.key === 'B') return 'b';
+  return null;
+}
+window.addEventListener('keydown', e => {
+  const brake = brakeKey(e);
+  if (brake) { brakeKeys.add(brake); setHandbrake(); }
+  // Space would scroll the page or press whichever button last had focus.
+  if (brake === ' ') e.preventDefault();
+  if (e.key === 'ArrowRight') keyRight = true;   // held: eases out to look, then overtakes
+  if (e.key === 'ArrowLeft') { keyRight = false; car.ask = 0; car.laneWant = 0; }
+  if ((e.key === 'h' || e.key === 'H') && !e.repeat) honk();
+  // P presses the crossing button, as a tap on its box does.
+  if ((e.key === 'p' || e.key === 'P') && !e.repeat && !e.ctrlKey && !e.metaKey && lit) lights.press(lit, car);
+  if ((e.key === 'g' || e.key === 'G') && !e.repeat && !e.ctrlKey && !e.metaKey) setGuide(!showGuide);
+  // A grown-up's full tank, so a child is never stuck (fuel.js).
+  if ((e.key === 'f' || e.key === 'F') && !e.repeat && !e.ctrlKey && !e.metaKey && fuelState) fuel.refill(fuelState);
+  if (['1', '2', '3'].includes(e.key) && !e.repeat) setGear(Number(e.key));
+});
+window.addEventListener('keyup', e => {
+  const brake = brakeKey(e);
+  if (brake) { brakeKeys.delete(brake); setHandbrake(); }
+  if (brake === ' ') e.preventDefault();
+  if (e.key === 'ArrowRight') { keyRight = false; letGo(); }
+});
+window.addEventListener('blur', () => {
+  keyRight = false; brakeKeys.clear(); goPointers.clear(); brakePointer = null;
+  dragId = null; dragX = null; letGo(); setThrottle(); setHandbrake();
+});
+
+document.getElementById('devBtn').onclick = (e) => {
+  const tools = document.getElementById('devTools');
+  tools.hidden = !tools.hidden;
+  document.getElementById('note').hidden = tools.hidden;
+  e.currentTarget.setAttribute('aria-pressed', String(!tools.hidden));
+};
+document.getElementById('routeBtn').onclick = () => { pickRoute(); car.s = 0; car.v = 0; car.base = null; };
+
+/** Jump to a route that uses the dual carriageway, starting just before it,
+ *  so the zoom-out can be judged without hunting for one; "to A28 town" does
+ *  the same for its divided and single stretches, in turn. */
+function jumpTo(want) {
+  for (let tries = 0; tries < 120; tries++) {
+    pickRoute();
+    // Trikey never rides the A28: both buttons take her to where she crosses
+    // it at the lights instead.
+    const k = trike ? route.findIndex(p => p.cls === 'crossing')
+      : route.findIndex(p => p.cls === 'trunk' && want(p.cw?.kind ?? 'dual'));
+    if (k > 0) {
+      car.s = Math.max(0, route[k - 1].s - 60); car.v = 0; car.base = null; camH = null;
+      return;
+    }
+  }
+}
+document.getElementById('trunkBtn').onclick = () => jumpTo(kind => kind === 'dual');
+/** Each press the other of the A28's town stretches: divided, then single. */
+let a28Next = 'divided';
+document.getElementById('a28Btn').onclick = () => {
+  const want = a28Next;
+  a28Next = want === 'divided' ? 'single' : 'divided';
+  jumpTo(kind => kind === want);
+};
+
+// ---------------------------------------------------------------------- boot
+
+async function boot() {
+  const res = await fetch('/assets/driving/birchie-graph.json');
+  graph = await res.json();
+  try {
+    const cr = await fetch('/assets/driving/trunk-carriageways.json');
+    if (cr.ok) loadCarriageways(await cr.json());
+  } catch { /* without it every trunk edge is a dual carriageway, as before */ }
+  adj = buildAdjacency(graph);
+  if (TRIKEY) {
+    // Her roads. Without trikey-links.json she still never rides the A28: her
+    // graph is then the game graph without it (trikey-links.ts NO_TRIKEY_LINKS).
+    let links = trikeyRoads.NO_LINKS;
+    try {
+      const tl = await fetch('/assets/driving/trikey-links.json');
+      if (tl.ok) links = await tl.json();
+    } catch { /* NO_LINKS */ }
+    trike = trikeyRoads.create(graph, links);
+  }
+  // What is painted and on the GPS: every road, and on Trikey's drive her
+  // cycleways and paths too (in her graph's node numbers, a superset of the
+  // game graph's, so the roads keep their edge numbers).
+  // Her paths are drawn and ridden clear of the A28 as it is drawn here (at
+  // its true width): beside it, never on it.
+  if (trike) {
+    trikeShown = trikeyRoads.clearOfA28(trike, k => roadWidth('trunk', cwByEdge.get(k) ?? null) / 2,
+      (fx, fy) => ({ x: fx * ASPECT * METRES_PER_UNIT, y: fy * METRES_PER_UNIT }));
+  }
+  const paintGraph = trike
+    ? trikeyRoads.paintGraph(trike, trikeShown, (x, y) => [x / (ASPECT * METRES_PER_UNIT), y / METRES_PER_UNIT])
+    : graph;
+  await tripStrip.load(strip);
+  pickRoute();
+  // Both learn each A28 edge's carriageway by its index into graph.edges.
+  const carriagewayOf = k => (graph.edges[k]?.[2] === 'trunk' ? cwByEdge.get(k) ?? null : null);
+  scn = await scenery.load({ graph, mapToWorld, metresPerMapPx: METRES_PER_MAP_PX,
+    roadHalf: (k, cls) => roadWidth(cls, carriagewayOf(k)) / 2 });
+  window.__townAt = (x, y) => scenery.townAt(scn, x, y);   // for a test: where the camera pulls back
+  roadPaint.load({ graph: paintGraph, ctx, roadWidth, carriagewayOf, season: SEASON,
+    trunk: { lane: TRUNK_LANE_M, reservation: RESERVATION_M, island: ISLAND_M },
+    nodeXY: n => [n[0] * ASPECT * METRES_PER_UNIT, n[1] * METRES_PER_UNIT] });
+  roads = paintGraph.edges
+    .filter(([i, j]) => i >= 0 && j >= 0 && i < paintGraph.nodes.length && j < paintGraph.nodes.length)
+    .map(([i, j, cls]) => {
+      const a = paintGraph.nodes[i], b = paintGraph.nodes[j];
+      return [a[0] * ASPECT * METRES_PER_UNIT, a[1] * METRES_PER_UNIT,
+        b[0] * ASPECT * METRES_PER_UNIT, b[1] * METRES_PER_UNIT, cls];
+    });
+  dash = await dashboard.load(VAN_ID);   // the dashboard of the vehicle being driven
+  fuelState = await fuel.create(VAN_ID, { query: VIEW_Q, toast,
+    toWorld: (fx, fy) => ({ x: fx * ASPECT * METRES_PER_UNIT, y: fy * METRES_PER_UNIT }) });
+  await look.load();
+  window.__dash = dash;   // its layout and needle, for a test
+
+  vanImg = new Image();
+  vanImg.src = '/assets/driving/topdown/vehicle-topdown-' + VAN_ID + '-rear.png';
+  tripStrip.setVan(strip, vanImg.src);
+  await new Promise(r => { vanImg.onload = r; vanImg.onerror = () => { vanImg = null; r(); }; });
+
+  resize();
+  window.addEventListener('resize', resize);
+
+  // For a test: what each of the last 240 frames' draw() cost, ms (with
+  // window.__flushDraw set, its painting too), and a drive from one place
+  // to another, set down s metres along it (a van's: Trikey picks her own).
+  const drawMs = [];
+  window.__drawMs = drawMs;
+  window.__go = (fromId, toId, s = 0) => { pickRoute(fromId, toId); car.s = s; car.v = 0; car.base = null; camH = null; };
+  let last = performance.now();
+  (function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    step(dt);
+    const d0 = performance.now();
+    draw();
+    // A canvas paints later than draw() returns; window.__flushDraw makes it
+    // paint now (reading one pixel back), so the time includes the painting.
+    if (window.__flushDraw) ctx.getImageData(0, 0, 1, 1);
+    drawMs.push(performance.now() - d0);
+    if (drawMs.length > 240) drawMs.shift();
+    requestAnimationFrame(frame);
+  })(last);
+}
+boot();
+</script>

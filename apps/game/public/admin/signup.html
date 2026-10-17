@@ -14,12 +14,7 @@
     --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    /* Handwritten stack for sign text — matches the painted crayon logo.
-       Kalam everywhere, self-hosted. 'Chalkboard SE' used to lead this
-       stack and is a macOS-only face, so the Mac rendered these signs in
-       one hand and the iPad in another — and every Mac screenshot of a
-       sign screen misreported its own typeface.
-       chunkier fallback for the sign titles. */
+    /* The type is declared once, in /fonts/fonts.css: --headline-font (titles only) and --body-font (everything else a child reads). */
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -164,29 +159,12 @@
     filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.18));
   }
 
-  /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
+  /* The sign's title: white on a darker plank of the board's own wood, in the
+     display face. Its style is shared with every story board and lives in
+     _story-title.css (linked after this block); here only its place. */
   .sign-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    font-size: clamp(20px, 3.8cqh, 34px);
-    line-height: 1.05;
-    text-align: center;
-    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.6cqh, 14px);
-    margin-bottom: clamp(6px, 1.2cqh, 12px);
     position: relative;
-    /* Logo-matched green gradient: bright leaf → rich grass → deep pine */
-    background: linear-gradient(180deg,
-      #8cc63f 0%,
-      #5faa3a 28%,
-      #3d8c31 62%,
-      #2a6e26 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(8, 38, 11, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(8,38,11,0.55));
+    margin-bottom: clamp(6px, 1.2cqh, 12px);
   }
 
   /* ── No more logo-bunny; bunny now sits at the base of the wooden stake ── */
@@ -271,7 +249,7 @@
     border: 2px solid #1d5c2a;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-family: var(--headline-font); font-weight: 700;
+    font-family: var(--body-font); font-weight: 800;
     font-size: clamp(var(--fs-floor), 2.2cqh, 20px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.35),
                 inset 0 2px 3px rgba(255,255,255,0.2);
@@ -286,8 +264,7 @@
   .intro.shake .pin-dot { border-color: #c54838; background: rgba(197,72,56,0.3); }
 
   /* Painted red wooden-sticker error message — pops in when validation
-     fails. Tilts slightly, drop-shadow, Kalam handwritten font for
-     warmth. Auto-hides after a few seconds. */
+     fails. Tilts slightly, drop-shadow. Auto-hides after a few seconds. */
   .error-sticker {
     position: absolute;
     left: 50%;
@@ -302,7 +279,7 @@
       0 6px 16px rgba(0,0,0,0.35),
       inset 0 2px 0 rgba(255,255,255,0.25),
       inset 0 -2px 0 rgba(0,0,0,0.3);
-    font-family: 'Kalam', 'Caveat', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: 18px;
     line-height: 1.2;
@@ -397,8 +374,7 @@
     font-weight: 400;
     opacity: 0.85;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
-    font-family: 'Caveat', var(--sign-font);
-    font-style: italic;
+    font-family: var(--body-font);
   }
   .chip-name::after {
     /* Small line break between name and last-seen in the chip */
@@ -435,7 +411,7 @@
   }
   .key {
     position: relative;
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-weight: 900;
     font-size: clamp(26px, 4.4cqh, 38px);
     color: #2a1a08;
@@ -575,180 +551,194 @@
     cursor: not-allowed;
     filter: saturate(0.5);
   }
-  /* Name input — painted cream paper taped onto the sign. */
-  .name-field-wrap {
-    padding: clamp(4px, 0.8cqh, 8px) 0 clamp(10px, 1.6cqh, 16px);
+  /* ── Stage C: pick a clue for the PIN ── */
+  /* Six cream notes in two columns, each a whole-card tap target. The
+     picked one gets the sage border and a tick. */
+  .clue-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(6px, 1.1cqh, 10px) clamp(8px, 1.6cqw, 14px);
+    margin-top: clamp(6px, 1cqh, 10px);
   }
-  .name-field {
-    width: 100%;
+  .clue-card {
+    position: relative;
+    min-height: 44px;
+    text-align: center;
+    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
+    border: 2px solid #7a4b15;
+    border-radius: 8px;
+    padding: clamp(5px, 0.9cqh, 10px) clamp(10px, 1.8cqw, 14px);
+    font-family: var(--body-font);
+    font-weight: 600;
+    font-size: clamp(var(--fs-floor), 2.1cqh, 18px);
+    line-height: 1.15;
+    color: #3a2618;
+    cursor: pointer;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.22), inset 0 2px 0 rgba(255,255,255,0.5);
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .clue-card:nth-child(odd)  { transform: rotate(-0.8deg); }
+  .clue-card:nth-child(even) { transform: rotate(0.7deg); }
+  .clue-card:active { transform: translateY(1px) rotate(0deg); }
+  .clue-card[aria-checked="true"] {
+    border-color: #4f7a3a;
+    box-shadow: 0 0 0 3px rgba(122,170,96,0.55), 0 3px 5px rgba(0,0,0,0.22);
+  }
+  .clue-card[aria-checked="true"]::after {
+    content: '\2713';
+    position: absolute;
+    top: -8px; right: -6px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #6a9a4e;
+    color: #fffbe8;
+    font-size: 14px;
+    line-height: 22px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+
+  /* ── Stage D: the name other players see ── */
+  /* Cream paper like the name field, but read-only: the name is picked
+     from the word lists, not typed. */
+  .display-name-card {
+    font-family: var(--body-font);
+    font-weight: 700;
+    font-size: clamp(22px, 3.6cqh, 32px);
+    line-height: 1.1;
+    text-align: center;
+    color: #3a2618;
+    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
+    border: 2px solid #7a4b15;
+    border-radius: 10px;
+    padding: clamp(8px, 1.4cqh, 12px) clamp(14px, 2.4cqw, 20px);
+    margin-top: clamp(4px, 0.8cqh, 8px);
+    box-shadow: 0 3px 5px rgba(0,0,0,0.22), inset 0 2px 0 rgba(255,255,255,0.5);
+    transform: rotate(-0.6deg);
+  }
+  /* ── Stage A: ready-made sign-in names ── */
+  /* Three cream name cards in a row, each a whole-card tap target, the
+     picked one with the sage border and a tick, like the clue cards. */
+  .sign-in-names {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(6px, 1.2cqw, 12px);
+    margin-top: clamp(4px, 0.8cqh, 8px);
+    min-height: 44px;
+  }
+  .sign-in-name-card {
+    position: relative;
+    min-height: 44px;
+    text-align: center;
+    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
+    border: 2px solid #7a4b15;
+    border-radius: 8px;
+    padding: clamp(5px, 0.9cqh, 10px) clamp(6px, 1.2cqw, 12px);
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(18px, 2.8cqh, 24px);
-    padding: clamp(10px, 1.6cqh, 14px) clamp(14px, 2.4cqw, 20px);
-    color: #3a2618;
-    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
-    border: 2px solid #7a4b15;
-    border-radius: 10px;
-    box-shadow:
-      inset 0 2px 4px rgba(0,0,0,0.15),
-      0 2px 3px rgba(0,0,0,0.2);
-    outline: none;
-    text-align: center;
-  }
-  .name-field::placeholder { color: rgba(58,38,24,0.4); }
-  .name-field:focus { border-color: #9a6528; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 0 0 3px rgba(231,168,74,0.4); }
-
-  /* ── Stage C: PIN-hint capture ── */
-  /* Hint input — bigger painted-paper-tag (Caveat handwriting), 44px+
-     min-height for finger-friendly tapping. */
-  .hint-field {
-    width: 100%;
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-weight: 700;
-    font-size: clamp(22px, 3.4cqh, 30px);
-    min-height: 56px;
-    padding: clamp(12px, 1.8cqh, 16px) clamp(14px, 2.4cqw, 20px);
-    color: #3a2618;
-    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
-    border: 2px solid #7a4b15;
-    border-radius: 10px;
-    box-shadow:
-      inset 0 2px 4px rgba(0,0,0,0.15),
-      0 2px 3px rgba(0,0,0,0.2);
-    outline: none;
-    text-align: center;
-    line-height: 1.2;
-  }
-  .hint-field::placeholder { color: rgba(58,38,24,0.35); font-style: italic; }
-  .hint-field:focus { border-color: #9a6528; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 0 0 3px rgba(231,168,74,0.4); }
-
-  /* Gut-check sub-stage — big question + the typed hint shown back as a
-     small painted callout. */
-  .hint-callout {
-    margin-top: clamp(10px, 1.6cqh, 16px);
-    padding: clamp(10px, 1.6cqh, 14px) clamp(14px, 2.2cqw, 18px);
-    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
-    border: 2px solid #7a4b15;
-    border-radius: 10px;
-    box-shadow: 0 2px 3px rgba(0,0,0,0.2), inset 0 2px 3px rgba(0,0,0,0.08);
-    transform: rotate(-1.2deg);
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-weight: 700;
-    font-size: clamp(18px, 2.8cqh, 24px);
-    color: #3a2618;
-    text-align: center;
-    word-break: break-word;
-  }
-  .hint-callout::before {
-    content: '\201C'; font-size: 1.3em; color: #9a6528; margin-right: 4px;
-  }
-  .hint-callout::after {
-    content: '\201D'; font-size: 1.3em; color: #9a6528; margin-left: 4px;
-  }
-
-  /* Two big plank buttons stacked vertically for the gut-check answer. */
-  .gut-check-actions {
-    display: flex; flex-direction: column;
-    gap: clamp(10px, 1.6cqh, 14px);
-    margin-top: clamp(14px, 2.2cqh, 20px);
-    align-items: stretch;
-  }
-  .gut-check-actions .link-btn {
-    text-align: center;
-    font-size: clamp(var(--fs-floor), 2.1cqh, 19px);
-    padding: clamp(12px, 1.8cqh, 16px) clamp(22px, 3.4cqw, 30px);
-  }
-  /* ── Name-suggestion stickers (shown when a username collides) ──
-     Three colourful painted-sticker chips, same visual language as
-     the PIN keypad: pastel gradient, rounded shape, slight rotation,
-     drop-shadow + corner peel, press-flatten. Each one a different
-     palette + shape so they read as a fun set, not a list. */
-  .name-suggestion-row {
-    display: flex; flex-direction: column; align-items: stretch;
-    gap: clamp(6px, 1.2cqh, 10px);
-    margin-top: clamp(6px, 1.2cqh, 12px);
-  }
-  .name-suggestion-heading {
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
-    color: #fffbe8;
-    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
-    text-align: center;
+    font-size: clamp(15px, 2.4cqh, 21px);
     line-height: 1.1;
-    opacity: 0.95;
-  }
-  .name-stickers {
-    display: flex;
-    gap: clamp(8px, 1.6cqw, 14px);
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  .name-sticker {
-    position: relative;
-    font-family: var(--sign-title-font);
-    font-weight: 900;
-    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
-    color: #2a1a08;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.65);
-    padding: clamp(8px, 1.4cqh, 12px) clamp(12px, 2.4cqw, 18px);
-    cursor: pointer;
-    border: 2px solid rgba(120,80,40,0.35);
-    box-shadow:
-      0 3px 0 rgba(120,80,40,0.18),
-      0 4px 8px rgba(0,0,0,0.28),
-      inset 0 1px 0 rgba(255,255,255,0.6);
-    transition: transform 0.1s, box-shadow 0.1s;
-    line-height: 1;
-    flex: 0 1 auto;
-    min-width: 0;
+    /* One line, always: a name broken over two looks like two words, and
+       a child would then type a space when signing in. fitSignInNames()
+       shrinks the text of a long name instead. */
     white-space: nowrap;
+    color: #3a2618;
+    cursor: pointer;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.22), inset 0 2px 0 rgba(255,255,255,0.5);
+    transition: transform 0.12s, box-shadow 0.12s, opacity 0.12s;
   }
-  .name-sticker::after {
-    /* Tiny corner-peel — top-right of the sticker. */
-    content: '';
+  .sign-in-name-card:nth-child(odd)  { transform: rotate(-0.8deg); }
+  .sign-in-name-card:nth-child(even) { transform: rotate(0.7deg); }
+  .sign-in-name-card:active { transform: translateY(1px) rotate(0deg); }
+  .sign-in-name-card[aria-checked="true"] {
+    border-color: #4f7a3a;
+    box-shadow: 0 0 0 3px rgba(122,170,96,0.55), 0 3px 5px rgba(0,0,0,0.22);
+  }
+  .sign-in-name-card[aria-checked="true"]::after {
+    content: '\2713';
     position: absolute;
-    top: 0; right: 0;
-    width: clamp(8px, 1.4cqw, 12px);
-    height: clamp(8px, 1.4cqw, 12px);
-    background:
-      linear-gradient(225deg,
-        rgba(120,80,40,0.55) 0%,
-        rgba(120,80,40,0.55) 45%,
-        rgba(255,255,255,0.7) 55%,
-        rgba(255,255,255,0.7) 100%);
-    clip-path: polygon(100% 0, 100% 100%, 0 0);
-    filter: drop-shadow(-1px 1px 1px rgba(0,0,0,0.2));
-    border-top-right-radius: inherit;
+    top: -8px; right: -6px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #6a9a4e;
+    color: #fffbe8;
+    font-size: 14px;
+    line-height: 22px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
   }
-  .name-sticker:active {
-    transform: rotate(0deg) translateY(2px) !important;
-    box-shadow:
-      0 1px 0 rgba(120,80,40,0.18),
-      0 2px 3px rgba(0,0,0,0.28),
-      inset 0 1px 0 rgba(255,255,255,0.6);
+  /* The text alone is measured, so the tick outside the card's edge does
+     not count as overflow. */
+  .sign-in-name-text { display: block; overflow: hidden; white-space: nowrap; }
+  .sign-in-names.waiting .sign-in-name-card { opacity: 0.5; }
+  #stage-select .sign-in-name-actions {
+    justify-content: center;
+    margin-top: clamp(4px, 0.8cqh, 8px);
+    margin-bottom: clamp(4px, 0.8cqh, 8px);
   }
-  /* Three palettes + shapes, mirroring the PIN keypad spirit. */
-  .name-sticker-1 {
-    background: linear-gradient(180deg, #ffd2d2 0%, #f7a3a3 100%);
-    border-radius: 14px;
-    transform: rotate(-2.5deg);
+  #stage-select .sign-in-name-actions .link-btn.plank-sage { flex: 0 1 auto; }
+  /* Wide enough for three names on one line each. */
+  #stage-select { min-width: min(500px, 92cqw); }
+  /* A landscape phone has no height to spare (see _short-landscape.css),
+     and a row is too narrow for three names and a button. "Show another"
+     goes to the sign's top-right corner, opposite the back sticker, and
+     the names get the whole row, in the room the old name box had. */
+  @container (max-height: 520px) {
+    #stage-select .sign-title-row {
+      justify-content: flex-start;
+      padding-left: clamp(44px, 9cqw, 64px);
+    }
+    #stage-select .sign-in-name-actions {
+      position: absolute;
+      top: clamp(4px, 1.2cqh, 10px);
+      right: clamp(10px, 2cqw, 16px);
+      margin: 0;
+      z-index: 3;
+    }
+    #stage-select .sign-in-name-actions .link-btn.plank-sage {
+      font-size: clamp(14px, 4cqh, 16px);
+      padding-top: 4px;
+      padding-bottom: 4px;
+      min-height: 46px;
+    }
+    .sign-in-names { margin-top: 2px; margin-bottom: 2px; }
+    .sign-in-name-card {
+      font-size: clamp(15px, 4.6cqh, 20px);
+      transform: none !important;
+    }
   }
-  .name-sticker-2 {
-    background: linear-gradient(180deg, #d0e8ff 0%, #8db8e8 100%);
-    border-radius: 22px;
-    transform: rotate(2deg);
-  }
-  .name-sticker-3 {
-    background: linear-gradient(180deg, #d2f3e0 0%, #8ed4a8 100%);
-    border-radius: 10px 22px 10px 22px;
-    transform: rotate(-1.5deg);
-  }
-  .name-sticker:hover {
-    filter: brightness(1.05);
+  @container welcome (max-height: 520px) {
+    /* The clue: six notes in three columns, two rows (three rows of two were
+       50px more than a phone held sideways has), and the band over this board
+       a little lower, as over login's four names. */
+    #stage-hint .clue-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    #stage-hint .clue-card { min-height: 48px; padding-block: 3px; }
+    #stage-hint .hint-actions-row { margin-top: clamp(6px, 1.6cqh, 10px); }
+    #stage-hint .hint-actions-row .link-btn { padding-block: 4px; min-height: 48px; }
+    .welcome-inner:has(#stage-hint:not(.hidden)) { --band: clamp(46px, 13cqh, 60px); }
+    .welcome-inner:has(#stage-hint:not(.hidden)) .signs-on-stake { --rabbit-h: clamp(36px, 10cqh, 44px); }
+    /* Friends see this name: the name and "Show another" share a row. */
+    #stage-name:not(.hidden) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: "title title" "name another" "sub sub";
+      align-items: center;
+      column-gap: clamp(8px, 1.6cqw, 12px);
+    }
+    #stage-name > .sign-title-row { grid-area: title; }
+    #stage-name > .display-name-card { grid-area: name; margin-top: 0; }
+    #stage-name > .hint-actions-row { grid-area: another; margin-top: 0; }
+    #stage-name > .sign-subtitle { grid-area: sub; }
   }
 
-  /* Hint-input action row — Need-ideas (amber) + NEXT (sage). NEXT
-     gets the bigger weight so kids know what to tap to advance. */
+  /* As wide as stage A's sign. Left to its own content the sign is
+     narrower, and the CREATE MY ACCOUNT! plank under it wraps. */
+  #stage-name { min-width: min(430px, 92cqw); }
+  #stage-name .hint-actions-row { margin-top: clamp(8px, 1.4cqh, 12px); }
+  #stage-name .hint-actions-row .link-btn.plank-sage { flex: 0 1 auto; }
+  #stage-name .sign-subtitle { margin-top: clamp(6px, 1cqh, 10px); white-space: pre-line; }
+
+  /* Stage C action row — the NEXT plank under the clues. */
   .hint-actions-row {
     display: flex;
     gap: clamp(8px, 1.6cqw, 14px);
@@ -773,54 +763,6 @@
     filter: saturate(0.5);
     cursor: not-allowed;
   }
-
-  /* Idea cards — vertical list of tappable cream notes with rotation. */
-  .idea-list {
-    display: flex; flex-direction: column;
-    gap: clamp(10px, 1.6cqh, 14px);
-    margin-top: clamp(8px, 1.2cqh, 12px);
-  }
-  .idea-card {
-    display: block;
-    width: 100%;
-    text-align: left;
-    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
-    border: 2px solid #7a4b15;
-    border-radius: 8px;
-    padding: clamp(10px, 1.5cqh, 14px) clamp(14px, 2.2cqw, 18px);
-    font-family: var(--body-font);
-    font-weight: 500;
-    font-size: clamp(var(--fs-floor), 2.2cqh, 18px);
-    color: #3a2618;
-    cursor: pointer;
-    box-shadow: 0 3px 5px rgba(0,0,0,0.22), inset 0 2px 0 rgba(255,255,255,0.5);
-    transition: transform 0.12s, box-shadow 0.12s;
-  }
-  .idea-card:nth-child(1) { transform: rotate(-1.4deg); }
-  .idea-card:nth-child(2) { transform: rotate(0.9deg); }
-  .idea-card:nth-child(3) { transform: rotate(-0.6deg); }
-  .idea-card:nth-child(4) { transform: rotate(1.3deg); }
-  .idea-card:hover { box-shadow: 0 5px 9px rgba(0,0,0,0.28), inset 0 2px 0 rgba(255,255,255,0.5); }
-  .idea-card:active { transform: translateY(1px) rotate(0deg); }
-
-  .hint-back-link {
-    display: inline-block;
-    margin-top: clamp(10px, 1.6cqh, 14px);
-    background: transparent;
-    border: 0;
-    font-family: var(--sign-font);
-    font-weight: 700;
-    font-size: clamp(var(--fs-floor), 1.8cqh, 16px);
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-  }
-
-  /* sub-stage swap inside stage C — only one of (input | gut | help) shown */
-  .substage { display: block; }
-  .substage.hidden { display: none; }
 
   /* Avatar picker chips — emoji-only circles in a 4-column grid (8
      animals total in 2 rows). Marcus 2026-04-24. */
@@ -940,7 +882,7 @@
   }
   .zzz-stack .zz {
     position: absolute;
-    font-family: 'Kalam', 'Caveat', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     color: #c88436;
     text-shadow: 1px 2px 0 rgba(255,255,255,0.7), 2px 3px 4px rgba(0,0,0,0.18);
@@ -1086,7 +1028,7 @@
   .btn-primary {
     width: 100%;
     padding: clamp(14px, 2.6cqh, 22px) clamp(24px, 4cqw, 32px);
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-size: clamp(24px, 4cqh, 36px); font-weight: 700;
     /* Cream paint text on weathered wood, with a dark shadow for depth */
     color: #fffbe8;
@@ -1366,10 +1308,9 @@
     /* Decorative — never block clicks to the underlying buttons. */
     pointer-events: none;
   }
-  /* Handwritten-scrawl credits — cursive green, designed to look like
-     a blade of grass at first glance and read as a signature on closer look. */
+  /* The credits in the corner: green, in the body face like everything else a child reads. */
   .credit-scrawl {
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(var(--fs-floor), 1.9cqh, 17px);
     color: #2f6a32;
@@ -1490,12 +1431,12 @@
        device, or the dog floats orphaned in the gap above them.
        Hide all foreground decorations across every signup stage on
        iPhone so the form has clear vertical space. They come back on
-       the welcome and login screens where the layout is shorter. */
+       the welcome and login screens where the layout is shorter.
+       (130A: the grass, the rabbit and the bee are back. With NEXT! and
+       "I already have an account" on one row there is room for them, and
+       without the grass the two posts ended in mid-air.) */
     .foreground-dog,
-    .foreground-fox,
-    .grass-clump,
-    .ground-bunny,
-    .bee-flyer {
+    .foreground-fox {
       display: none !important;
     }
     /* Stage A: shrink the 8-emoji avatar picker so all 4 columns fit
@@ -1514,22 +1455,13 @@
     }
     /* Stage A: compress remaining elements so the secondary planks
        reach the bottom of the device without orphaning anything. */
-    #stage-select .sign-title { font-size: clamp(20px, 3.4cqh, 26px); }
     #stage-select .sign-subtitle {
       font-size: clamp(var(--fs-floor), 2cqh, 16px);
       margin-bottom: clamp(4px, 0.8cqh, 8px);
     }
-    .name-field-wrap {
-      padding: clamp(2px, 0.5cqh, 5px) 0 clamp(6px, 1.2cqh, 10px);
-    }
-    .name-field {
-      font-size: clamp(18px, 2.8cqh, 22px);
-      padding: clamp(8px, 1.3cqh, 12px) clamp(12px, 2.5cqw, 16px);
-    }
     /* Compress the PIN sign on iPhone — keypad keys + pin dots all
        smaller so the whole sign fits without overflowing into the
        OK button below. */
-    #stage-pin .sign-title { font-size: clamp(20px, 3.4cqh, 26px); }
     #stage-pin .sign-subtitle {
       font-size: clamp(var(--fs-floor), 2cqh, 16px);
       margin-bottom: clamp(4px, 0.8cqh, 8px);
@@ -1642,6 +1574,7 @@
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
 <link rel="stylesheet" href="/admin/_signpost-physics.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 
@@ -1680,6 +1613,7 @@
                 </button>
                 <div class="error-sticker" id="error-sticker-select"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
                 <div class="zzz-stack" aria-hidden="true">
                   <span class="zz zz1">Z</span>
                   <span class="zz zz2">Z</span>
@@ -1687,16 +1621,17 @@
                 </div>
                 <div class="sign-title-row">
                   <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
-                  <div class="sign-title">Let's get started!</div>
+                  <div class="sign-title" id="sign-in-name-title">Pick a secret name</div>
                 </div>
-                <div class="sign-subtitle">What's your name and animal?</div>
-                <div class="name-field-wrap">
-                  <!-- No `value`. This used to ship value="Lily", which is a
-                       real prefilled value, not a placeholder: a child who
-                       tapped straight through created an account called Lily,
-                       and stage B greeted them as her. The placeholder above
-                       is the only prompt this field should carry. -->
-                  <input type="text" class="name-field" placeholder="Type your name..." />
+                <div class="sign-subtitle">You use it to sign in. Remember it!</div>
+                <!-- Ready-made names from the server, never typed: a box that
+                     asks a child for their name gets their real one. Filled
+                     by the script below. -->
+                <div class="sign-in-name-picker">
+                  <div class="sign-in-names" id="sign-in-names" role="radiogroup" aria-labelledby="sign-in-name-title"></div>
+                  <div class="hint-actions-row sign-in-name-actions">
+                    <button class="link-btn plank-sage" id="sign-in-name-another" type="button">Show another</button>
+                  </div>
                 </div>
                 <div class="chips avatar-picker">
                   <button class="chip avatar-pick selected"><span class="chip-avatar" style="background:#ffd0a0;">🦊</span><span class="chip-text"><span class="chip-name">Fox</span></span></button>
@@ -1720,6 +1655,7 @@
                 </button>
                 <div class="error-sticker" id="error-sticker-pin"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
                 <div class="zzz-stack" aria-hidden="true">
                   <span class="zz zz1">Z</span>
                   <span class="zz zz2">Z</span>
@@ -1752,7 +1688,9 @@
                 </div>
               </div>
 
-              <!-- Stage C: PIN-hint capture (with gut-check + idea-help substages) -->
+              <!-- Stage C: pick a clue for the PIN, from a fixed list. Never
+                   typed: the old free-text box let a child write anything
+                   about themselves, and it was stored as typed. -->
               <div class="intro stage-hint hidden" id="stage-hint">
                 <button class="back-sticker" data-back-sticker aria-label="Go back">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1762,55 +1700,53 @@
                 </button>
                 <div class="error-sticker" id="error-sticker-hint"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
                 <div class="zzz-stack" aria-hidden="true">
                   <span class="zz zz1">Z</span>
                   <span class="zz zz2">Z</span>
                   <span class="zz zz3">Z</span>
                 </div>
 
-                <!-- C1: capture the hint -->
-                <div class="substage" id="substage-hint-input">
-                  <div class="sign-title-row">
-                    <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
-                    <div class="sign-title">Help future-you remember</div>
-                  </div>
-                  <div class="sign-subtitle">Type a clue that helps YOU remember your secret code, but won't help anyone else guess it.</div>
-                  <div class="name-field-wrap">
-                    <input type="text" class="hint-field" id="hint-input" placeholder="Type a clue here…" maxlength="60" />
-                  </div>
-                  <!-- NEXT button + ideas helper. Kids might not know
-                       to press Return; the green plank makes "advance"
-                       obvious. The amber plank surfaces the idea pool
-                       early for kids who can't get started. -->
-                  <div class="hint-actions-row">
-                    <button class="link-btn outlined" id="hint-help-input-btn">Need ideas?</button>
-                    <button class="link-btn plank-sage" id="hint-next-btn">NEXT →</button>
-                  </div>
+                <div class="sign-title-row">
+                  <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+                  <div class="sign-title">Where do your numbers come from?</div>
                 </div>
+                <div class="sign-subtitle">Pick one. We show it to you if you forget your code.</div>
+                <div class="clue-grid" id="clue-grid" role="radiogroup" aria-label="Clues for your secret code"></div>
+                <div class="hint-actions-row">
+                  <button class="link-btn plank-sage" id="hint-next-btn" disabled aria-disabled="true">NEXT →</button>
+                </div>
+              </div>
 
-                <!-- C2: gut-check -->
-                <div class="substage hidden" id="substage-gut-check">
-                  <div class="sign-title-row">
-                    <div class="sign-title">Could someone else guess your secret code using this hint?</div>
-                  </div>
-                  <div class="hint-callout" id="hint-callout-text"></div>
-                  <div class="gut-check-actions">
-                    <button class="link-btn plank-sage" id="hint-safe-btn">I'm sure it's safe →</button>
-                    <button class="link-btn outlined" id="hint-help-btn">Help me think →</button>
-                  </div>
+              <!-- Stage D: the name other players see. Made from two word
+                   lists (an adjective and an animal), never typed. The name
+                   typed on stage A stays the login, and only this player
+                   sees it. -->
+              <div class="intro stage-name hidden" id="stage-name">
+                <button class="back-sticker" data-back-sticker aria-label="Go back">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <polyline points="9,16 4,11 9,6"/>
+                    <path d="M4 11 H14 a6 6 0 0 1 6 6 v0 a6 6 0 0 1 -6 6 H8"/>
+                  </svg>
+                </button>
+                <div class="error-sticker" id="error-sticker-name"></div>
+                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
+                <div class="zzz-stack" aria-hidden="true">
+                  <span class="zz zz1">Z</span>
+                  <span class="zz zz2">Z</span>
+                  <span class="zz zz3">Z</span>
                 </div>
-
-                <!-- C3: idea-help -->
-                <div class="substage hidden" id="substage-idea-help">
-                  <div class="sign-title-row">
-                    <div class="sign-title">Pick an idea</div>
-                  </div>
-                  <div class="sign-subtitle">Tap one — you can edit it after.</div>
-                  <div class="idea-list" id="idea-list"></div>
-                  <div style="text-align:center;">
-                    <button class="hint-back-link" id="hint-back-btn">← Back</button>
-                  </div>
+                <div class="sign-title-row">
+                  <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+                  <div class="sign-title" id="display-name-title">Friends see this name</div>
                 </div>
+                <div class="display-name-card" id="display-name" aria-live="polite" aria-describedby="display-name-title">MossyOtter</div>
+                <div class="hint-actions-row">
+                  <button class="link-btn plank-sage" id="display-name-another" type="button">Show another</button>
+                </div>
+                <div class="sign-subtitle" id="display-name-login">Your secret name is just for you.
+Remember it to sign in!</div>
               </div>
 
               <div class="cta-stack">
@@ -1820,7 +1756,6 @@
                     <span class="play-label" id="primary-label">NEXT!</span>
                     <span class="paw paw-right">🐾</span>
                   </button>
-                  <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
                 </div>
                 <div class="secondary-row">
                   <button class="link-btn plank-sage" id="have-account-btn">I already have an account</button>
@@ -1865,102 +1800,173 @@
       device.dataset.size = btn.dataset.size;
     });
   }
-  // ─── Inlined from packages/game-logic/src/auth-validation.ts ───
-  // Mockups are static HTML with no module loader; keep these in sync
-  // with the canonical implementation. See docs/forgot-pin-recovery.md.
-  function validatePinHint(hint, pin) {
-    if (!hint || typeof hint !== 'string') return { valid: false, error: 'Hint is required' };
-    const trimmed = hint.trim();
-    if (trimmed.length < 4) return { valid: false, error: 'Hint is too short — write a few words' };
-    if (trimmed.length > 60) return { valid: false, error: 'Hint is too long — keep it short' };
-    if (/^[0-9\s\-_,.]+$/.test(trimmed)) return { valid: false, error: 'Your hint should be words, not numbers' };
-    if (!/[a-zA-Z]/.test(trimmed)) return { valid: false, error: 'Your hint should include some words' };
-    if (pin && pin.length >= 4 && trimmed.includes(pin)) {
-      return { valid: false, error: 'That hint gives away your secret number — try again' };
+  // ─── The clues for the PIN ───
+  // A copy of PIN_HINT_CHOICES in packages/game-logic/src/pin-hints.ts:
+  // this page is static HTML with no module loader. pin-hints.test.ts
+  // fails if the two lists differ. Only the code leaves this page.
+  const PIN_HINT_CHOICES = [
+    { code: 'birthday', text: 'A birthday' },
+    { code: 'year', text: 'A year' },
+    { code: 'pet', text: 'About a pet' },
+    { code: 'shirt', text: 'A shirt number' },
+    { code: 'pattern', text: 'A shape on the keypad' },
+    { code: 'favourite', text: 'My favourite numbers' },
+  ];
+  const isHintCode = (c) => PIN_HINT_CHOICES.some((h) => h.code === c);
+  let selectedHintCode = '';
+
+  // ─── The secret name to sign in with ───
+  // Ready-made names the server offers (PebbleKite, AcornDrum, ...),
+  // three at a time, from a pool made of two word lists
+  // (packages/game-logic/src/sign-in-names.ts). The child taps one; it is
+  // never typed, because a box asking for a name gets a real one. The
+  // server claims the picked name at signup and, if somebody has just
+  // taken it, sends three new ones back.
+  const SAMPLE_NAMES = ['PebbleKite', 'AcornDrum', 'MoonSock', 'RocketTrain', 'TulipBoat', 'WaffleHat'];
+  const isOfferedName = (v) => typeof v === 'string' && v.length <= 18
+    && /^[A-Z][a-z]+[A-Z][a-z]+[0-9]{0,2}$/.test(v);
+  let offeredNames = [];
+  let selectedName = '';
+  let sampleAt = -3;
+  let namesPending = false;
+  let namesTimer = null;
+
+  function renderSignInNames() {
+    const box = document.getElementById('sign-in-names');
+    if (!box) return;
+    box.replaceChildren();
+    for (const name of offeredNames) {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'sign-in-name-card';
+      card.setAttribute('role', 'radio');
+      card.setAttribute('aria-checked', name === selectedName ? 'true' : 'false');
+      card.dataset.name = name;
+      const text = document.createElement('span');
+      text.className = 'sign-in-name-text';
+      text.textContent = name;
+      card.appendChild(text);
+      card.addEventListener('click', () => {
+        selectedName = name;
+        renderSignInNames();
+        saveDraft();
+      });
+      box.appendChild(card);
     }
-    if (pin && pin.length >= 4) {
-      for (let i = 0; i + 3 <= pin.length; i++) {
-        const run = pin.slice(i, i + 3);
-        if (trimmed.includes(run)) return { valid: false, error: 'That hint gives away part of your secret number' };
+    fitSignInNames();
+  }
+  // Shrink a long name until it fits its card on one line.
+  function fitSignInNames() {
+    for (const card of document.querySelectorAll('.sign-in-name-card')) {
+      const text = card.querySelector('.sign-in-name-text');
+      if (!text) continue;
+      card.style.fontSize = '';
+      let size = parseFloat(getComputedStyle(card).fontSize) || 16;
+      while (text.scrollWidth > text.clientWidth && size > 11) {
+        size -= 0.5;
+        card.style.fontSize = `${size}px`;
       }
     }
-    if (/\d{3,}/.test(trimmed)) {
-      return { valid: false, error: 'Your hint should not contain a number — write a clue in words' };
-    }
-    const lower = trimmed.toLowerCase().replace(/[^a-z\s-]/g, ' ');
-    const tokens = lower.split(/[\s-]+/).filter(Boolean);
-    const digitWords = { zero:'0', oh:'0', nought:'0', nil:'0', one:'1', two:'2', three:'3', four:'4', five:'5', six:'6', seven:'7', eight:'8', nine:'9' };
-    let digitsFromWords = '';
-    for (const tok of tokens) if (digitWords[tok]) digitsFromWords += digitWords[tok];
-    if (pin && digitsFromWords.includes(pin)) {
-      return { valid: false, error: 'That hint spells out your secret number — try again' };
-    }
-    const teens = { ten:'10', eleven:'11', twelve:'12', thirteen:'13', fourteen:'14', fifteen:'15', sixteen:'16', seventeen:'17', eighteen:'18', nineteen:'19' };
-    const tens = { twenty:'2', thirty:'3', forty:'4', fifty:'5', sixty:'6', seventy:'7', eighty:'8', ninety:'9' };
-    let compound = '';
-    for (let i = 0; i < tokens.length; i++) {
-      const t = tokens[i];
-      if (teens[t]) compound += teens[t];
-      else if (tens[t]) {
-        const next = tokens[i + 1];
-        if (next && digitWords[next]) { compound += tens[t] + digitWords[next]; i++; }
-        else compound += tens[t] + '0';
-      } else if (digitWords[t]) compound += digitWords[t];
-    }
-    if (pin && compound.includes(pin)) {
-      return { valid: false, error: 'That hint spells out your secret number — try again' };
-    }
-    return { valid: true };
   }
-  function getHintIdeas(seed) {
-    // Hints must map to FOUR DIGITS — the PIN is numeric, so each prompt
-    // resolves to digits via dates, ages, counts, addresses, jersey
-    // numbers, doubled-up numbers, etc. Inlined from
-    // packages/game-logic/src/auth-validation.ts getHintIdeas — keep in sync.
-    const pool = [
-      "the day and month your pet was born",
-      "the year mum was born",
-      "the year dad was born",
-      "the year you started school",
-      "your house number, twice",
-      "your age and your sibling's age together",
-      "the number on your favourite team shirt",
-      "your phone's last four numbers",
-      "your birthday backwards",
-      "two of your favourite numbers, then again",
-      "the day you got your first pet",
-      "your house number plus your age",
-      "your age, four times",
-      "the year your best friend was born",
-      "your favourite player's shirt number, twice",
-      "your school year and your age, mixed",
-      "your birthday day, twice",
-      "your bus or class number, twice",
-      "your age now and when you started school",
-      "the number of pets you wish you had, four times",
-    ];
-    let h = 2166136261;
-    for (let i = 0; i < seed.length; i++) {
-      h ^= seed.charCodeAt(i);
-      h = (h * 16777619) >>> 0;
-    }
-    const indexed = pool.map((idea, i) => ({ idea, sort: ((h ^ (i * 2654435761)) >>> 0) }));
-    indexed.sort((a, b) => a.sort - b.sort);
-    return indexed.slice(0, 4).map((x) => x.idea);
+  window.addEventListener('resize', fitSignInNames);
+  function setOfferedNames(names) {
+    const clean = (names || []).filter(isOfferedName).slice(0, 3);
+    if (!clean.length) return;
+    offeredNames = clean;
+    selectedName = clean[0];
+    renderSignInNames();
+    saveDraft();
   }
+  function setNamesWaiting(waiting) {
+    document.getElementById('sign-in-names')?.classList.toggle('waiting', waiting);
+    const btn = document.getElementById('sign-in-name-another');
+    if (btn) btn.disabled = waiting;
+  }
+  function requestNames() {
+    // Opened directly for design review there is no server to ask.
+    if (!isEmbed) {
+      sampleAt = (sampleAt + 3) % SAMPLE_NAMES.length;
+      setOfferedNames(SAMPLE_NAMES.slice(sampleAt, sampleAt + 3));
+      return;
+    }
+    if (namesPending) return;
+    namesPending = true;
+    setNamesWaiting(true);
+    send('need-names');
+    // The host always answers, with an empty list on failure. This is the
+    // backstop for no answer at all: give the button back.
+    clearTimeout(namesTimer);
+    namesTimer = setTimeout(() => onSignInNames({ names: [] }), 6000);
+  }
+  function onSignInNames(payload) {
+    if (!namesPending) return;
+    namesPending = false;
+    clearTimeout(namesTimer);
+    setNamesWaiting(false);
+    const names = Array.isArray(payload?.names) ? payload.names.filter(isOfferedName) : [];
+    if (!names.length) {
+      showContextNote("We couldn't get names. Tap Show another!");
+      return;
+    }
+    setOfferedNames(names);
+  }
+  document.getElementById('sign-in-name-another')?.addEventListener('click', requestNames);
+
+  // ─── The name other players see ───
+  // Copies of DISPLAY_NAME_ADJECTIVES and DISPLAY_NAME_ANIMALS in
+  // packages/game-logic/src/display-names.ts: this page is static HTML
+  // with no module loader. display-names-copies.test.ts fails if they
+  // differ. Every pair was checked to say nothing rude, mocking or
+  // frightening. The server adds a number if the pair is taken.
+  const DISPLAY_NAME_ADJECTIVES = [
+    'Brave', 'Breezy', 'Bright', 'Bubbly', 'Calm', 'Cheery', 'Chirpy', 'Clever',
+    'Comfy', 'Cosy', 'Curious', 'Daring', 'Gentle', 'Gleeful', 'Happy', 'Helpful',
+    'Hopeful', 'Jolly', 'Kind', 'Leafy', 'Lucky', 'Merry', 'Misty', 'Mossy',
+    'Nimble', 'Plucky', 'Rosy', 'Snowy', 'Snug', 'Sparkly', 'Starry', 'Sunny',
+    'Swift', 'Twinkly', 'Wise', 'Zippy',
+  ];
+  const DISPLAY_NAME_ANIMALS = [
+    'Alpaca', 'Badger', 'Bee', 'Canary', 'Deer', 'Dolphin', 'Dormouse', 'Fawn',
+    'Ferret', 'Finch', 'Flamingo', 'Gecko', 'Gerbil', 'Hamster', 'Hare', 'Hedgehog',
+    'Heron', 'Kitten', 'Koala', 'Ladybird', 'Lamb', 'Lemur', 'Llama', 'Meerkat',
+    'Otter', 'Owl', 'Panda', 'Pangolin', 'Penguin', 'Pony', 'Puppy', 'Quokka',
+    'Rabbit', 'Robin', 'Seal', 'Sparrow', 'Squirrel', 'Starling', 'Swan', 'Tortoise',
+    'Toucan', 'Turtle', 'Vole', 'Wombat', 'Wren',
+  ];
+  const pickWord = (list) => list[Math.floor(Math.random() * list.length)];
+  const isDisplayNameBase = (v) => typeof v === 'string' && DISPLAY_NAME_ADJECTIVES.some(
+    (a) => v.startsWith(a) && DISPLAY_NAME_ANIMALS.includes(v.slice(a.length)));
+  function newDisplayName(current) {
+    let next = current;
+    while (next === current) next = pickWord(DISPLAY_NAME_ADJECTIVES) + pickWord(DISPLAY_NAME_ANIMALS);
+    return next;
+  }
+  let displayName = newDisplayName('');
+  function renderDisplayName() {
+    const el = document.getElementById('display-name');
+    if (el) el.textContent = displayName;
+  }
+  renderDisplayName();
+  document.getElementById('display-name-another')?.addEventListener('click', () => {
+    displayName = newDisplayName(displayName);
+    renderDisplayName();
+    saveDraft();
+  });
 
   // ─── Stage management ───
   const stageSelect = document.getElementById('stage-select');
   const stagePin = document.getElementById('stage-pin');
   const stageHint = document.getElementById('stage-hint');
+  const stageName = document.getElementById('stage-name');
   const stageToggle = document.getElementById('stage-toggle');
-  const STAGE_LABELS = { select: 'Stage: A · Name+animal', pin: 'Stage: B · PIN', hint: 'Stage: C · Hint' };
+  const STAGE_LABELS = { select: 'Stage: A · Name+animal', pin: 'Stage: B · PIN', hint: 'Stage: C · Clue', name: 'Stage: D · Player name' };
   let showing = 'select';
   function setStage(s) {
     showing = s;
     stageSelect.classList.toggle('hidden', s !== 'select');
     stagePin.classList.toggle('hidden', s !== 'pin');
     stageHint.classList.toggle('hidden', s !== 'hint');
+    stageName.classList.toggle('hidden', s !== 'name');
     if (stageToggle) stageToggle.textContent = STAGE_LABELS[s] || 'Stage';
     const primary = document.getElementById('primary-label');
     if (primary) {
@@ -1972,48 +1978,48 @@
     document.querySelector('.btn-primary-wrap')?.classList.toggle('hidden', s === 'hint' || s === 'pin');
     // Hide the "I already have an account" secondary-row on stages B
     // and C — by then the kid has already typed their name + PIN
-    // (and possibly a hint). Tapping that plank silently abandons
+    // (and possibly picked a clue). Tapping that plank silently abandons
     // their progress. The yellow back-sticker covers stepping back.
-    document.querySelector('.secondary-row')?.classList.toggle('hidden', s === 'pin' || s === 'hint');
+    document.querySelector('.secondary-row')?.classList.toggle('hidden', s !== 'select');
     // Carry the typed name + selected animal emoji from stage A into
     // stage B's title so the greeting matches what the kid actually
     // picked. (Was hardcoded "Nice, Lily!" + paw-heart logo before.)
+    if (s === 'select') fitSignInNames();
     if (s === 'pin') {
-      const typedName = (document.querySelector('.name-field')?.value || '').trim();
+      const pickedName = currentName();
       const titleEl = document.getElementById('pin-greeting');
-      if (titleEl && typedName) titleEl.textContent = `Nice, ${typedName}!`;
+      if (titleEl && pickedName) titleEl.textContent = `Nice, ${pickedName}!`;
       const emojiEl = document.getElementById('pin-animal-emoji');
       const selectedChip = document.querySelector('.chip.avatar-pick.selected .chip-avatar');
       if (emojiEl && selectedChip) emojiEl.textContent = (selectedChip.textContent || '').trim();
+    }
+    if (s === 'name') {
+      renderDisplayName();
+      const pickedName = currentName();
+      const loginEl = document.getElementById('display-name-login');
+      // Two names, said plainly: this one for friends, the secret one for
+      // signing in. Two lines, broken after the sentence.
+      if (loginEl && pickedName) loginEl.textContent = `Your secret name is ${pickedName}.\nRemember it to sign in!`;
     }
     // Persist the new stage as part of the draft so a reload mid-flow
     // resumes on the right step.
     saveDraft();
   }
   stageToggle?.addEventListener('click', () => {
-    const order = ['select', 'pin', 'hint'];
+    const order = ['select', 'pin', 'hint', 'name'];
     setStage(order[(order.indexOf(showing) + 1) % order.length]);
   });
 
   document.getElementById('next-btn')?.addEventListener('click', () => {
+    // On stage D the big plank reads CREATE MY ACCOUNT! and submits.
+    if (showing === 'name') { submitSignup(); return; }
     if (showing !== 'select') return;
-    // Gate on a usable name. The field used to ship value="Lily", so it
-    // was never empty and this never needed checking; now that a child
-    // starts with a blank box, an ungated NEXT walks them all the way to
-    // the end of signup only to be refused by the server — and that
-    // refusal is currently invisible (see signup/index.ts, every 400).
-    // Mirror the server's rule loosely and say something here instead.
+    // A name must be picked. One is picked for the child as soon as the
+    // names arrive, so this only shows if the server could not send any.
     const name = currentName();
     if (!name) {
-      showContextNote('Type your name first, then tap NEXT!');
-      return;
-    }
-    if (name.length < 2 || name.length > 18) {
-      showContextNote('Names are between 2 and 18 letters long.');
-      return;
-    }
-    if (!/^[A-Za-z][A-Za-z\s'\-]*[A-Za-z]$|^[A-Za-z]$/.test(name)) {
-      showContextNote('Names use letters only — no numbers or symbols.');
+      showContextNote('Tap a name first, then tap NEXT!');
+      requestNames();
       return;
     }
     if (!document.querySelector('.chip.avatar-pick.selected')) {
@@ -2022,8 +2028,8 @@
     }
     // Last gate, and the only one this page cannot answer by itself: is
     // the name still free? Ask the host and wait. Advancing first meant
-    // the child chose a PIN, confirmed it, wrote a hint and answered a
-    // question about it before being told to start again.
+    // the child chose a PIN, confirmed it and picked a clue before being
+    // told to start again.
     //
     // Opened directly for design review there is no host to ask, so the
     // check is skipped rather than hanging on a reply that never comes.
@@ -2100,11 +2106,12 @@
     pendingNameCheck = null;
     setNextBusy(false);
     if (payload.available === false) {
-      showContextNote('Someone already has that name — try another!');
+      showContextNote('Someone has that name. Pick another!');
       if (Array.isArray(payload.suggestions) && payload.suggestions.length) {
-        showNameSuggestions(payload.suggestions);
+        setOfferedNames(payload.suggestions);
+      } else {
+        requestNames();
       }
-      document.querySelector('.name-field')?.focus();
       return;
     }
     setStage('pin');
@@ -2117,9 +2124,6 @@
       saveDraft();
     });
   }
-  // Persist name + hint changes as the kid types.
-  document.querySelector('.name-field')?.addEventListener('input', saveDraft);
-  document.getElementById('hint-input')?.addEventListener('input', saveDraft);
 
   // ─── Mode-aware messaging ───
   const params = new URLSearchParams(location.search);
@@ -2133,10 +2137,10 @@
     }
   };
   // "I already have an account" plank on stage A. Sends 'login' to the
-  // host so it can swap to LoginScene. Match by id, like the other two
-  // .link-btn.plank-sage buttons (hint-next-btn, hint-safe-btn) — a
-  // catch-all class selector here would hijack their clicks and send
-  // 'login' instead of letting their handlers run.
+  // host so it can swap to LoginScene. Match by id, like the other
+  // .link-btn.plank-sage button (hint-next-btn) — a catch-all class
+  // selector here would hijack its clicks and send 'login' instead of
+  // letting its handler run.
   //
   // Do NOT go back to a descendant selector. This button lives in
   // .cta-stack, a SIBLING of #stage-select, so `#stage-select ...`
@@ -2167,6 +2171,7 @@
         return;
       }
       if (showing === 'hint') { setStage('pin'); return; }
+      if (showing === 'name') { setStage('hint'); return; }
       send('back-to-welcome');
     });
   });
@@ -2203,17 +2208,19 @@
     try {
       const sel = document.querySelector('.chip.avatar-pick.selected');
       const draft = {
-        version: 1,
+        version: 2,
         savedAt: Date.now(),
-        name: (document.querySelector('.name-field')?.value || '').trim(),
+        name: selectedName,
+        offered: offeredNames,
         animal: sel ? (sel.querySelector('.chip-avatar')?.textContent || '').trim() : '',
         pin: pinBuffer,
         capturedPin,
-        hint: (document.getElementById('hint-input')?.value || '').trim(),
+        hintCode: selectedHintCode,
+        displayName,
         stage: showing,
       };
       // Don't bother persisting an empty draft.
-      if (!draft.name && !draft.animal && !draft.pin && !draft.hint) return;
+      if (!draft.name && !draft.animal && !draft.pin && !draft.hintCode) return;
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     } catch (_) { /* private mode / storage full */ }
   }
@@ -2225,13 +2232,21 @@
       const raw = localStorage.getItem(DRAFT_KEY);
       if (!raw) return;
       const draft = JSON.parse(raw);
-      if (!draft || draft.version !== 1) return;
+      // Version 1 drafts come from the typed-name screen and may hold a
+      // child's real name: drop them rather than show it again.
+      if (!draft || draft.version !== 2) { clearDraft(); return; }
       // Drafts older than 7 days are stale — clear silently and start fresh.
       if (Date.now() - (draft.savedAt || 0) > 7 * 24 * 60 * 60 * 1000) {
         clearDraft(); return;
       }
-      const nameInput = document.querySelector('.name-field');
-      if (nameInput && draft.name) nameInput.value = draft.name;
+      if (Array.isArray(draft.offered)) {
+        const offered = draft.offered.filter(isOfferedName).slice(0, 3);
+        if (offered.length) {
+          offeredNames = offered;
+          selectedName = offered.includes(draft.name) ? draft.name : offered[0];
+          renderSignInNames();
+        }
+      }
       if (draft.animal) {
         document.querySelectorAll('.chip.avatar-pick').forEach((c) => {
           const emoji = (c.querySelector('.chip-avatar')?.textContent || '').trim();
@@ -2243,18 +2258,24 @@
         renderPinDots(); updateConfirmEnabled();
       }
       if (typeof draft.capturedPin === 'string') capturedPin = draft.capturedPin;
-      const hintInput = document.getElementById('hint-input');
-      if (hintInput && draft.hint) hintInput.value = draft.hint;
+      // Only a code from the list comes back. A draft saved before the
+      // clue became a choice may hold typed text under `hint`; it is not
+      // read, and the next save writes the draft without it.
+      if (isHintCode(draft.hintCode)) selectHintCode(draft.hintCode);
+      if (isDisplayNameBase(draft.displayName)) { displayName = draft.displayName; renderDisplayName(); }
       // Restore the stage the kid was on — but ONLY if its prerequisites
       // are present in the draft. Otherwise fall back to the earliest
       // viable stage. Without this guard, a stale draft with
       // stage:'hint' (or 'pin') jumps the user past stages they haven't
       // actually completed and they can never finish signup.
-      if (draft.stage && ['select', 'pin', 'hint'].includes(draft.stage)) {
-        const hasName = !!(nameInput && nameInput.value && nameInput.value.trim());
+      if (draft.stage && ['select', 'pin', 'hint', 'name'].includes(draft.stage)) {
+        const hasName = !!selectedName;
         const hasAnimal = !!document.querySelector('.chip.avatar-pick.selected');
         const hasPin = typeof capturedPin === 'string' && capturedPin.length === 4;
         let restoreTo = draft.stage;
+        if (restoreTo === 'name' && !(hasName && hasAnimal && hasPin && isHintCode(selectedHintCode))) {
+          restoreTo = 'hint';
+        }
         if (restoreTo === 'hint' && !(hasName && hasAnimal && hasPin)) {
           restoreTo = (hasName && hasAnimal) ? 'pin' : 'select';
         }
@@ -2289,14 +2310,12 @@
     };
   }
   function currentName() {
-    return (document.querySelector('.name-field')?.value || '').trim();
+    return selectedName;
   }
 
   function onPinComplete() {
     const name = currentName();
-    if (!name) { showError('Pop your name in first!', 'stage-pin'); clearPin(); return; }
-    if (name.length < 2) { showError('Need a longer name — try at least 2 letters!', 'stage-pin'); clearPin(); return; }
-    if (name.length > 18) { showError('That name is a bit long — try shorter!', 'stage-pin'); clearPin(); return; }
+    if (!name) { showError('Pick a secret name first!', 'stage-pin'); clearPin(); return; }
     if (pinBuffer.length !== 4) { showError('Type all 4 numbers!', 'stage-pin'); return; }
 
     if (!pinConfirmMode) {
@@ -2376,17 +2395,16 @@
     if (m.type === 'auth-error') {
       const msg = m?.payload?.message || m?.payload?.error || 'Couldn\'t sign you up — try again!';
       const suggestions = Array.isArray(m?.payload?.suggestions) ? m.payload.suggestions : null;
-      // Username collisions get the rich treatment — colourful sticker
-      // chips so the kid can pick a free name with a single tap.
+      // The picked name was taken at the last moment: show the three new
+      // names the server sent, back on stage A, with one already picked.
       if (suggestions && suggestions.length > 0) {
-        showNameSuggestions(suggestions);
-        // Whisk back to stage A (name+animal) so they can change it.
+        setOfferedNames(suggestions);
         if (typeof setStage === 'function') setStage('select');
         showError(msg, 'stage-select');
       } else {
         // Show the error on the stage the child can actually act on.
         //
-        // Signup submits from stage C (the hint screen), so `showing` is
+        // Signup submits from stage C (the clue screen), so `showing` is
         // always 'hint' by the time a server 400 comes back — and every
         // name rule the server enforces (2–18 characters, letters only,
         // the profanity blocklist) needs the name field, which only
@@ -2402,67 +2420,19 @@
         // costs the account.
         const lower = String(msg).toLowerCase();
         const stage = lower.includes('pin') ? 'pin'
-          : lower.includes('hint') ? 'hint'
+          : (lower.includes('hint') || lower.includes('clue')) ? 'hint'
           : 'select';
         if (typeof setStage === 'function' && showing !== stage) setStage(stage);
         showError(msg, `stage-${stage}`);
         if (stage === 'pin') clearPin();
       }
     }
-    // Contextual greeting — when the kid arrives here from login's
-    // "Not here? Type your name" plank, show a friendly note above
-    // the title so they know the journey makes sense.
     if (m.type === 'name-checked') onNameChecked(m.payload);
-    // Only sent when there were chips to not be among. A device with no
-    // saved accounts sends no reason at all, because "couldn't find you
-    // in the list" is a strange thing to tell a child who has not typed
-    // anything and never had a list.
-    if (m.type === 'init' && m.payload?.reason === 'not-in-chips') {
-      showContextNote("Couldn't find you in the list — let's make a new account!");
-    }
+    if (m.type === 'sign-in-names') onSignInNames(m.payload);
+    // Login's "Not here? Type your name" used to land here with a
+    // 'not-in-chips' note. It signs her in now (131A), and "New? Make
+    // an account" is the way here.
   });
-  // Render 3 sticker chips with name suggestions above the .name-field.
-  // Same painted-sticker visual language as the PIN keypad — pastel
-  // backgrounds, rounded shapes, slight rotation, drop-shadow + corner
-  // peel, press-flatten on tap.
-  function showNameSuggestions(suggestions) {
-    const wrap = document.querySelector('#stage-select .name-field-wrap');
-    if (!wrap) return;
-    let row = document.getElementById('name-suggestion-row');
-    if (!row) {
-      row = document.createElement('div');
-      row.id = 'name-suggestion-row';
-      row.className = 'name-suggestion-row';
-      wrap.parentElement.insertBefore(row, wrap.nextSibling);
-    }
-    while (row.firstChild) row.removeChild(row.firstChild);
-    const heading = document.createElement('div');
-    heading.className = 'name-suggestion-heading';
-    heading.textContent = 'or pick one of these:';
-    row.appendChild(heading);
-    const stickers = document.createElement('div');
-    stickers.className = 'name-stickers';
-    suggestions.slice(0, 3).forEach((name, i) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'name-sticker name-sticker-' + (i + 1);
-      btn.textContent = name;
-      btn.addEventListener('click', () => {
-        const input = document.querySelector('.name-field');
-        if (input) {
-          input.value = name;
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.focus();
-        }
-        // Clear the suggestion row + sticker error once they pick.
-        row.remove();
-        const sticker = document.querySelector('#stage-select .error-sticker');
-        sticker?.classList.remove('show');
-      });
-      stickers.appendChild(btn);
-    });
-    row.appendChild(stickers);
-  }
   function showContextNote(text) {
     const titleRow = document.querySelector('#stage-select .sign-title-row');
     if (!titleRow) return;
@@ -2471,7 +2441,7 @@
       note = document.createElement('div');
       note.id = 'signup-context-note';
       note.style.cssText = [
-        'font-family: \'Caveat\', \'Kalam\', cursive',
+        'font-family: var(--body-font)',
         'font-size: clamp(14px, 2.2cqh, 18px)',
         'color: #fffbe8',
         'opacity: 0.92',
@@ -2486,137 +2456,71 @@
     note.textContent = text;
   }
 
-  // ─── Stage C: PIN-hint capture ───
-  const subInput = document.getElementById('substage-hint-input');
-  const subGut   = document.getElementById('substage-gut-check');
-  const subHelp  = document.getElementById('substage-idea-help');
-  const hintInput = document.getElementById('hint-input');
-  const hintCalloutText = document.getElementById('hint-callout-text');
-  const ideaList = document.getElementById('idea-list');
+  // ─── Stage C: pick a clue for the PIN ───
+  const clueGrid = document.getElementById('clue-grid');
+  for (const choice of PIN_HINT_CHOICES) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'clue-card';
+    card.setAttribute('role', 'radio');
+    card.setAttribute('aria-checked', 'false');
+    card.dataset.hintCode = choice.code;
+    card.textContent = choice.text;
+    card.addEventListener('click', () => {
+      selectHintCode(choice.code);
+      saveDraft();
+    });
+    clueGrid?.appendChild(card);
+  }
 
-  function setSubstage(which) {
-    subInput.classList.toggle('hidden', which !== 'input');
-    subGut.classList.toggle('hidden', which !== 'gut');
-    subHelp.classList.toggle('hidden', which !== 'help');
-    if (which === 'input') setTimeout(() => hintInput?.focus(), 50);
+  function selectHintCode(code) {
+    selectedHintCode = isHintCode(code) ? code : '';
+    for (const card of document.querySelectorAll('.clue-card')) {
+      card.setAttribute('aria-checked', card.dataset.hintCode === selectedHintCode ? 'true' : 'false');
+    }
+    updateHintNextEnabled();
   }
 
   function enterHintStage() {
     setStage('hint');
-    setSubstage('input');
   }
 
-  function submitHint() {
-    const hint = hintInput.value;
-    const result = validatePinHint(hint, capturedPin);
-    if (!result.valid) {
-      showError(result.error || 'Try a different hint', 'stage-hint');
-      return;
-    }
-    hintCalloutText.textContent = hint.trim();
-    setSubstage('gut');
-  }
-
-  hintInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); submitHint(); }
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (showing !== 'hint') return;
-    if (e.key === 'Escape') {
-      if (!subGut.classList.contains('hidden') || !subHelp.classList.contains('hidden')) {
-        e.preventDefault();
-        setSubstage('input');
-      }
-    }
-  });
-
-  document.getElementById('hint-safe-btn')?.addEventListener('click', () => {
-    const name = currentName();
-    const { emoji, bg } = currentAvatar();
-    send('signup-complete', {
-      username: name,
-      animal: emoji,
-      pin: capturedPin,
-      hint: hintInput.value.trim(),
-      avatarEmoji: emoji,
-      avatarBgColour: bg,
-    });
-    // Successful submission — clear the draft so it doesn't come
-    // back the next time the kid hits signup.
-    clearDraft();
-  });
-
-  function showIdeaCards() {
-    const seed = currentName() || 'anon';
-    const ideas = getHintIdeas(seed);
-    while (ideaList.firstChild) ideaList.removeChild(ideaList.firstChild);
-    for (const idea of ideas) {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'idea-card';
-      card.textContent = idea;
-      card.addEventListener('click', () => {
-        // Pre-fill the input with the idea so the kid can see what
-        // they picked. The marker (data-idea-seed) tells the focus/
-        // click handler below to BLANK the field when the kid taps in
-        // to type their actual answer — otherwise they'd have to
-        // manually clear "the year mum was born" before typing.
-        hintInput.value = idea;
-        hintInput.dataset.ideaSeed = idea;
-        saveDraft();
-        updateHintNextEnabled();
-        setSubstage('input');
-      });
-      ideaList.appendChild(card);
-    }
-    setSubstage('help');
-  }
-  // When the kid taps the input AFTER picking an idea card, blank the
-  // field so they can just type the number/word — no manual clearing
-  // of the prompt text needed. Only clears if the value still equals
-  // the picked idea (so once they've typed something else, taps stop
-  // wiping it).
-  function clearIfStillIdeaSeed() {
-    const seed = hintInput?.dataset?.ideaSeed;
-    if (seed && hintInput.value === seed) {
-      hintInput.value = '';
-      delete hintInput.dataset.ideaSeed;
-      updateHintNextEnabled();
-      saveDraft();
-    }
-  }
-  hintInput?.addEventListener('focus', clearIfStillIdeaSeed);
-  hintInput?.addEventListener('click', clearIfStillIdeaSeed);
-  // "Need ideas?" on the input substage AND "Help me think →" on the
-  // gut-check substage both surface the same idea pool.
-  document.getElementById('hint-help-btn')?.addEventListener('click', showIdeaCards);
-  document.getElementById('hint-help-input-btn')?.addEventListener('click', showIdeaCards);
-
-  // Big sage NEXT button on the input substage — kids might not know
-  // they can press Return. Disabled until they've typed something.
+  // NEXT stays disabled until a clue is picked.
   function updateHintNextEnabled() {
     const btn = document.getElementById('hint-next-btn');
     if (!btn) return;
-    const ok = (hintInput.value || '').trim().length > 0;
+    const ok = isHintCode(selectedHintCode);
     btn.setAttribute('aria-disabled', ok ? 'false' : 'true');
     if (ok) btn.removeAttribute('disabled');
     else btn.setAttribute('disabled', 'true');
   }
-  hintInput?.addEventListener('input', updateHintNextEnabled);
-  document.getElementById('hint-next-btn')?.addEventListener('click', () => {
-    if ((hintInput.value || '').trim().length === 0) return;
-    submitHint();
-  });
-  // Initial state on load (also runs after loadDraft restores the input).
-  updateHintNextEnabled();
 
-  document.getElementById('hint-back-btn')?.addEventListener('click', () => setSubstage('input'));
+  document.getElementById('hint-next-btn')?.addEventListener('click', () => {
+    if (!isHintCode(selectedHintCode)) {
+      showError('Pick one of the clues!', 'stage-hint');
+      return;
+    }
+    setStage('name');
+  });
+
+  // Stage D's CREATE MY ACCOUNT! plank. `displayName` is the pair shown
+  // on the card; the server takes it only if it is from the lists.
+  function submitSignup() {
+    const name = currentName();
+    const { emoji, bg } = currentAvatar();
+    send('signup-complete', { username: name, readyMadeName: true, animal: emoji, pin: capturedPin, hintCode: selectedHintCode, avatarEmoji: emoji, avatarBgColour: bg, displayName });
+    // Successful submission — clear the draft so it doesn't come
+    // back the next time the kid hits signup.
+    clearDraft();
+  }
+  updateHintNextEnabled();
 
   // Restore any in-progress signup draft from localStorage. Last because
   // it triggers setStage which depends on every other handler being
   // registered first.
   loadDraft();
+  // Names for the name screen, unless the draft brought some back.
+  if (!offeredNames.length) requestNames();
 </script>
 </body>
 </html>

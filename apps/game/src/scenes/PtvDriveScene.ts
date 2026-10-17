@@ -13,20 +13,23 @@ import {
   aboard, blockingNotes, canSetOff, changeVehicle, createLoadingSession, describeCrateChoice,
   heldAnimal, holdFromTray, liftFromSlot, placeHeld, putHeldBack, putHeldInCrate, spawnAnimal,
   type CompatibilityLevel, type CrateType, type LoadableAnimal, type LoadingSession,
-  type VehicleDef, type VehicleType,
+  type VehicleType,
 } from '@arc/game-logic';
 import { renderCrateLoading, titleCase } from '../driving/crate-loading-view';
 import { PICKER_EXIT_MARGIN, VEHICLE_SPRITE, pickerLayout } from '../driving/fleet-art';
 import { drawForecourt, drawVehicleShadow } from '../driving/forecourt';
 import { stateTween } from '../ui/tween';
+import { driveJolts } from '../driving/drive-jolts';
+import {
+  GEAR_SPEED_MPS, NO_GEAR_COSTS, createGearHint, gearCosts, gearRoadKey, stepGearHint,
+  type ForwardGear, type GearCosts, type GearHintState,
+} from '../driving/road-gears';
+import { knockComfort } from '../driving/ride-comfort';
 import {
   createDriveState,
   cycleGear,
   gearLabel,
   gearScrollRate,
-  jostleComfort,
-  PARK,
-  REVERSE,
   type DriveState,
   type DriveType,
   type Gear,
@@ -34,7 +37,6 @@ import {
 import {
   drawRoadForConfig,
   drawTransitionRoad,
-  drawJunctionMouth,
   drawTopDownVan,
   drawTrafficVehicle,
   drawSceneryItem,
@@ -44,20 +46,25 @@ import {
   isOvertakingZone,
 } from '../driving/drive-render';
 import { buildRoadTransitions, worldYForRow, type RoadTransition } from '../driving/road-transition';
-import { buildRouteJunctions, nextJunction, nextChoiceJunction, inDecisionWindow, type RouteJunction } from '../driving/junctions';
 import { TRAFFIC_PROFILES, pickTrafficKind, pickFrom, isBusSeason, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed, maxLaneFor } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
-import { buildAdjacency, routePolyline, routeProfile, type RoadGraph, type Adjacency, type RoutePoint, type RoadClassRun } from '../driving/road-router';
+import { parseTrunkCarriageways, type TrunkCarriageways, type TrunkCarriagewaysFile } from '../driving/trunk-carriageways';
+import { roadClassAt, roadRunAt, routePolyline, routeProfile, type RoadGraph, type RoutePoint, type RoadClassRun } from '../driving/road-router';
+import { NO_TRIKEY_LINKS, createRoadNetworks, roadsForRoute, type RoadNetworks, type TrikeyLinksFile, type VehicleRoads } from '../driving/trikey-links';
 import { buildManeuvers, nextManeuver, maneuverText, maneuverArrow, projectToRoute, type Maneuver } from '../driving/route-instructions';
 import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
 
 /**
  * Reference cruising rate (px/tick) that traffic `relSpeed` is measured
  * against, so other vehicles have an *absolute* speed independent of ours —
- * they keep flowing past even when we're stopped (Park/Neutral) at a crossing.
+ * they keep flowing past even when we're stopped on the handbrake at a crossing.
  */
 const TRAFFIC_REF_SPEED = gearScrollRate(2);
+
+/** The knock to cargoComfort when the van brakes itself for traffic she came
+ *  up on too fast for the road (30A); the camera's is 6, the handbrake's 15. */
+const SELF_STOP_KNOCK = 4;
 
 /** Painted top-down sprite key(s) per traffic kind. Cars pick a random colour;
  *  a kind with no loaded sprite falls back to the procedural draw. */
@@ -85,22 +92,28 @@ const TRAFFIC_SPRITE_KEYS: Record<TrafficKind, string[]> = {
  *  (the A.R.C. forecourt has different-sized spaces for exactly this reason).
  *
  *  **These are width ratios, because this scalar is applied to width.** Every
- *  sprite now carries its vehicle's true aspect — the proportion pass made
- *  each one between 1.4x and 1.9x longer for its width — so setting the width
- *  right gives the length for free, and nothing here has to argue about
- *  length at all.
+ *  sprite carries its vehicle's own aspect — the proportion pass of
+ *  2026-10-08 made each one between 1.4x and 1.9x longer for its width, and
+ *  on 2026-10-11 Henry, Bea and Spark were shortened again, to the
+ *  proportions of their portraits (2.02, 2.23 and 1.88 long for their
+ *  width) — so setting the width right gives the length for free, and
+ *  nothing here has to argue about length at all. Both passes left every
+ *  file's width alone, which is why this table did not move.
  *
  *  That is what the old numbers got wrong. Big Tilly was 1.5, reasoned from
  *  her 3x3 crate grid against Henry's 2x2: a length argument, spent on the
  *  width lever, which drew a lorry half again too fat because the art of the
  *  day was too short and the scalar was being asked to fix it. The art fixed
  *  it instead. She is 1.31 — a 2.4m lorry against Henry's 1.8m van — and the
- *  sprite's own 2.81:1 aspect makes her 2.6 times his length without being
- *  asked.
+ *  sprite's own aspect, 2.505:1 front and 2.516:1 rear since her front was
+ *  redrawn (it was 2.81:1), makes her about 1.6 times his length (his is
+ *  2.03:1 since he was shortened) without being asked.
  *
  *  Measured off the installed files, as each sprite's opaque width over
  *  Henry's 561px: Trikey 0.43 (a trike is narrower than her file, which
- *  includes her handlebars), Bea 1.03, Spark 1.14, Tilly 1.31. */
+ *  includes her handlebars), Bea 1.03, Spark 1.14, Tilly 1.31. Measured
+ *  again after the shortening, with the same answers: 578, 640 and 738
+ *  against Henry's 560. */
 const VEHICLE_SIZE: Record<VehicleType, number> = {
   'pedal-trike': 0.43,
   'small-van': 1.0,
@@ -194,6 +207,31 @@ const ROAD_CYCLE: RoadId[] = ['country-lane', 'thanet-way', 'rural-track', 'coas
  *  their spacing and never overlap. */
 const ONCOMING_SPEED = 5.5;
 
+/**
+ * How many ticks of the old 50 ms drive loop make a second.
+ *
+ * The drive now steps once a frame in `update`, by however long the frame
+ * took. Its speeds are still the loop's, in px per tick: `gearScrollRate`,
+ * each car's `absSpeed`, `ONCOMING_SPEED`, and the cap worked out from them
+ * in `effectivePlayerRate`. Times this, any of them is px per second, which
+ * is what the frame's step is worked out in.
+ */
+const TICKS_PER_SECOND = 20;
+
+/** Route progress per pixel the road scrolls. The corridor's own clock:
+ *  `road-transition.ts`'s `PROGRESS_PER_SCROLL` is the same number. */
+const PROGRESS_PER_PX = 0.0004;
+
+/** The chance, per old tick, that a car stuck behind something slower tries
+ *  to overtake. `resolveTraffic` scales it to the frame's length. */
+const OVERTAKE_CHANCE_PER_TICK = 0.03;
+
+/** The longest step one frame may take, in seconds. The old loop moved at most
+ *  one 50 ms tick a frame; after a stall (a hidden tab, a GC pause) this keeps
+ *  the corridor from jumping a long way, and traffic through the van, in one
+ *  step. Ordinary frames are far shorter. */
+const MAX_DRIVE_STEP_S = 0.1;
+
 /** OSM road class → the road type we render. Only the trunk road (the A28 /
  *  Thanet Way) is a dual carriageway; farm tracks go to gravel; everything else
  *  is a single-carriageway country lane. */
@@ -208,10 +246,6 @@ function roadIdForClass(cls: string): RoadId {
 /** Merge-zone length in world-px (~3–4s at cruising speed): the stretch over
  *  which a dual↔single carriageway change is drawn narrowing/opening. */
 const MERGE_ZONE_LEN = 550;
-
-/** How far either side of a fork (world-px) a turn choice counts — generous, so
- *  it's never a split-second reflex test for a young player. */
-const JUNCTION_WINDOW_HALF = 220;
 
 export interface PtvDriveInit {
   driveType?: DriveType;
@@ -284,7 +318,7 @@ const CARGO_STATES = ['sheltered', 'walking', 'playing', 'grumpy', 'scared', 'si
  *
  * Slice 1 (+ eyeball polish): top-down travel mode. Gentle daylight bird's-eye
  * road, van fixed near the lower third while the world scrolls past. Banked
- * snap lane changes, a vertical gear stick (R/1/2/3) with reverse, exponential
+ * snap lane changes, a vertical gear stick (1/2/3), exponential
  * gear speeds, roadside scenery, and varied decorative traffic (cars,
  * tractors, trucks, pick-ups, weaving motorbikes, overtaking emergency cars).
  * No cab/events/cargo yet — those arrive in later slices.
@@ -384,33 +418,8 @@ export class PtvDriveScene extends Phaser.Scene {
   private roadProfile: RoadClassRun[] = [];
   /** World-space merge zones for smooth road-type changes (dual↔single). */
   private roadTransitions: RoadTransition[] = [];
-  /** Junctions along the route — real forks (a player choice) and cosmetic bends. */
-  private routeJunctions: RouteJunction[] = [];
-  /** Live turn-choice prompt state at a fork. */
-  private junctionPrompt?: Phaser.GameObjects.Container;
-  private promptJunction?: RouteJunction;
   /** Guards the pick-and-depart transition so a double tap can't launch twice. */
   private departing = false;
-  /**
-   * The shadow under the chosen vehicle, so it leaves with her.
-   *
-   * It is the vehicle's own outline on the tarmac, and one left behind in
-   * an empty bay is a ghost. Held on the scene rather than passed along,
-   * because the pull-out and the departure are now two tweens with the
-   * child's answer between them.
-   */
-  private vanShadow: Phaser.GameObjects.GameObject[] = [];
-  /**
-   * Which way out the chosen vehicle takes once the turn is answered:
-   * `'side'` onto the start prompt's exit road, `'bottom'` through the
-   * bottom of the picker's frame, which has no road. `showTurnChoice` sets
-   * it, because the screen asking the question is the screen that knows.
-   */
-  private departVia: 'side' | 'bottom' = 'side';
-  /** The "Which way?" plate and its two buttons, so they can be taken away
-   *  the moment one of them is pressed. */
-  private turnChoice: Phaser.GameObjects.GameObject[] = [];
-  private resolvedJunctions = new Set<number>();
   /** False once Marcus manually toggles a road type — stops map auto-following. */
   private autoRoad = true;
   /** True during a road-type change so the loop doesn't re-trigger it. */
@@ -419,7 +428,9 @@ export class PtvDriveScene extends Phaser.Scene {
   /** True while the van is out in the oncoming lane overtaking on a single
    *  carriageway. `drive.lane` still holds her own-carriageway lane throughout. */
   private overtaking = false;
-  private driveTimer?: Phaser.Time.TimerEvent;
+  /** Set while the road is being driven: `update` steps the drive only then.
+   *  The size is the screen's when travel was drawn, as the 50 ms loop held it. */
+  private driveLoop?: { width: number; height: number; margin: number };
   private laneTween?: Phaser.Tweens.Tween;
 
   // GPS mini-map
@@ -428,7 +439,11 @@ export class PtvDriveScene extends Phaser.Scene {
   private gpsArc = { x: 0, y: 0 };
   private gpsDest = { x: 0, y: 0 };
   private gpsGraph?: RoadGraph;
-  private gpsAdj?: Adjacency;
+  /** The A28's carriageways, for the speed verdict; absent if the file is. */
+  private trunkCarriageways?: TrunkCarriageways;
+  /** Every road for every vehicle but Trikey, and her own network (rule
+   *  18A: never along the A28, across it only at two sets of lights). */
+  private roadNetworks?: RoadNetworks;
   /** The route as panel-pixel points, with cumulative lengths for the dot. */
   private gpsRoutePts: { x: number; y: number }[] = [];
   private gpsRouteCum: number[] = [];
@@ -451,9 +466,28 @@ export class PtvDriveScene extends Phaser.Scene {
   // Gear stick
   private gearKnob?: Phaser.GameObjects.Container;
   private gearSlotY: Partial<Record<string, number>> = {};
+  private gearStickX = 0;
+
+  /** 30A: every gear works on every road. The road only prompts her: while
+   *  her gear does not suit the road, the suiting knob glows (33A,
+   *  road-gears.ts stepGearHint), and a wrong gear costs what gearCosts
+   *  says. Nothing here refuses or caps a gear by road. */
+  private gearHint: GearHintState = createGearHint();
+  /** The knob glowing now, 0 for none. */
+  private gearHintKnob: ForwardGear | 0 = 0;
+  private gearHintGlow?: Phaser.GameObjects.Graphics;
+  /** This frame's cost of the gear she is in. */
+  private gearCostsNow: GearCosts = { ...NO_GEAR_COSTS };
+  /** The dust cloud behind the van, too fast on a farm track. */
+  private dustGfx?: Phaser.GameObjects.Graphics;
+  /** The road (gearRoadKey) the queue last beeped on, so it beeps once a stretch. */
+  private queueBeepedOn: string | null = null;
+  /** The van is held behind something ahead by its own braking. */
+  private selfStopping = false;
 
   /** Handbrake: while engaged the vehicle is held and gear changes are blocked
-   *  (a reminder flashes). Off once the van pulls away; re-engages on Park. */
+   *  (a reminder flashes). It is the only way to stand still: there is no
+   *  Park. */
   private handbrakeOn = false;
   private handbrakeLamp?: Phaser.GameObjects.Arc;
   private handbrakeLabel?: Phaser.GameObjects.Text;
@@ -465,7 +499,6 @@ export class PtvDriveScene extends Phaser.Scene {
     down: Phaser.Input.Keyboard.Key;
     a: Phaser.Input.Keyboard.Key;
     d: Phaser.Input.Keyboard.Key;
-    r: Phaser.Input.Keyboard.Key;
     space: Phaser.Input.Keyboard.Key;
     h: Phaser.Input.Keyboard.Key;
   };
@@ -550,6 +583,14 @@ export class PtvDriveScene extends Phaser.Scene {
     if (!this.cache.json.exists('birchie-graph')) {
       this.load.json('birchie-graph', '/assets/driving/birchie-graph.json');
     }
+    // What each A28 edge really is: dual, divided or single, and its limit.
+    if (!this.cache.json.exists('trunk-carriageways')) {
+      this.load.json('trunk-carriageways', '/assets/driving/trunk-carriageways.json');
+    }
+    // Trikey's own paths and the two A28 crossings she may use.
+    if (!this.cache.json.exists('trikey-links')) {
+      this.load.json('trikey-links', '/assets/driving/trikey-links.json');
+    }
     this.load.on('loaderror', () => { /* tolerate not-yet-generated sprites */ });
   }
 
@@ -593,15 +634,18 @@ export class PtvDriveScene extends Phaser.Scene {
     this.laneTween = undefined;
     this.gearKnob = undefined;
     this.gearSlotY = {};
+    this.gearHint = createGearHint();
+    this.gearHintKnob = 0;
+    this.gearHintGlow = undefined;
+    this.gearCostsNow = { ...NO_GEAR_COSTS };
+    this.dustGfx = undefined;
+    this.queueBeepedOn = null;
+    this.selfStopping = false;
     this.gpsDot = undefined;
     this.gpsManeuvers = [];
     this.cameraTriggers = [];
     this.roadProfile = [];
     this.roadTransitions = [];
-    this.routeJunctions = [];
-    this.junctionPrompt = undefined;
-    this.promptJunction = undefined;
-    this.resolvedJunctions = new Set();
     this.turning = false;
     this.autoRoad = true;
     this.roadSwitching = false;
@@ -629,6 +673,8 @@ export class PtvDriveScene extends Phaser.Scene {
    * already chosen are handed forward.
    */
   private readCargo(data?: PtvDriveInit): Animal[] {
+    // A supply run carries nobody, whatever it is handed: no loading screen.
+    if (!this.drive.carriesAnimals) return [];
     if (data?.cargo?.length) return data.cargo;
     if (typeof window === 'undefined') return [];
     const raw = new URLSearchParams(window.location.search).get('cargo');
@@ -700,7 +746,7 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   private cleanup(): void {
-    if (this.driveTimer) { this.driveTimer.destroy(); this.driveTimer = undefined; }
+    this.driveLoop = undefined;
     if (this.laneTween) { this.laneTween.stop(); this.laneTween = undefined; }
     if (this.keys) {
       for (const k of Object.values(this.keys)) {
@@ -789,7 +835,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.worldLayer = this.add.container(0, 0);
     this.container.add(this.worldLayer);
 
-    // Road (redrawn every tick).
+    // Road (redrawn every frame).
     this.roadGfx = this.add.graphics();
     this.worldLayer.add(this.roadGfx);
 
@@ -866,9 +912,9 @@ export class PtvDriveScene extends Phaser.Scene {
 
     // Road-following route A.R.C. → destination (Dijkstra on the road graph,
     // straight-line fallback if the network can't connect).
-    this.ensureGraph();
-    const polyFrac: RoutePoint[] = this.gpsGraph && this.gpsAdj
-      ? routePolyline(this.gpsGraph, this.gpsAdj, ARC_PLACE, placeFor(this.destinationId))
+    const roads = this.routeRoads();
+    const polyFrac: RoutePoint[] = roads
+      ? routePolyline(roads.graph, roads.adj, ARC_PLACE, placeFor(this.destinationId))
       : [ARC_PLACE, placeFor(this.destinationId)];
     this.gpsRoutePts = polyFrac.map(toPanel);
     this.gpsRouteCum = [0];
@@ -1171,7 +1217,7 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   /** Pick a vehicle and pull it out of its bay to the car park's exit, then
-   *  ask which way she is going.
+   *  onto the road.
    *
    *  With animals to carry the pick opens the loading screen instead, because
    *  the grid's size is the vehicle's: which crates fit, and therefore who may
@@ -1199,27 +1245,24 @@ export class PtvDriveScene extends Phaser.Scene {
     img.setDepth(30);
     this.vanGfx = img;
     this.vanY = cy;
-    this.vanShadow = shadow;
-    const { width, height } = this.scale;
-    // **This is the pull-out, not the departure.** She comes forward out of
-    // her bay onto the gravel at the car park's exit and stops there, whole,
-    // and then the child is asked which way — a question that only makes
-    // sense while she is still on screen to go somewhere. She leaves in
-    // `turnAndGo`, through the bottom of the frame.
+    const { height } = this.scale;
+    // **This is the pull-out.** She comes forward out of her bay onto the
+    // gravel at the car park's exit, whole, and then the road follows: the
+    // route steers itself, so there is no way to choose.
     //
     // **Her nose is what the tween aims, not her centre.** The target used
     // to be her centre at the road, which was a few pixels of overhang when
     // every vehicle was thumbnailed to 158px; with the fleet drawn at true
     // scale Big Tilly is 395px long at 820x620, and her centre at the exit
     // put most of a lorry below the bottom of the screen — parked half out
-    // of frame, waiting to be asked a question. The `Math.max` keeps her
-    // rear on screen if she is ever longer than the room, and the floor of
-    // zero means she pulls out or stays, never reverses into the bay.
+    // of frame. The `Math.max` keeps her rear on screen if she is ever
+    // longer than the room, and the floor of zero means she pulls out or
+    // stays, never reverses into the bay.
     const nose = height - PICKER_EXIT_MARGIN;
     const half = img.displayHeight / 2;
     const dy = Math.max(0, Math.max(half, nose - half) - img.y);
     this.driveTogether([img, ...shadow], { dy, duration: 700, ease: 'Sine.easeInOut' },
-      () => this.showTurnChoice(width, height, 'bottom'));
+      () => this.beginTravel());
   }
 
   /**
@@ -1579,133 +1622,6 @@ export class PtvDriveScene extends Phaser.Scene {
     this.renderView();
   }
 
-  private renderSelect(width: number, height: number): void {
-    if (this.textures.exists('site-gravel')) {
-      this.container.add(this.add.tileSprite(0, 0, width, height, 'site-gravel').setOrigin(0));
-    } else {
-      this.container.add(this.add.rectangle(width / 2, height / 2, width, height, 0xcbb79a));
-    }
-
-    this.container.add(
-      this.add.text(width / 2, height * 0.08, 'Time for a drive!', {
-        fontSize: TYPE.heading, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
-        backgroundColor: 'rgba(255,249,239,0.8)', padding: { x: 14, y: 6 },
-      }).setOrigin(0.5)
-    );
-
-    // Where are we going? — a simple destination strip.
-    const destName = this.destinationId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    const dpW = Math.min(width * 0.7, 560), dpX = (width - dpW) / 2, dpY = height * 0.16, dpH = 52;
-    const dp = this.add.graphics();
-    dp.fillStyle(0x4a3f2e, 0.92); dp.fillRoundedRect(dpX, dpY, dpW, dpH, 12);
-    this.container.add(dp);
-    this.container.add(
-      this.add.text(dpX + 18, dpY + dpH / 2, `Off to ${destName}`, {
-        fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold', color: '#fff5e8',
-      }).setOrigin(0, 0.5)
-    );
-
-    this.container.add(
-      this.add.text(width / 2, height * 0.31, 'Which vehicle?', {
-        fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
-      }).setOrigin(0.5)
-    );
-
-    // Vehicle cards, one row.
-    const defs = Object.values(VEHICLE_DEFS);
-    const n = defs.length;
-    const gap = 14;
-    const areaW = Math.min(width * 0.94, 1100);
-    const cardW = Math.min(200, (areaW - gap * (n - 1)) / n);
-    const cardH = height * 0.42;
-    const rowW = cardW * n + gap * (n - 1);
-    const startX = (width - rowW) / 2, cardY = height * 0.36;
-    defs.forEach((v, i) => {
-      this.container.add(this.makeVehicleCard(v, startX + i * (cardW + gap), cardY, cardW, cardH));
-    });
-
-    this.container.add(
-      createChromeButton(this, width / 2, height * 0.88, "Let's go!", () => {
-        AudioManager.getInstance().playSfx('button_click');
-        this.phase = 'parking';
-        this.renderView();
-      }, { width: 190, variant: 'filled' }).setDepth(45)
-    );
-    this.container.add(
-      createChromeButton(this, SAFE_MARGIN, SAFE_MARGIN, 'Back', () => this.exit(), { width: 88, anchor: { x: 'left', y: 'top' } }).setDepth(45)
-    );
-  }
-
-  /** One vehicle card in the picker (top-left origin at x,y). */
-  private makeVehicleCard(v: VehicleDef, x: number, y: number, w: number, h: number): Phaser.GameObjects.Container {
-    const locked = v.unlockLevel > this.playerLevel;
-    const selected = v.id === this.vehicleId;
-    const card = this.add.container(x, y);
-
-    const bg = this.add.graphics();
-    bg.fillStyle(selected ? 0xfff2e0 : 0xfbf6ec, 1);
-    bg.fillRoundedRect(0, 0, w, h, 12);
-    bg.lineStyle(selected ? 4 : 2, selected ? 0xd9534f : 0xcbbfa6, 1);
-    bg.strokeRoundedRect(0, 0, w, h, 12);
-    card.add(bg);
-
-    const key = VEHICLE_SPRITE[v.id];
-    if (this.textures.exists(key)) {
-      const img = this.add.image(w / 2, h * 0.36, key);
-      // Scale by WIDTH proportional to real size (Henry = 1.0), so Trikey reads
-      // tiny and the bigger vehicles are visibly wider — never narrower than
-      // Henry. Cap the height so a long body mostly fits, but a "large" vehicle
-      // (size >= Henry) is floored at Henry's width even if it then runs tall.
-      const henryW = w * 0.52;
-      let scale = (henryW * VEHICLE_SIZE[v.id]) / img.width;
-      const maxH = h * 0.58;
-      if (img.height * scale > maxH) scale = maxH / img.height;
-      if (VEHICLE_SIZE[v.id] >= 1) scale = Math.max(scale, henryW / img.width);
-      img.setScale(scale);
-      card.add(img);
-    }
-
-    card.add(
-      this.add.text(w / 2, h * 0.7, v.name, {
-        fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
-      }).setOrigin(0.5)
-    );
-    card.add(
-      this.add.text(w / 2, h * 0.82, `Slots ${v.slots}    Fuel ${v.fuelCost}    L${v.unlockLevel}+`, {
-        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: '#6a6152',
-      }).setOrigin(0.5)
-    );
-
-    if (selected) {
-      card.add(
-        this.add.text(w - 8, 8, 'Selected!', {
-          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
-          backgroundColor: '#d9534f', padding: { x: 6, y: 3 },
-        }).setOrigin(1, 0)
-      );
-    }
-
-    if (locked) {
-      const ov = this.add.graphics();
-      ov.fillStyle(0x2a2a2a, 0.5); ov.fillRoundedRect(0, 0, w, h, 12);
-      card.add(ov);
-      card.add(
-        this.add.text(w / 2, h / 2, `Unlocks\nL${v.unlockLevel}`, {
-          fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff', align: 'center',
-        }).setOrigin(0.5)
-      );
-    } else {
-      card.setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
-      card.on('pointerdown', () => {
-        if (this.vehicleId === v.id) return;
-        this.vehicleId = v.id;
-        AudioManager.getInstance().playSfx('button_click');
-        this.renderView();
-      });
-    }
-    return card;
-  }
-
   // ── Parking-lot start ──────────────────────────────────────
 
   /**
@@ -1807,7 +1723,7 @@ export class PtvDriveScene extends Phaser.Scene {
         backgroundColor: 'rgba(255,249,239,0.7)', padding: { x: 12, y: 4 },
       }).setOrigin(0.5).setDepth(45)
     );
-    const go = createChromeButton(this, width / 2, roadY - 34, "Let's go!", () => this.pullOutOfBay(width, height, roadY), {
+    const go = createChromeButton(this, width / 2, roadY - 34, "Let's go!", () => this.pullOutOfBay(roadY), {
       width: 180, variant: 'filled',
     }).setDepth(45);
     this.container.add(go);
@@ -2156,7 +2072,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.arriving = true;
 
     // **Travel's pending work has to die before the forecourt is
-    // drawn.** `cleanup()` takes the drive timer and the lane tween,
+    // drawn.** `cleanup()` stops the drive loop and the lane tween,
     // which is everything travel mode owns *synchronously* — but
     // `switchRoad` schedules its re-layout on a `delayedCall(180)` and
     // hands the fade to a tween, so a road change that started in the
@@ -2176,8 +2092,8 @@ export class PtvDriveScene extends Phaser.Scene {
     this.renderView();
   }
 
-  /** Henry rolls forward out of the bay to the exit road, then asks which way. */
-  private pullOutOfBay(width: number, height: number, roadY: number): void {
+  /** Henry rolls forward out of the bay to the exit road, then the road follows. */
+  private pullOutOfBay(roadY: number): void {
     // Hide the start-prompt layer (title + Let's go! + Back all sit at depth 45+).
     for (const o of this.container.list) {
       const go = o as Phaser.GameObjects.GameObject & { depth?: number; setVisible?: (v: boolean) => unknown };
@@ -2186,105 +2102,17 @@ export class PtvDriveScene extends Phaser.Scene {
 
     AudioManager.getInstance().playSfx('button_click');
     const van = this.vanGfx;
-    if (!van) { this.beginTravel(1); return; }
+    if (!van) { this.beginTravel(); return; }
     this.tweens.add({
       targets: van,
       y: roadY - 4,
       duration: 750,
       ease: 'Sine.easeInOut',
-      onComplete: () => this.showTurnChoice(width, height, 'side'),
+      onComplete: () => this.beginTravel(),
     });
   }
 
-  /**
-   * Offer the left/right turn, and say where the vehicle goes once it is
-   * answered.
-   *
-   * **Two screens ask this question and they have different ways out.**
-   * The start prompt (`renderParking`) draws its own exit road along the
-   * bottom, so the vehicle turns onto it and drives off that side, which is
-   * what `'side'` is and what this has always done. The picker has no road
-   * — it could not have one that read as a road at the scale its fleet is
-   * drawn — so its vehicle leaves through the bottom of the frame instead.
-   *
-   * Either way the question is asked while she is standing still and in
-   * frame, out of her bay with somewhere to go: mid-exit it would be a
-   * question about something already happening, and after it a question
-   * about a vehicle the child can no longer see.
-   */
-  private showTurnChoice(width: number, height: number, via: 'side' | 'bottom'): void {
-    this.departVia = via;
-    // Kept so the question can be taken away the moment it is answered:
-    // a vehicle driving out of the picture under a plate still asking
-    // which way she is going is the screen contradicting itself.
-    this.turnChoice = [
-      this.add.text(width / 2, height * 0.5, 'Which way?', {
-        fontSize: TYPE.heading, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
-        backgroundColor: 'rgba(255,249,239,0.85)', padding: { x: 14, y: 6 },
-      }).setOrigin(0.5).setDepth(50),
-      createChromeButton(this, width * 0.32, height * 0.62, '◀ Left', () => this.turnAndGo(-1), {
-        width: 150,
-      }).setDepth(50),
-      createChromeButton(this, width * 0.68, height * 0.62, 'Right ▶', () => this.turnAndGo(1), {
-        width: 150,
-      }).setDepth(50),
-    ];
-    for (const o of this.turnChoice) this.container.add(o);
-  }
-
-  /** She goes the chosen way and leaves the forecourt; then the road screen
-   *  appears and she drives on from the bottom. */
-  private turnAndGo(dir: -1 | 1): void {
-    AudioManager.getInstance().playSfx('button_click');
-    // The question is answered, so it goes before she does.
-    for (const o of this.turnChoice) o.destroy();
-    this.turnChoice = [];
-    const van = this.vanGfx;
-    if (!van) { this.beginTravel(dir); return; }
-    const { width, height } = this.scale;
-
-    if (this.departVia === 'bottom') {
-      // **Out through the bottom of the frame, and genuinely gone.** The
-      // car park has no road to turn onto, so the way out is towards the
-      // viewer. Her centre goes a whole length past the bottom edge, which
-      // puts her rear half a length clear of it however she is angled —
-      // "far enough to be gone" has to be arithmetic, because the screen
-      // that follows assumes an empty forecourt, and under reduced motion
-      // the move happens in one frame with nobody watching it travel.
-      //
-      // She swings a little the way she is going and drifts that way as
-      // she leaves, so Left and Right are two different pictures rather
-      // than one animation behind two buttons. A full 90° turn is the
-      // other screen's, where there is a road to turn along.
-      // A `Graphics` van has no measurable height, so it is sent a whole
-      // screen instead — further than it needs, which is the safe way to
-      // be wrong about "gone".
-      const length = 'displayHeight' in van ? van.displayHeight : height;
-      this.driveTogether(
-        [van, ...this.vanShadow],
-        {
-          dy: (height + length) - van.y,
-          dx: dir * width * 0.14,
-          angle: dir * 18,
-          duration: 700,
-          ease: 'Sine.easeIn',
-        },
-        () => this.beginTravel(dir),
-      );
-      return;
-    }
-
-    this.tweens.add({
-      targets: van,
-      angle: dir > 0 ? 90 : -90,                  // nose points the way we're turning
-      x: dir > 0 ? width + this.vanW * 2 : -this.vanW * 2, // drive off that edge
-      duration: 640,
-      ease: 'Sine.easeIn',
-      onComplete: () => this.beginTravel(dir),
-    });
-  }
-
-  private beginTravel(_dir: -1 | 1): void {
+  private beginTravel(): void {
     // Work out the road-class profile for this route, and open on the road type
     // the route starts on, so the drive matches the map from the off.
     this.computeRouteProfile();
@@ -2311,31 +2139,44 @@ export class PtvDriveScene extends Phaser.Scene {
   private ensureGraph(): void {
     if (!this.gpsGraph && this.cache.json.exists('birchie-graph')) {
       this.gpsGraph = this.cache.json.get('birchie-graph') as RoadGraph;
-      this.gpsAdj = buildAdjacency(this.gpsGraph);
+      const links = this.cache.json.exists('trikey-links')
+        ? this.cache.json.get('trikey-links') as TrikeyLinksFile
+        : NO_TRIKEY_LINKS;
+      this.roadNetworks = createRoadNetworks(this.gpsGraph, links);
+      if (this.cache.json.exists('trunk-carriageways')) {
+        this.trunkCarriageways = parseTrunkCarriageways(
+          this.cache.json.get('trunk-carriageways') as TrunkCarriagewaysFile, this.gpsGraph);
+      }
     }
   }
 
-  private computeRouteProfile(): void {
+  /**
+   * The roads this drive routes over: the picked vehicle's own, so the GPS
+   * line and the road profile both follow them (Trikey keeps off the A28 and
+   * crosses it only at the lights). Where her own roads cannot reach the
+   * destination she takes every road instead; see `roadsForRoute`.
+   */
+  private routeRoads(): VehicleRoads | undefined {
     this.ensureGraph();
-    this.roadProfile = this.gpsGraph && this.gpsAdj
-      ? routeProfile(this.gpsGraph, this.gpsAdj, ARC_PLACE, placeFor(this.destinationId))
+    if (!this.roadNetworks) return undefined;
+    return roadsForRoute(this.roadNetworks, this.vehicleId, ARC_PLACE, placeFor(this.destinationId)).roads;
+  }
+
+  private computeRouteProfile(): void {
+    const roads = this.routeRoads();
+    this.roadProfile = roads
+      ? routeProfile(roads.graph, roads.adj, ARC_PLACE, placeFor(this.destinationId), this.trunkCarriageways)
       : [];
     // One merge zone per road-type change, centred on the class boundary
     // (~3–4s to play out at cruising speed). scrollY and progress are the same
     // signal, so the zone's world-Y lines up with where the boundary scrolls to.
     this.roadTransitions = buildRoadTransitions(this.roadProfile, roadIdForClass, MERGE_ZONE_LEN);
-    this.routeJunctions = this.gpsGraph && this.gpsAdj
-      ? buildRouteJunctions(this.gpsGraph, this.gpsAdj, ARC_PLACE, placeFor(this.destinationId))
-      : [];
   }
 
   /** The road type at a progress fraction, from the route's class profile. */
   private profileRoadId(progress: number): RoadId {
-    for (const run of this.roadProfile) {
-      if (progress <= run.untilProgress + 1e-6) return roadIdForClass(run.roadClass);
-    }
-    const last = this.roadProfile[this.roadProfile.length - 1];
-    return last ? roadIdForClass(last.roadClass) : 'country-lane';
+    const cls = roadClassAt(this.roadProfile, progress);
+    return cls ? roadIdForClass(cls) : 'country-lane';
   }
 
   /**
@@ -2435,15 +2276,6 @@ export class PtvDriveScene extends Phaser.Scene {
     } else {
       drawRoadForConfig(this.roadGfx, width, height, this.scrollY, this.geo(), this.roadConfig);
     }
-    // Just the NEXT unresolved fork's side-road opening — one clear turn-in
-    // approaching from the top, not every fork on the route (which stacked into
-    // a clutter of tarmac strips). It scrolls down at road speed via its fixed
-    // world-Y; drawJunctionMouth culls it once off-screen.
-    const mouth = this.routeJunctions.find(
-      (j) => j.isChoice && j.side && !this.resolvedJunctions.has(j.nodeIndex) &&
-        this.scrollY + this.vanY - j.worldY < height + 40,
-    );
-    if (mouth) drawJunctionMouth(this.roadGfx, width, height, this.scrollY, this.vanY, this.geo(), mouth);
   }
 
   /** Whether any merge zone overlaps the visible rows this frame. */
@@ -2458,67 +2290,6 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   // ── Turning at junctions ───────────────────────────────────
-
-  /** Each tick: offer the next fork's turn choice while the van is in its
-   *  (generous) decision window, and auto-resolve one we've driven past. */
-  private updateJunctionPrompt(): void {
-    // The van sits at vanY, so its world-Y is exactly scrollY.
-    const active = this.promptJunction;
-    if (active && this.scrollY > active.worldY + JUNCTION_WINDOW_HALF && !this.resolvedJunctions.has(active.nodeIndex)) {
-      this.resolveJunction(active, 'straight'); // drove past without choosing → carry on
-    }
-    if (!this.routeJunctions.length) return;
-    const j = nextChoiceJunction(this.routeJunctions, this.drive.progress);
-    if (!j || this.resolvedJunctions.has(j.nodeIndex)) return;
-    if (this.promptJunction?.nodeIndex !== j.nodeIndex && inDecisionWindow(j, this.scrollY, JUNCTION_WINDOW_HALF)) {
-      this.showJunctionChoice(j);
-    }
-  }
-
-  /** Offer a left/right turn at a fork — buttons sit out on the grass verges,
-   *  clear of the road and van; the GPS-correct way is highlighted green. The
-   *  arrow keys (A/D too) turn while a fork is live. Doing nothing carries on. */
-  private showJunctionChoice(j: RouteJunction): void {
-    this.clearJunctionPrompt();
-    this.promptJunction = j;
-    const { width, height } = this.scale;
-    const geo = this.geo();
-    const y = height * 0.5;
-    const leftX = Math.max(60, geo.roadLeft * 0.5);
-    const rightX = Math.min(width - 60, (geo.roadLeft + geo.roadWidth + width) / 2);
-    const want = j.side;
-    const c = this.add.container(0, 0).setDepth(55);
-    // The way the route wants is filled and the other is a plate. It was
-    // green against blue, which is the hint a red-green colourblind child
-    // gets nothing from; weight is the one channel everybody reads.
-    c.add(createChromeButton(this, leftX, y, '◀', () => this.resolveJunction(j, 'left'), {
-      width: 88, height: 78, variant: want === 'left' ? 'filled' : 'plate',
-    }));
-    c.add(createChromeButton(this, rightX, y, '▶', () => this.resolveJunction(j, 'right'), {
-      width: 88, height: 78, variant: want === 'right' ? 'filled' : 'plate',
-    }));
-    this.container.add(c);
-    this.junctionPrompt = c;
-  }
-
-  private clearJunctionPrompt(): void {
-    this.junctionPrompt?.destroy();
-    this.junctionPrompt = undefined;
-    this.promptJunction = undefined;
-  }
-
-  /** Resolve a fork. The GPS-correct way is cheerful; a wrong way (or a
-   *  drive-past) is gently accepted — for now we always carry on along the
-   *  route (a true wrong-turn reroute is the next slice). */
-  private resolveJunction(j: RouteJunction, dir: 'left' | 'straight' | 'right'): void {
-    if (this.resolvedJunctions.has(j.nodeIndex)) return;
-    this.resolvedJunctions.add(j.nodeIndex);
-    this.clearJunctionPrompt();
-    const correct = dir === (j.side ?? 'straight');
-    AudioManager.getInstance().playSfx(correct ? 'button_click' : 'food_wrong');
-    this.showRoadBanner(correct ? 'Good turn!' : 'This way!');
-    if (dir !== 'straight') this.turnWorld(dir);
-  }
 
   /**
    * Take a junction: the whole world (road, scenery, traffic) rotates 90° about
@@ -2860,17 +2631,19 @@ export class PtvDriveScene extends Phaser.Scene {
 
   /**
    * Handbrake — slam to a halt. Better than an RTA, but it jostles the animals
-   * in their cages: comfort drops, the van judders, the screen shakes. Drops
-   * the stick straight into Park so the vehicle actually stops.
+   * in their cages: comfort drops, the van judders, the screen shakes (those
+   * two not under reduced motion). Leaves the handbrake on, which is what
+   * holds the vehicle still.
    */
   private emergencyBrake(): void {
-    this.setGear(PARK);
-    this.drive.cargoComfort = jostleComfort(this.drive.cargoComfort, 15);
+    this.setHandbrake(true);
+    this.drive.cargoComfort = knockComfort(this.drive.cargoComfort, 15, this.gearCostsNow.jostleScale);
     AudioManager.getInstance().playSfx('food_wrong'); // wobble/chaos cue (placeholder)
 
-    // Screen shake + a quick van judder.
-    this.cameras.main.shake(320, 0.012);
-    if (this.vanGfx) {
+    // Screen shake + a quick van judder, both gone under reduced motion.
+    const jolts = driveJolts();
+    if (jolts.shake) this.cameras.main.shake(320, 0.012);
+    if (this.vanGfx && jolts.judder) {
       this.tweens.add({
         targets: this.vanGfx,
         angle: { from: -6, to: 6 },
@@ -2903,13 +2676,14 @@ export class PtvDriveScene extends Phaser.Scene {
     });
   }
 
-  /** Vertical gear stick on the right: 3 / 2 / 1 / P / R top-to-bottom. */
+  /** Vertical gear stick on the right: 3 / 2 / 1 top-to-bottom. */
   private renderGearStick(width: number, height: number): void {
     const stickX = width - 46;
     const topY = height * 0.28;
     const botY = height * 0.78;
-    const slots: Gear[] = [3, 2, 1, PARK, REVERSE]; // visual top → bottom
+    const slots: Gear[] = [3, 2, 1]; // visual top → bottom
     const slotY = (i: number) => topY + (botY - topY) * (i / (slots.length - 1));
+    this.gearStickX = stickX;
 
     // Track.
     const track = this.add.graphics().setDepth(38);
@@ -2930,15 +2704,10 @@ export class PtvDriveScene extends Phaser.Scene {
     slots.forEach((gear, i) => {
       const y = slotY(i);
       this.gearSlotY[String(gear)] = y;
-      const label = gearLabel(gear);
-      const labelColour =
-        gear === PARK ? '#a9c7e0' :
-        gear === REVERSE ? '#ffc9c9' :
-        '#e8dcc8';
       this.container.add(
-        this.add.text(stickX, y, label, {
+        this.add.text(stickX, y, gearLabel(gear), {
           fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
-          color: labelColour,
+          color: '#e8dcc8',
         }).setOrigin(0.5).setDepth(39)
       );
       const zone = this.add.rectangle(stickX, y, 52, 40, 0xffffff, 0)
@@ -2957,6 +2726,113 @@ export class PtvDriveScene extends Phaser.Scene {
     this.gearKnob.add(knobBg);
     this.gearKnob.setDepth(42);
     this.container.add(this.gearKnob);
+
+    // The prompt's glow, drawn round the suiting knob's notch by drawGearHint.
+    this.gearHintGlow = this.add.graphics().setDepth(40);
+    this.container.add(this.gearHintGlow);
+    this.dustGfx = this.add.graphics().setDepth(19);
+    this.container.add(this.dustGfx);
+  }
+
+  /**
+   * The knob prompt and what the wrong gear costs, once a frame (30A).
+   * `rate` is this frame's pace, which scales the gear's speed down when she
+   * is held behind traffic or on the handbrake, so a van barely moving costs
+   * nothing. The road is the run under the van; on the A28, the carriageway
+   * there, so the 30 mph road through The Square is not judged as the 50 mph
+   * dual carriageway. With no route profile there is no road to judge by: no
+   * prompt, no cost, and no speed camera fires.
+   */
+  private stepGears(rate: number, dt: number): void {
+    // Off the road (the arrival, loading), the stick is gone: no prompt.
+    const run = this.phase === 'travel' ? roadRunAt(this.roadProfile, this.drive.progress) : undefined;
+    if (!run) {
+      this.gearCostsNow = { ...NO_GEAR_COSTS };
+      this.setGearHintKnob(0, null);
+      this.drawDust();
+      return;
+    }
+    const gear = this.drive.gear;
+    this.gearCostsNow = gearCosts(run.roadClass, gear, this.speedMpsAt(rate), run.carriageway);
+    const { state, knob } = stepGearHint(this.gearHint, {
+      roadClass: run.roadClass, carriageway: run.carriageway, gear, dt,
+    });
+    this.gearHint = state;
+    this.setGearHintKnob(knob, run);
+    this.drawGearHint();
+    this.drawDust();
+
+    // Too slow on the dual carriageway: the queue behind beeps, once a stretch.
+    const key = gearRoadKey(run.roadClass, run.carriageway);
+    if (this.gearCostsNow.queue && this.queueBeepedOn !== key) {
+      this.queueBeepedOn = key;
+      AudioManager.getInstance().playSfx('food_wrong');
+      this.gearToast('beep beep! The queue wants you faster');
+    }
+  }
+
+  /** The van's speed, m/s, at this frame's pace: the gear's speed, scaled down
+   *  when she is held behind traffic or on the handbrake. */
+  private speedMpsAt(rate: number): number {
+    const gear = this.drive.gear;
+    return GEAR_SPEED_MPS[gear] * Math.max(0, rate) / gearScrollRate(gear);
+  }
+
+  /** Under reduced motion the glow holds steady, so a toast says it instead. */
+  private setGearHintKnob(knob: ForwardGear | 0, run: RoadClassRun | null | undefined): void {
+    if (knob === this.gearHintKnob) return;
+    this.gearHintKnob = knob;
+    if (knob && run && !driveJolts().gearHintPulse) {
+      this.gearToast(`Gear ${gearLabel(knob)} suits this road`);
+    }
+    if (!knob && this.gearHintGlow?.active) this.gearHintGlow.clear();
+  }
+
+  /** The glow round the suiting knob: it pulses about once a second, and holds
+   *  steady under reduced motion (drive-spike/dashboard.js). */
+  private drawGearHint(): void {
+    const g = this.gearHintGlow;
+    if (!g?.active) return;
+    g.clear();
+    const knob = this.gearHintKnob;
+    const y = knob ? this.gearSlotY[String(knob)] : undefined;
+    if (!knob || y === undefined) return;
+    const pulse = driveJolts().gearHintPulse
+      ? 0.3 + 0.7 * (0.5 - 0.5 * Math.cos((this.time.now / 1000) * Math.PI * 2))
+      : 0.85;
+    g.fillStyle(0xffb034, 0.35 * pulse);
+    g.fillRoundedRect(this.gearStickX - 26, y - 22, 52, 44, 12);
+    g.lineStyle(3, 0xffe28c, 0.55 + 0.45 * pulse);
+    g.strokeRoundedRect(this.gearStickX - 26, y - 22, 52, 44, 12);
+  }
+
+  /** Too fast on a farm track: a dust cloud behind the van, which the animals
+   *  breathe. Drawn still, so it is the same under reduced motion. */
+  private drawDust(): void {
+    const g = this.dustGfx;
+    if (!g?.active) return;
+    g.clear();
+    if (!this.gearCostsNow.dust || !this.vanGfx) return;
+    const x = this.vanGfx.x, y = this.vanY + this.vanH * 0.55;
+    const r = this.vanW * 0.55;
+    g.fillStyle(0xc8a878, 0.45);
+    g.fillCircle(x, y + r * 0.4, r * 1.1);
+    g.fillCircle(x - r * 0.8, y + r * 1.1, r * 0.9);
+    g.fillCircle(x + r * 0.8, y + r * 1.1, r * 0.9);
+    g.fillStyle(0xd8bc90, 0.3);
+    g.fillCircle(x, y + r * 1.8, r * 1.3);
+  }
+
+  /** A short message that sits still and goes: no flash, so it is the same
+   *  under reduced motion. */
+  private gearToast(text: string): void {
+    const { width, height } = this.scale;
+    const msg = this.add.text(width / 2, height * 0.22, text, {
+      fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+      backgroundColor: 'rgba(40,52,70,0.88)', padding: { x: 14, y: 7 },
+    }).setOrigin(0.5).setDepth(60);
+    this.container.add(msg);
+    this.time.delayedCall(1600, () => msg.destroy());
   }
 
   // ── Input ──────────────────────────────────────────────────
@@ -2971,17 +2847,15 @@ export class PtvDriveScene extends Phaser.Scene {
         down: kb.addKey('DOWN'),
         a: kb.addKey('A'),
         d: kb.addKey('D'),
-        r: kb.addKey('R'),
         space: kb.addKey('SPACE'),
         h: kb.addKey('H'),
       };
-      this.keys.left.on('down', () => this.steer(-1));
-      this.keys.a.on('down', () => this.steer(-1));
-      this.keys.right.on('down', () => this.steer(1));
-      this.keys.d.on('down', () => this.steer(1));
+      this.keys.left.on('down', () => this.moveLane(-1));
+      this.keys.a.on('down', () => this.moveLane(-1));
+      this.keys.right.on('down', () => this.moveLane(1));
+      this.keys.d.on('down', () => this.moveLane(1));
       this.keys.up.on('down', () => this.setGear(cycleGear(this.drive.gear, 1)));
       this.keys.down.on('down', () => this.setGear(cycleGear(this.drive.gear, -1)));
-      this.keys.r.on('down', () => this.setGear(REVERSE));
       this.keys.space.on('down', () => this.toggleHandbrake()); // handbrake: pull/release
       this.keys.h.on('down', () => this.playHorn());
     }
@@ -3000,12 +2874,6 @@ export class PtvDriveScene extends Phaser.Scene {
     rightZone.on('pointerdown', () => this.moveLane(1));
     rightZone.setDepth(1);
     this.container.add(rightZone);
-  }
-
-  /** Left/right input: turns at a live fork, otherwise changes lane. */
-  private steer(dir: -1 | 1): void {
-    if (this.promptJunction) this.resolveJunction(this.promptJunction, dir < 0 ? 'left' : 'right');
-    else this.moveLane(dir);
   }
 
   private moveLane(dir: -1 | 1): void {
@@ -3028,9 +2896,10 @@ export class PtvDriveScene extends Phaser.Scene {
 
     const next = Math.max(0, Math.min(pl - 1, this.drive.lane + dir));
     if (next !== this.drive.lane) {
-      // Ordinary lane change within our own carriageway. Safety first: with
-      // animals aboard we NEVER swerve into another vehicle.
-      if (this.drive.carriesAnimals && this.laneBlockedAt(next, this.vanY)) {
+      // Ordinary lane change within our own carriageway. Safety first: we
+      // NEVER swerve into another vehicle, with animals aboard or on a supply
+      // run. There is never a road accident.
+      if (this.laneBlockedAt(next, this.vanY)) {
         this.bumpBlocked(dir);
         return;
       }
@@ -3122,14 +2991,15 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   private setGear(gear: Gear): void {
-    if (gear === this.drive.gear) return;
-    // Can't select a driving gear with the handbrake on — flash a reminder.
-    if (gear !== PARK && this.handbrakeOn) {
+    // Can't select a gear with the handbrake on — flash a reminder.
+    if (this.handbrakeOn && gear !== this.drive.gear) {
       this.flashHandbrakeReminder();
       return;
     }
+    // Every gear is hers to pick on every road (30A). The prompt follows the
+    // gear she is in: once it suits the road the knob stops (33A, stepGears).
+    if (gear === this.drive.gear) return;
     this.drive.gear = gear;
-    if (gear === PARK) this.setHandbrake(true); // parking pulls the handbrake on
     AudioManager.getInstance().playSfx('button_click');
     const y = this.gearSlotY[String(gear)];
     if (this.gearKnob && y !== undefined) {
@@ -3138,7 +3008,7 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   /** Engage/release the handbrake. Releasing lets the driver pick a gear;
-   *  pulling it on stops the vehicle (drops to Park). */
+   *  pulling it on stops the vehicle and holds it. */
   private toggleHandbrake(): void {
     if (this.handbrakeOn) {
       this.setHandbrake(false); // release — the driver can now select a gear
@@ -3254,135 +3124,151 @@ export class PtvDriveScene extends Phaser.Scene {
 
   // ── Drive loop ─────────────────────────────────────────────
 
+  /** Start driving: from the next frame `update` moves the road. */
   private startDriveLoop(): void {
     const { width, height } = this.scale;
-    const margin = this.vanH * 1.4;
+    this.driveLoop = { width, height, margin: this.vanH * 1.4 };
+  }
 
-    this.driveTimer = this.time.addEvent({
-      delay: 50,
-      loop: true,
-      callback: () => {
-        // Freeze the world while a junction turn is animating (the world layer
-        // is mid-rotation; resume once it snaps into the new heading).
-        if (this.turning) return;
-        // Our forward pace is the gear's rate, but capped so we can't drive
-        // through a slower vehicle ahead in our lane — we tuck in behind until
-        // we pull out to overtake.
-        // Same gear, different speed per vehicle (Trikey crawls, Spark zips).
-        const gearRate = gearScrollRate(this.drive.gear) * VEHICLE_SPEED[this.vehicleId];
-        const rate = this.effectivePlayerRate(gearRate);
-        this.scrollY += rate;
+  /**
+   * One frame of the drive.
+   *
+   * It was a 50 ms timer, so the corridor moved at 20 Hz whatever the
+   * screen's rate. Now it steps every frame by the frame's length: the
+   * same speeds, so the same time to arrive, in smaller steps.
+   */
+  update(_time: number, delta: number): void {
+    const loop = this.driveLoop;
+    if (!loop) return;
+    this.stepDrive(loop.width, loop.height, loop.margin, Math.min(delta / 1000, MAX_DRIVE_STEP_S));
+  }
 
-        this.drawRoad(width, height);
+  /** Move the drive on by `dt` seconds. */
+  private stepDrive(width: number, height: number, margin: number, dt: number): void {
+    // Freeze the world while a junction turn is animating (the world layer
+    // is mid-rotation; resume once it snaps into the new heading).
+    if (this.turning) return;
+    // Our forward pace is the gear's rate, but capped so we can't drive
+    // through a slower vehicle ahead in our lane — we tuck in behind until
+    // we pull out to overtake.
+    // Same gear, different speed per vehicle (Trikey crawls, Spark zips).
+    // The handbrake holds her still; there is no Park.
+    const gearRate = this.handbrakeOn ? 0 : gearScrollRate(this.drive.gear) * VEHICLE_SPEED[this.vehicleId];
+    // `rate` is px per old tick, which the cap is still worked out in;
+    // `dy` is how far the road moves this frame.
+    const rate = this.effectivePlayerRate(gearRate);
+    const dy = rate * TICKS_PER_SECOND * dt;
+    this.stepGears(rate, dt);
+    this.scrollY += dy;
 
-        // Scenery scrolls exactly with the road.
-        for (const s of this.scenery) {
-          s.y += rate;
-          if (s.y > height + s.size + 20) s.y = -s.size - Math.random() * 60;
-          else if (s.y < -s.size - 80) s.y = height + s.size + Math.random() * 60;
-          s.gfx.setY(s.y);
-        }
+    this.drawRoad(width, height);
 
-        // Roadside decorations scroll with the road. A speed camera flashes if
-        // we pass it in top gear — the gentle "consequence" that pairs with the
-        // handbrake, never a crash.
-        for (let di = this.decor.length - 1; di >= 0; di--) {
-          const d = this.decor[di];
-          const prevY = d.y;
-          d.y += rate;
-          if (d.isCamera && !d.triggered && prevY < this.vanY && d.y >= this.vanY && this.drive.gear === 3) {
-            this.flashSpeedCamera(d);
-            d.triggered = true;
-          }
-          if (d.oneShot) {
-            // A placed speed camera: remove it once it's driven past, don't recycle.
-            if (d.y > height + d.size + 30) { d.obj.destroy(); this.decor.splice(di, 1); continue; }
-          } else if (d.y > height + d.size + 30) { d.y = -d.size - Math.random() * 80; d.triggered = false; }
-          else if (d.y < -d.size - 100) { d.y = height + d.size + Math.random() * 80; d.triggered = false; }
-          d.obj.setY(d.y);
-        }
+    // Scenery scrolls exactly with the road.
+    for (const s of this.scenery) {
+      s.y += dy;
+      if (s.y > height + s.size + 20) s.y = -s.size - Math.random() * 60;
+      else if (s.y < -s.size - 80) s.y = height + s.size + Math.random() * 60;
+      s.gfx.setY(s.y);
+    }
 
-        // Fire fixed-location speed cameras as the route reaches them.
-        for (const t of this.cameraTriggers) {
-          if (!t.done && this.drive.progress >= t.atProgress) {
-            this.spawnCameraProp(width);
-            t.done = true;
-          }
-        }
+    // Roadside decorations scroll with the road. A speed camera flashes if
+    // we pass it too fast for the road we are on (road-gears.ts) — the gentle
+    // "consequence" that pairs with the handbrake, never a crash.
+    const caught = this.gearCostsNow.speedCamera;
+    for (let di = this.decor.length - 1; di >= 0; di--) {
+      const d = this.decor[di];
+      const prevY = d.y;
+      d.y += dy;
+      if (d.isCamera && !d.triggered && prevY < this.vanY && d.y >= this.vanY && caught) {
+        this.flashSpeedCamera(d);
+        d.triggered = true;
+      }
+      if (d.oneShot) {
+        // A placed speed camera: remove it once it's driven past, don't recycle.
+        if (d.y > height + d.size + 30) { d.obj.destroy(); this.decor.splice(di, 1); continue; }
+      } else if (d.y > height + d.size + 30) { d.y = -d.size - Math.random() * 80; d.triggered = false; }
+      else if (d.y < -d.size - 100) { d.y = height + d.size + Math.random() * 80; d.triggered = false; }
+      d.obj.setY(d.y);
+    }
 
-        // Follow the map: change road type where the route's road class changes.
-        if (this.autoRoad && !this.roadSwitching && this.roadProfile.length) {
-          const id = this.profileRoadId(this.drive.progress);
-          if (id !== this.roadConfig.id) this.switchRoad(id);
-        }
+    // Fire fixed-location speed cameras as the route reaches them.
+    for (const t of this.cameraTriggers) {
+      if (!t.done && this.drive.progress >= t.atProgress) {
+        this.spawnCameraProp(width);
+        t.done = true;
+      }
+    }
 
-        // Traffic drifts by the difference between our pace and their own
-        // lane-aware absolute pace — so they keep flowing past even when we're
-        // stopped, and the fast lane genuinely moves faster.
-        for (const car of this.traffic) {
-          car.y += rate - car.absSpeed;
+    // Follow the map: change road type where the route's road class changes.
+    if (this.autoRoad && !this.roadSwitching && this.roadProfile.length) {
+      const id = this.profileRoadId(this.drive.progress);
+      if (id !== this.roadConfig.id) this.switchRoad(id);
+    }
 
-          // Weavers hop lanes now and then.
-          if (car.nextZigAt && this.time.now >= car.nextZigAt) {
-            const dir = car.lane === 0 ? 1 : car.lane === this.pl() - 1 ? -1 : (Math.random() < 0.5 ? -1 : 1);
-            this.moveCarToLane(car, car.lane + dir);
-            car.nextZigAt = this.time.now + 700 + Math.random() * 900;
-          }
+    // Traffic drifts by the difference between our pace and their own
+    // lane-aware absolute pace — so they keep flowing past even when we're
+    // stopped, and the fast lane genuinely moves faster.
+    for (const car of this.traffic) {
+      car.y += (rate - car.absSpeed) * TICKS_PER_SECOND * dt;
 
-          // Recycle off either end depending on drift direction.
-          if (car.y > height + margin) {
-            this.recycleCar(car, width, -margin);
-          } else if (car.y < -margin) {
-            this.recycleCar(car, width, height + margin);
-          }
-        }
+      // Weavers hop lanes now and then.
+      if (car.nextZigAt && this.time.now >= car.nextZigAt) {
+        const dir = car.lane === 0 ? 1 : car.lane === this.pl() - 1 ? -1 : (Math.random() < 0.5 ? -1 : 1);
+        this.moveCarToLane(car, car.lane + dir);
+        car.nextZigAt = this.time.now + 700 + Math.random() * 900;
+      }
 
-        // Keep vehicles from overlapping each other or the van, and let blocked
-        // cars overtake into a clear lane.
-        this.resolveTraffic(width);
-        for (const car of this.traffic) car.gfx.setY(car.y);
+      // Recycle off either end depending on drift direction.
+      if (car.y > height + margin) {
+        this.recycleCar(car, width, -margin);
+      } else if (car.y < -margin) {
+        this.recycleCar(car, width, height + margin);
+      }
+    }
 
-        // Oncoming traffic sweeps DOWN the screen toward and past us (its own
-        // pace + our forward pace). While we're out overtaking in its lane, the
-        // cars ahead of us BRAKE — they hold their world position (drifting only
-        // with the road at our pace, engine off) rather than driving into us. So
-        // they gently close on us as we advance, our forward cap stops us before
-        // contact, and when we stop (rate 0) they stop too: a clean nose-to-nose
-        // standstill, no crash, and — because they move WITH the road — they
-        // never appear to reverse. Cars we've already passed drive on normally.
-        const otLane = this.pl();
-        for (const o of this.oncoming) {
-          if (this.overtaking && o.lane === otLane && o.y <= this.vanY) {
-            o.y += Math.max(rate, 0); // braked: hold world position
-          } else {
-            o.y += o.speed + Math.max(rate, 0) * 0.6;
-          }
-          if (o.y > height + this.vanH * 2.2) this.recycleOncoming(o);
-          o.gfx.setY(o.y);
-        }
+    // Keep vehicles from overlapping each other or the van, and let blocked
+    // cars overtake into a clear lane.
+    this.resolveTraffic(width, dt);
+    for (const car of this.traffic) car.gfx.setY(car.y);
 
-        // Soft dropshadow under every vehicle, redrawn now they're all placed.
-        this.drawShadows();
+    // Oncoming traffic sweeps DOWN the screen toward and past us (its own
+    // pace + our forward pace). While we're out overtaking in its lane, the
+    // cars ahead of us BRAKE — they hold their world position (drifting only
+    // with the road at our pace, engine off) rather than driving into us. So
+    // they gently close on us as we advance, our forward cap stops us before
+    // contact, and when we stop (dy 0) they stop too: a clean nose-to-nose
+    // standstill, no crash, and — because they move WITH the road — they
+    // never appear to reverse. Cars we've already passed drive on normally.
+    const otLane = this.pl();
+    for (const o of this.oncoming) {
+      if (this.overtaking && o.lane === otLane && o.y <= this.vanY) {
+        o.y += Math.max(dy, 0); // braked: hold world position
+      } else {
+        o.y += (o.speed + Math.max(rate, 0) * 0.6) * TICKS_PER_SECOND * dt;
+      }
+      if (o.y > height + this.vanH * 2.2) this.recycleOncoming(o);
+      o.gfx.setY(o.y);
+    }
 
-        this.drive.progress = Math.min(1, Math.max(0, this.drive.progress + rate * 0.0004));
-        this.updateJunctionPrompt();
+    // Soft dropshadow under every vehicle, redrawn now they're all placed.
+    this.drawShadows();
 
-        // **The drive used to have no end.** Progress clamped at 1 and
-        // the road kept scrolling, which was invisible while the only
-        // way in was `?ptvDemo=1` and the only way out was Back. Now
-        // that a map pin starts a journey, a child has to be able to
-        // get there.
-        if (this.drive.progress >= 1) { this.beginArrival(); return; }
+    this.drive.progress = Math.min(1, Math.max(0, this.drive.progress + dy * PROGRESS_PER_PX));
 
-        // Advance the GPS position dot along the road route + refresh the turn.
-        if (this.gpsDot) {
-          const q = this.routePointAt(this.drive.progress);
-          this.gpsDot.setPosition(q.x, q.y);
-          this.redrawGpsRoute(this.drive.progress);
-          this.updateGpsInstruction();
-        }
-      },
-    });
+    // **The drive used to have no end.** Progress clamped at 1 and
+    // the road kept scrolling, which was invisible while the only
+    // way in was `?ptvDemo=1` and the only way out was Back. Now
+    // that a map pin starts a journey, a child has to be able to
+    // get there.
+    if (this.drive.progress >= 1) { this.beginArrival(); return; }
+
+    // Advance the GPS position dot along the road route + refresh the turn.
+    if (this.gpsDot) {
+      const q = this.routePointAt(this.drive.progress);
+      this.gpsDot.setPosition(q.x, q.y);
+      this.redrawGpsRoute(this.drive.progress);
+      this.updateGpsInstruction();
+    }
   }
 
   private recycleCar(car: TrafficCar, width: number, y: number): void {
@@ -3427,17 +3313,6 @@ export class PtvDriveScene extends Phaser.Scene {
   /** Our forward pace, capped so the van never drives through another vehicle. */
   private effectivePlayerRate(gearRate: number): number {
     const vanHalf = this.carHalfLen(this.vanGfx);
-
-    // Reversing: stop rather than back into (or drag) a vehicle behind us — they
-    // hold their ground, the van simply can't reverse past them.
-    if (gearRate < 0) {
-      for (const c of this.traffic) {
-        if (c.lane !== this.drive.lane || c.y <= this.vanY) continue; // behind = below us
-        const gap = c.y - this.vanY;
-        if (gap <= this.carHalfLen(c.gfx) + vanHalf + this.vanH * 0.15) return 0;
-      }
-      return gearRate;
-    }
     if (gearRate === 0) return 0;
 
     // Out overtaking in the oncoming lane: never drive into an oncoming car head
@@ -3454,18 +3329,28 @@ export class PtvDriveScene extends Phaser.Scene {
       return gearRate;
     }
 
-    // Normal: capped by the nearest slower vehicle ahead in our lane.
+    // Normal: capped by the nearest slower vehicle ahead in our lane. Too
+    // fast for the road (30A), the van brakes itself for it sooner: it wants
+    // gearCosts' stopSooner times the room ahead.
     let cap = gearRate;
+    const sooner = this.gearCostsNow.stopSooner;
     for (const c of this.traffic) {
       if (c.lane !== this.drive.lane || c.y >= this.vanY) continue; // must be ahead
       const contact = this.carHalfLen(c.gfx) + vanHalf; // centres this close = touching
       const minGap = contact + this.vanH * 0.08;
-      const follow = contact + this.vanH * 1.5;
+      const follow = contact + this.vanH * 1.5 * sooner;
       const gap = this.vanY - c.y;
       if (gap <= follow && c.absSpeed < cap) {
         cap = Math.max(0, gap < minGap ? c.absSpeed - 0.6 : c.absSpeed);
       }
     }
+    // A self-stop she drove into too fast for the road is rough driving: the
+    // animals feel it, harder for the speed (gearCosts' jostleScale).
+    const stopping = cap < gearRate;
+    if (stopping && !this.selfStopping && sooner > 1) {
+      this.drive.cargoComfort = knockComfort(this.drive.cargoComfort, SELF_STOP_KNOCK, this.gearCostsNow.jostleScale);
+    }
+    this.selfStopping = stopping;
     return cap;
   }
 
@@ -3475,7 +3360,7 @@ export class PtvDriveScene extends Phaser.Scene {
    * stuck behind something slower peel off into a clear lane to overtake. Gaps
    * are length-aware so a long bus/lorry doesn't overlap the vehicle ahead.
    */
-  private resolveTraffic(width: number): void {
+  private resolveTraffic(width: number, dt: number): void {
     const margin = this.vanH * 0.06;
     const vanHalf = this.carHalfLen(this.vanGfx);
     // Centre-to-centre gap needed so two vehicles just touch, plus a margin.
@@ -3514,7 +3399,9 @@ export class PtvDriveScene extends Phaser.Scene {
     }
 
     // Overtaking: a car blocked by something slower ahead (or by the slow van)
-    // occasionally pulls into a clear lane.
+    // occasionally pulls into a clear lane. The chance is per old tick, so a
+    // frame of `dt` seconds gets the chance of that many ticks in a row.
+    const overtakeChance = 1 - Math.pow(1 - OVERTAKE_CHANCE_PER_TICK, dt * TICKS_PER_SECOND);
     for (const c of this.traffic) {
       let aheadGap = Infinity;
       let aheadSpeed = Infinity;
@@ -3528,7 +3415,7 @@ export class PtvDriveScene extends Phaser.Scene {
         if (g < aheadGap) { aheadGap = g; aheadSpeed = 0; } // van as a slow obstacle
       }
       // "Stuck behind something slower" threshold, ~2.4 van-lengths.
-      if (aheadGap < this.vanH * 2.4 && aheadSpeed < c.absSpeed * 0.9 && Math.random() < 0.03) {
+      if (aheadGap < this.vanH * 2.4 && aheadSpeed < c.absSpeed * 0.9 && Math.random() < overtakeChance) {
         this.tryOvertake(c);
       }
     }
@@ -3558,13 +3445,16 @@ export class PtvDriveScene extends Phaser.Scene {
     const { width, height } = this.scale;
     AudioManager.getInstance().playSfx('food_wrong');
 
-    const flash = this.add.rectangle(width / 2, height / 2, width, height, 0xffffff, 0.85).setDepth(70);
-    this.container.add(flash);
-    this.tweens.add({ targets: flash, alpha: 0, duration: 320, onComplete: () => flash.destroy() });
+    // The white blitz goes under reduced motion; the sound and the words stay.
+    if (driveJolts().cameraFlash) {
+      const flash = this.add.rectangle(width / 2, height / 2, width, height, 0xffffff, 0.85).setDepth(70);
+      this.container.add(flash);
+      this.tweens.add({ targets: flash, alpha: 0, duration: 320, onComplete: () => flash.destroy() });
+    }
 
     this.tweens.add({ targets: d.obj, scale: d.obj.scale * 1.18, duration: 110, yoyo: true });
 
-    this.drive.cargoComfort = jostleComfort(this.drive.cargoComfort, 6);
+    this.drive.cargoComfort = knockComfort(this.drive.cargoComfort, 6, this.gearCostsNow.jostleScale);
 
     const msg = this.add.text(width / 2, height * 0.34, 'Slow down!', {
       fontSize: TYPE.heading, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',

@@ -17,10 +17,10 @@ from my written description alone — the description is a cross-check, the draw
 authority.
 
 === THE FOUR MASTERS ===
-M1 Henry     https://animal-rescue-centre.vercel.app/assets/driving/vehicles/vehicle-henry.png
-M2 Bea       https://animal-rescue-centre.vercel.app/assets/driving/vehicles/vehicle-bea.png
-M3 Big Tilly https://animal-rescue-centre.vercel.app/assets/driving/vehicles/vehicle-big-tilly.png
-M4 Spark     https://animal-rescue-centre.vercel.app/assets/driving/vehicles/vehicle-spark.png
+M1 Henry     https://play.arcgame.app/assets/driving/vehicles/vehicle-henry.png
+M2 Bea       https://play.arcgame.app/assets/driving/vehicles/vehicle-bea.png
+M3 Big Tilly https://play.arcgame.app/assets/driving/vehicles/vehicle-big-tilly.png
+M4 Spark     https://play.arcgame.app/assets/driving/vehicles/vehicle-spark.png
 
 Open all four before painting anything.
 

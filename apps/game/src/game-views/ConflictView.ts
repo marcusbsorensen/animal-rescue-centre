@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { RESOLUTION_ACTIONS, type Conflict, type ResolutionDef } from '@arc/game-logic';
+import { RESOLUTION_ACTIONS, type Conflict, type ConflictType, type ResolutionDef } from '@arc/game-logic';
 import { createChromeButton } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, TYPE } from '../ui/constants';
@@ -29,6 +29,41 @@ import type { GameStateStore } from '../game-state';
 export interface ConflictPopupCallbacks {
   onResolve: (action: ResolutionDef) => void;
 }
+
+/**
+ * The pose each animal wears, by conflict type: [a1, a2], where a1 is the
+ * instigator and a2 the one who minds. From docs/sprite-pose-spec-2026-09-05.md,
+ * "The conflict screen never asks for its poses".
+ *
+ * It used to be sheltered / sleeping / eating for all four, so the screen
+ * that says "bickering about toys" drew two settled animals. Three of the
+ * four rows now put at least one animal in a mood.
+ *
+ * Two departures from reading the spec's table at face value:
+ *
+ * - **`scared` is deliberately unused.** The spec's prose lists `scared`
+ *   among the poses this screen would make visible, and its table never
+ *   uses it. Nothing here is frightening: conflicts are "no fighting, just
+ *   mild grumbles" (conflicts.ts), and the spec itself calls `growling`
+ *   "cross but never scary". `scared` belongs to the crate-loading screen,
+ *   which draws it for a pair that cannot travel together, and putting it
+ *   here would tell a child that two pets squabbling over a bed are in
+ *   danger. The poses this screen makes visible are `grumpy`, `growling`
+ *   and `playing`.
+ * - **The spec's "Today" column is not copied.** It says `space_sharing`
+ *   was sheltered / sheltered; the code had it sleeping / sheltered.
+ *
+ * One known mismatch is in the data, not here: the first `food_jealousy`
+ * description ("{a1} thinks {a2} got a bigger meal!") casts a1 as the
+ * jealous one, so for that wording the eating animal is the envious one.
+ * The second wording matches this row.
+ */
+export const CONFLICT_POSES: Record<ConflictType, readonly [string, string]> = {
+  space_sharing:    ['sheltered', 'grumpy'],
+  food_jealousy:    ['eating',    'grumpy'],
+  noise_complaint:  ['playing',   'sleeping'],
+  sibling_squabble: ['growling',  'grumpy'],
+};
 
 export function renderConflictPopup(
   scene: Phaser.Scene,
@@ -81,14 +116,8 @@ export function renderConflictPopup(
   container.add(description);
 
   // Animal sprites — match the conflict narrative so visuals reflect
-  // the text. a1 = instigator, a2 = disturbed party.
-  const stateByRole: Record<string, [string, string]> = {
-    noise_complaint:  ['sheltered', 'sleeping'],
-    food_jealousy:    ['eating',    'sheltered'],
-    space_sharing:    ['sleeping',  'sheltered'],
-    sibling_squabble: ['sheltered', 'sheltered'],
-  };
-  const [s1State, s2State] = stateByRole[conflict.type] ?? ['sheltered', 'sheltered'];
+  // the text. a1 = instigator, a2 = disturbed party. See CONFLICT_POSES.
+  const [s1State, s2State] = CONFLICT_POSES[conflict.type] ?? ['sheltered', 'sheltered'];
 
   // Resolution cards — visual-first so pre-readers can pick by icon.
   // One row across the play area, anchored to the bottom, so the number
@@ -140,8 +169,12 @@ export function renderConflictPopup(
     const groundY = spriteRowY + drawH / 2;
     const face = (animalOnside: typeof animal1, dx: number, state: string | undefined) => {
       if (!animalOnside) return;
+      // `exactPose`: the mood is what this screen is for, and the
+      // variant's art for it may still be loading. Until it lands she is
+      // drawn in the species' art for the same mood, not in her own
+      // colours looking settled.
       const sprite = createAnimalSprite(scene, cx + dx, spriteRowY, animalOnside, {
-        width: drawW, height: drawH, stateOverride: state, scale: 'species',
+        width: drawW, height: drawH, stateOverride: state, exactPose: true, scale: 'species',
       });
       sprite.y = groundY - sprite.displayHeight / 2;
       container.add(sprite);

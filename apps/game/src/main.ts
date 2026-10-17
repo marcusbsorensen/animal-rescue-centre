@@ -27,6 +27,7 @@ import { shouldRegisterServiceWorker } from './lib/platform';
 import { setSafeAreaLeft, getSafeAreaLeft, setSideNav } from './ui/layout';
 import { readSafeAreaInsets } from './ui/safe-area';
 import { setMotionSetting } from './lib/motion-preference';
+import { setGuideLine } from './lib/guide-line-preference';
 
 // Show the painted "new version ready!" banner when vite-plugin-pwa
 // detects a waiting service worker. Refresh clicks skip-waiting the SW
@@ -106,6 +107,18 @@ if (typeof window !== 'undefined') {
   const raw = new URLSearchParams(window.location.search).get('motion');
   if (raw === 'reduced' || raw === 'full' || raw === 'system') {
     setMotionSetting(raw);
+  }
+}
+
+// `?guideLine=on|off` switches the driving game's guide line — the line
+// from the van's nose along the way ahead — and remembers it, beside
+// `?motion=` and for the same reason: there is no settings screen yet.
+// On by default (driving port plan, 2026-10-11, answer 11); a parent
+// turns it off for an older child who finds it babyish.
+if (typeof window !== 'undefined') {
+  const raw = new URLSearchParams(window.location.search).get('guideLine');
+  if (raw === 'on' || raw === 'off') {
+    setGuideLine(raw === 'on');
   }
 }
 

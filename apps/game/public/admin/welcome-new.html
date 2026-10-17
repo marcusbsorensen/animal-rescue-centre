@@ -14,12 +14,7 @@
     --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    /* Handwritten stack for sign text — matches the painted crayon logo.
-       Kalam everywhere, self-hosted. 'Chalkboard SE' used to lead this
-       stack and is a macOS-only face, so the Mac rendered these signs in
-       one hand and the iPad in another — and every Mac screenshot of a
-       sign screen misreported its own typeface.
-       chunkier fallback for the sign titles. */
+    /* The type is declared once, in /fonts/fonts.css: --headline-font (titles only) and --body-font (everything else a child reads). */
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -139,29 +134,12 @@
   }
   .logo-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 0.8cqh, 8px); }
 
-  /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
+  /* The sign's title: white on a darker plank of the board's own wood, in the
+     display face. Its style is shared with every story board and lives in
+     _story-title.css (linked after this block); here only its place. */
   .sign-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    font-size: clamp(20px, 3.8cqh, 34px);
-    line-height: 1.05;
-    text-align: center;
-    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.6cqh, 14px);
-    margin-bottom: clamp(6px, 1.2cqh, 12px);
     position: relative;
-    /* Logo-matched green gradient: bright leaf → rich grass → deep pine */
-    background: linear-gradient(180deg,
-      #8cc63f 0%,
-      #5faa3a 28%,
-      #3d8c31 62%,
-      #2a6e26 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(8, 38, 11, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(8,38,11,0.55));
+    margin-bottom: clamp(6px, 1.2cqh, 12px);
   }
 
   /* ── No more logo-bunny; bunny now sits at the base of the wooden stake ── */
@@ -246,7 +224,7 @@
     border: 2px solid #1d5c2a;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-family: var(--headline-font); font-weight: 700;
+    font-family: var(--body-font); font-weight: 800;
     font-size: clamp(var(--fs-floor), 2.2cqh, 20px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.35),
                 inset 0 2px 3px rgba(255,255,255,0.2);
@@ -427,7 +405,7 @@
   .btn-primary {
     width: 100%;
     padding: clamp(14px, 2.6cqh, 22px) clamp(24px, 4cqw, 32px);
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-size: clamp(24px, 4cqh, 36px); font-weight: 700;
     /* Cream paint text on weathered wood, with a dark shadow for depth */
     color: #fffbe8;
@@ -670,10 +648,9 @@
     /* Decorative — never block clicks to the underlying buttons. */
     pointer-events: none;
   }
-  /* Handwritten-scrawl credits — cursive green, designed to look like
-     a blade of grass at first glance and read as a signature on closer look. */
+  /* The credits in the corner: green, in the body face like everything else a child reads. */
   .credit-scrawl {
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(var(--fs-floor), 1.9cqh, 17px);
     color: #2f6a32;
@@ -880,6 +857,7 @@
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
 <link rel="stylesheet" href="/admin/_signpost-physics.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 
@@ -914,6 +892,7 @@
             <div class="signs-on-stake">
               <div class="intro">
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
                 <div class="sign-title" id="welcome-title">Welcome, friend!</div>
                 <div class="arc-snapshot-wrap">
                   <img class="arc-snapshot" src="/admin/scene-assets/arc-exterior.png" alt="The Animal Rescue Centre from the outside — cottage with garden">
@@ -933,7 +912,6 @@
                     <span class="play-label">START PLAYING!</span>
                     <span class="paw paw-right">🐾</span>
                   </button>
-                  <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
                 </div>
               </div>
 

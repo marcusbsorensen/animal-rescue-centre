@@ -8,7 +8,17 @@ import {
   unequipWardrobe,
   isDressedForWeather,
   dressingBlockReason,
+  animalNeedsGarment,
+  canBeDressed,
+  SPECIES_AWAITING_GARMENT_ART,
+  WARDROBE_COLOURS,
+  DEFAULT_WARDROBE_HEX,
+  normaliseHex,
+  parseWardrobe,
+  formatWardrobe,
+  wardrobeHex,
 } from '../wardrobe';
+import { needsCoat } from '../weather';
 
 function makeAnimal(id: string, overrides: Partial<Animal> = {}): Animal {
   return {
@@ -150,5 +160,101 @@ describe('dressingBlockReason', () => {
     expect(dressingBlockReason(dog, 'snow')).toContain('coat');
     const parrot = makeAnimal('p', { species: 'parrot', name: 'Kiwi' });
     expect(dressingBlockReason(parrot, 'snow')).toContain('hat');
+  });
+});
+
+describe('getWardrobeAnchor — one entry per sprite', () => {
+  const entry = (dx: number) => ({ dx, dy: 0, widthFrac: 0.3, heightFrac: 0.2, rotation: 0 });
+  const table = {
+    'cat-ginger-sheltered': entry(0.1),   // the variant's own sprite
+    'cat-sheltered': entry(0.2),          // the species-level fallback sprite
+    'cat-ginger': entry(0.3),
+    'cat': entry(0.4),
+  };
+
+  it('prefers the sprite itself, then the species-level sprite for the pose', () => {
+    expect(getWardrobeAnchor('cat', 'ginger', table, 'sheltered').dx).toBe(0.1);
+    // Her variant art has not arrived: the species-level sprite is drawn, and
+    // the caller says so by passing no variant. Its anchor is its own.
+    expect(getWardrobeAnchor('cat', undefined, table, 'sheltered').dx).toBe(0.2);
+  });
+
+  it('falls back from a pose with no entry to the variant, then the species', () => {
+    expect(getWardrobeAnchor('cat', 'ginger', table, 'sleeping').dx).toBe(0.3);
+    expect(getWardrobeAnchor('cat', 'black', table, 'sleeping').dx).toBe(0.4);
+  });
+
+  it('answers from the built-in default when there is no table at all', () => {
+    const a = getWardrobeAnchor('dog', 'husky', undefined, 'walking');
+    expect(a.widthFrac).toBeGreaterThan(0);
+    expect(a.heightFrac).toBeGreaterThan(0);
+  });
+});
+
+describe('what animal.wardrobe says', () => {
+  it('reads the garment and the colour the child picked', () => {
+    expect(parseWardrobe('coat:#c0392b')).toEqual({ garment: 'coat', hex: '#c0392b' });
+    expect(parseWardrobe('scarf:#2C3E50')).toEqual({ garment: 'scarf', hex: '#2c3e50' });
+    expect(parseWardrobe('hat:#abc')).toEqual({ garment: 'hat', hex: '#aabbcc' });
+  });
+
+  it('reads a bare garment, which is what equipWardrobe has always written', () => {
+    expect(parseWardrobe('scarf')).toEqual({ garment: 'scarf' });
+  });
+
+  it('keeps the garment when the colour cannot be read, and refuses a name that is no garment', () => {
+    expect(parseWardrobe('coat:#nope')).toEqual({ garment: 'coat' });
+    expect(parseWardrobe('cape:#c0392b')).toBeNull();
+    expect(parseWardrobe('')).toBeNull();
+    expect(parseWardrobe(undefined)).toBeNull();
+  });
+
+  it('round-trips through formatWardrobe', () => {
+    for (const { hex } of WARDROBE_COLOURS) {
+      expect(parseWardrobe(formatWardrobe('hat', hex))).toEqual({ garment: 'hat', hex });
+    }
+    expect(formatWardrobe('coat')).toBe('coat');
+    expect(formatWardrobe('coat', 'rubbish')).toBe('coat');
+  });
+
+  it('wears the default colour when the code names none', () => {
+    expect(wardrobeHex('coat')).toBe(DEFAULT_WARDROBE_HEX);
+    expect(wardrobeHex(undefined)).toBe(DEFAULT_WARDROBE_HEX);
+    expect(wardrobeHex('coat:#27ae60')).toBe('#27ae60');
+  });
+
+  it('offers six colours, each a hex that reads back as itself', () => {
+    expect(WARDROBE_COLOURS).toHaveLength(6);
+    for (const { hex } of WARDROBE_COLOURS) expect(normaliseHex(hex)).toBe(hex);
+    expect(new Set(WARDROBE_COLOURS.map((c) => c.hex)).size).toBe(6);
+  });
+
+  it('equipWardrobe writes the colour when given one, so it can be drawn', () => {
+    const cat = makeAnimal('c', { species: 'cat' });
+    expect(equipWardrobe(cat, 'scarf', '#e3b04b').wardrobe).toBe('scarf:#e3b04b');
+    expect(equipWardrobe(cat, 'scarf').wardrobe).toBe('scarf');
+  });
+});
+
+describe('a species with no garment art drawn yet', () => {
+  const hedgehog = makeAnimal('h', { species: 'hedgehog', variant: 'brown' });
+
+  it('is the hedgehog, and only the hedgehog', () => {
+    expect([...SPECIES_AWAITING_GARMENT_ART]).toEqual(['hedgehog']);
+    expect(canBeDressed('hedgehog')).toBe(false);
+    expect(canBeDressed('cat')).toBe(true);
+  });
+
+  it('is not made to wear one: snow is a reason to dress a cat and not a hedgehog', () => {
+    // The weather alone says a hedgehog needs a scarf ...
+    expect(needsCoat(hedgehog, 'snow')).toBe(true);
+    // ... but there is none to put on, so the gate must not ask for it.
+    expect(animalNeedsGarment(hedgehog, 'snow')).toBe(false);
+    expect(isDressedForWeather(hedgehog, 'snow')).toBe(true);
+    expect(dressingBlockReason(hedgehog, 'snow')).toBeNull();
+    // Everyone else is unchanged.
+    const cat = makeAnimal('c', { species: 'cat' });
+    expect(animalNeedsGarment(cat, 'snow')).toBe(true);
+    expect(isDressedForWeather(cat, 'snow')).toBe(false);
   });
 });

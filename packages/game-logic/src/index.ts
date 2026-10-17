@@ -23,8 +23,17 @@ export {
   unequipWardrobe,
   isDressedForWeather,
   dressingBlockReason,
+  animalNeedsGarment,
+  canBeDressed,
+  SPECIES_AWAITING_GARMENT_ART,
+  WARDROBE_COLOURS,
+  DEFAULT_WARDROBE_HEX,
+  normaliseHex,
+  parseWardrobe,
+  formatWardrobe,
+  wardrobeHex,
 } from './wardrobe';
-export type { Garment, WardrobeAnchor } from './wardrobe';
+export type { Garment, WardrobeAnchor, WardrobeCode } from './wardrobe';
 export { getSpeciesUnlocksForLevel, getRequiredRescuesForLevel, getMaxShelterAnimals, getMaxArrivals } from './progression';
 export {
   APPRENTICE_DEFS,
@@ -57,10 +66,30 @@ export {
   validateAvatarEmoji,
   validateAvatarBgColour,
   isUsernameSafe,
-  validatePinHint,
-  getHintIdeas,
   validateAnimalName,
 } from './auth-validation';
+export { PIN_HINT_CHOICES, isPinHintCode, pinHintText } from './pin-hints';
+export type { PinHintCode } from './pin-hints';
+export {
+  DISPLAY_NAME_ADJECTIVES,
+  DISPLAY_NAME_ANIMALS,
+  DISPLAY_NAME_SKIPPED_NUMBERS,
+  DISPLAY_NAME_MAX_LENGTH,
+  allowedDisplayNameNumbers,
+  randomDisplayName,
+  anotherDisplayName,
+  isDisplayNameBase,
+  isDisplayName,
+  splitDisplayName,
+} from './display-names';
+export {
+  SIGN_IN_NAME_FIRSTS,
+  SIGN_IN_NAME_SECONDS,
+  SIGN_IN_NAME_MAX_PAIR_LENGTH,
+  SIGN_IN_NAME_MAX_LENGTH,
+  signInNamePairs,
+  isSignInNamePair,
+} from './sign-in-names';
 export {
   buildRecoveryQuestions,
   scoreRecovery,
@@ -159,6 +188,7 @@ export type { Conflict, ConflictType, ResolutionAction, ResolutionDef } from './
 export {
   createCalendarState,
   calculateCurrentDate,
+  inGameDaysBetween,
   getSeasonForMonth,
   getSeasonForDate,
   getCurrentSeason,
@@ -166,11 +196,22 @@ export {
   getActiveEvents,
   advanceCalendar,
   isDailyReset,
+  markRealDayChecked,
+  realDayKey,
   SEASONS,
   SEASON_THEMES,
   CALENDAR_EVENTS,
 } from './calendar';
 export type { Season, CalendarState, SeasonDef, CalendarEventDef } from './calendar';
+export {
+  startRealDay,
+  recordPlayDay,
+  mergePlayedDays,
+  normalisePlayedDays,
+  totalDaysPlayed,
+  consecutiveDays,
+} from './real-day';
+export type { RealDayState, RealDayResult } from './real-day';
 export {
   canAccessDestination,
   startSupplyRun,
@@ -297,6 +338,8 @@ export {
   mapExtentFor,
   MAP_EXTENT_MIN,
   habitatForSpecies,
+  HOG_HOSPITAL_NAME,
+  WILDLIFE_PARK_NAME,
 } from './destinations';
 export type {
   DestinationDef as MapDestinationDef,
@@ -343,24 +386,85 @@ export {
 export type { SpeciesFact } from './species-facts';
 
 export {
-  L1_CURTAILED_HOUSEHOLD_DEFS,
+  ADOPTER_HOUSEHOLD_DEFS,
+  NON_ADOPTING_HOUSEHOLDS,
+} from './adopter-roster';
+export {
+  ADOPTION_COOLDOWN_DAYS,
+  OFFERED_APPLICANTS,
+  LEGACY_HOUSEHOLD_IDS,
+  canonicalHouseholdId,
+  householdUseCount,
+  householdActiveUseCount,
+  householdsForSpecies,
+  isAdoptableSpecies,
+  PLACEMENT_ID_PREFIX,
+  isPlacementId,
   getEligibleApplicants,
+  pickApplicants,
   commitAdoption,
 } from './adoption';
 export type { Applicant, RehomedEntry, AdoptionStoreLike } from './adoption';
 
-export { buildHandoverDialogue, WARDEN_SPEAKER } from './adoption-dialogue';
+export {
+  REWILDING_HELPERS,
+  HABITAT_PHRASES,
+  PLACEMENTS,
+  isUnreleasable,
+  exitsForSpecies,
+  exitsForAnimal,
+  placementsFor,
+  placementFor,
+  placementPlanFor,
+  placementCopy,
+  placementCard,
+  canPlaceAt,
+  rewildingPlanFor,
+  rewildingPlanForAnimal,
+  canReleaseAt,
+  commitRewilding,
+  commitPlacement,
+  rewildingCopy,
+  lifetimeRescuedCount,
+} from './exits';
+export type {
+  ExitKind,
+  ExitSubject,
+  SpeciesExits,
+  Placement,
+  PlacementGate,
+  PlacementPlan,
+  PlacementCard,
+  RewildingHelper,
+  RewildingPlan,
+  RewildedEntry,
+  RewildingStoreLike,
+  RewildingCopy,
+  ExitCopy,
+} from './exits';
+
+export {
+  buildHandoverDialogue,
+  WARDEN_SPEAKER,
+  HANDOVER_LINES,
+  handoverLineId,
+  handoverVoiceScript,
+  roleOf,
+} from './adoption-dialogue';
 export type {
   DialogueBeat,
   DialogueSequence,
   DialogueExpression,
   DialogueSide,
+  DialogueRole,
   DialogueChoice,
+  VoiceLine,
 } from './adoption-dialogue';
 
 export * from './crate-stacking';
 export * from './crate-loading';
 export * from './vehicle-change';
+export * from './van-upkeep';
 export {
   CHARMS,
   initCharmsStore,
@@ -402,6 +506,29 @@ export type {
   SolveReason as TunnelSolveReason,
   SolveResult as TunnelSolveResult,
 } from './tunnel';
+
+export {
+  PAID_DIGS_PER_DAY as TUNNEL_PAID_DIGS_PER_DAY,
+  DIG_COINS as TUNNEL_DIG_COINS,
+  tunnelDayKey,
+  tunnelDailySeed,
+  normaliseTunnelDigs,
+  paidDigsToday as tunnelPaidDigsToday,
+  paidDigsLeft as tunnelPaidDigsLeft,
+  recordDig as recordTunnelDig,
+  mergeTunnelDigs,
+} from './tunnel-digs';
+export type { TunnelDigs, DigOutcome as TunnelDigOutcome } from './tunnel-digs';
+
+export {
+  REWARDED_WINS_PER_DAY as TUNNEL_REWARDED_WINS_PER_DAY,
+  normaliseTunnelWins,
+  rewardedWinsToday as tunnelRewardedWinsToday,
+  rewardedWinsLeft as tunnelRewardedWinsLeft,
+  recordWin as recordTunnelWin,
+  mergeTunnelWins,
+} from './tunnel-wins';
+export type { TunnelWins, WinOutcome as TunnelWinOutcome } from './tunnel-wins';
 
 export { mergeSaveState } from './merge-save';
 export type { MergeResult, MergeLevels } from './merge-save';

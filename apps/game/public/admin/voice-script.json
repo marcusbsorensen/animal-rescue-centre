@@ -1,0 +1,635 @@
+{
+  "note": "Generated from packages/game-logic/src/adoption-dialogue.ts by apps/game/src/voice/__tests__/voice-script.test.ts (UPDATE_VOICE_SCRIPT=1). Do not edit by hand.",
+  "speakers": [
+    {
+      "id": "warden",
+      "name": "Marnie",
+      "role": "warden",
+      "portrait": "/admin/scene-assets/cast/warden-marnie.png",
+      "voiceNote": "Warm, unhurried, mid-thirties. A friendly shelter warden who has done this many times and still loves it. A smile in the voice.",
+      "lines": [
+        {
+          "lineId": "handover-warden-1",
+          "n": 1,
+          "expression": "neutral",
+          "text": "Meet our little friend! This one has been hoping for the perfect home."
+        },
+        {
+          "lineId": "handover-warden-3",
+          "n": 3,
+          "expression": "happy",
+          "text": "Look after them for us, won't you?"
+        }
+      ]
+    },
+    {
+      "id": "01-priya",
+      "name": "Priya \"Pri\" Kaur",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/01-priya.png",
+      "voiceNote": "Soft and quiet-spoken, a little shy and delighted. A young woman who rarely raises her voice.",
+      "lines": [
+        {
+          "lineId": "handover-01-priya-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-01-priya-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "02-jan",
+      "name": "Jan Lindqvist",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/02-jan.png",
+      "voiceNote": "Calm, slow and kind. A patient beekeeper; a low, easy voice, never hurried.",
+      "lines": [
+        {
+          "lineId": "handover-02-jan-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-02-jan-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "03-nova",
+      "name": "Nova Adebayo",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/03-nova.png",
+      "voiceNote": "Bright and playful, musical, laughs easily. A young artist.",
+      "lines": [
+        {
+          "lineId": "handover-03-nova-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-03-nova-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "04-babcia",
+      "name": "Babcia Basia Kowalska",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/04-babcia.png",
+      "voiceNote": "An older woman, a loving grandmother. Slow, warm, a little crackle is welcome.",
+      "lines": [
+        {
+          "lineId": "handover-04-babcia-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-04-babcia-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "05-finn",
+      "name": "Finn O'Malley",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/05-finn.png",
+      "voiceNote": "Energetic and cheerful, quick and breathy, just back from a run. A young man.",
+      "lines": [
+        {
+          "lineId": "handover-05-finn-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-05-finn-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "06-hiro",
+      "name": "Hiroshi \"Hiro\" Nakamura",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/06-hiro.png",
+      "voiceNote": "Very quiet and gentle, an older man who speaks carefully and softly.",
+      "lines": [
+        {
+          "lineId": "handover-06-hiro-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-06-hiro-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "18-tali",
+      "name": "Avital \"Tali\" Rosenberg",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/18-tali.png",
+      "voiceNote": "Warm, dry and cheerful, a potter with clay on her hands.",
+      "lines": [
+        {
+          "lineId": "handover-18-tali-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-18-tali-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "19-linny",
+      "name": "Mei Lin \"Linny\" Chow",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/19-linny.png",
+      "voiceNote": "Crisp, bright and friendly. A young blogger who talks to a camera all day.",
+      "lines": [
+        {
+          "lineId": "handover-19-linny-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-19-linny-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "20-lei",
+      "name": "Leilani \"Lei\" Kealoha",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/20-lei.png",
+      "voiceNote": "Sunny and relaxed with a little singsong. Someone who plays the ukulele.",
+      "lines": [
+        {
+          "lineId": "handover-20-lei-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-20-lei-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "21-mara",
+      "name": "Mariama \"Mara\" Diop",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/21-mara.png",
+      "voiceNote": "Strong, warm and joyful. A tailor who runs a busy shop and loves it.",
+      "lines": [
+        {
+          "lineId": "handover-21-mara-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-21-mara-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "29-wenna",
+      "name": "Morwenna \"Wenna\" Treloar",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/29-wenna.png",
+      "voiceNote": "Hearty, weathered and kind. Someone who lives by the sea in all weathers.",
+      "lines": [
+        {
+          "lineId": "handover-29-wenna-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-29-wenna-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "07-patel-greens",
+      "name": "Anjali & Sam Patel-Green",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/07-patel-greens.png",
+      "voiceNote": "Calm and unhurried, a retired couple. One gentle voice speaks for both.",
+      "lines": [
+        {
+          "lineId": "handover-07-patel-greens-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-07-patel-greens-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "08-walkers",
+      "name": "Chris & Jamie Walker",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/08-walkers.png",
+      "voiceNote": "Friendly and practical, a workshop-warm voice. One of the two speaks for both.",
+      "lines": [
+        {
+          "lineId": "handover-08-walkers-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-08-walkers-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "09-okonkwo-harts",
+      "name": "Mel & Alex Okonkwo-Hart",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/09-okonkwo-harts.png",
+      "voiceNote": "Playful, laughing, a pair of bakers who finish each other's sentences.",
+      "lines": [
+        {
+          "lineId": "handover-09-okonkwo-harts-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-09-okonkwo-harts-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "10-dani-rex",
+      "name": "Dani & Rex",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/10-dani-rex.png",
+      "voiceNote": "Hearty and open-air, loud and happy, a farmhouse voice.",
+      "lines": [
+        {
+          "lineId": "handover-10-dani-rex-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-10-dani-rex-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "22-yilmaz",
+      "name": "Cem & Leyla Yılmaz",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/22-yilmaz.png",
+      "voiceNote": "Warm and cheerful, a bakery couple. One voice speaks for both.",
+      "lines": [
+        {
+          "lineId": "handover-22-yilmaz-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-22-yilmaz-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "23-wiri-harper",
+      "name": "Wiri & Harper",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/23-wiri-harper.png",
+      "voiceNote": "Calm, clear and steady, a pair of forest rangers who talk without rushing.",
+      "lines": [
+        {
+          "lineId": "handover-23-wiri-harper-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-23-wiri-harper-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "11-vargas-chen",
+      "name": "Vargas-Chen family",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/11-vargas-chen.png",
+      "voiceNote": "A busy, cheerful family; a parent's voice, quick and kind.",
+      "lines": [
+        {
+          "lineId": "handover-11-vargas-chen-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-11-vargas-chen-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "12-odenkirks",
+      "name": "The Odenkirks",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/12-odenkirks.png",
+      "voiceNote": "Quiet and bookish, gentle; Helen and Bo, who watch birds and read a lot.",
+      "lines": [
+        {
+          "lineId": "handover-12-odenkirks-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-12-odenkirks-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "13-kumar-ishii",
+      "name": "Kumar-Ishii family",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/13-kumar-ishii.png",
+      "voiceNote": "Friendly and capable, a vet mum: kind and brisk at once.",
+      "lines": [
+        {
+          "lineId": "handover-13-kumar-ishii-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-13-kumar-ishii-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "14-theo-grandkids",
+      "name": "Grandpa Theo & grandkids",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/14-theo-grandkids.png",
+      "voiceNote": "A gentle grandfather, low and warm. Theo speaks; the grandkids need not.",
+      "lines": [
+        {
+          "lineId": "handover-14-theo-grandkids-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-14-theo-grandkids-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "24-perera-fernando",
+      "name": "Perera-Fernando family",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/24-perera-fernando.png",
+      "voiceNote": "Kind and calm, parents of twins. Soft, patient, a little tired and very happy.",
+      "lines": [
+        {
+          "lineId": "handover-24-perera-fernando-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-24-perera-fernando-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "31-estrada-train",
+      "name": "The Estrada Train",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/31-estrada-train.png",
+      "voiceNote": "Loud, cheerful chaos. A lively adult lead; an adult may do the whole train.",
+      "lines": [
+        {
+          "lineId": "handover-31-estrada-train-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-31-estrada-train-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "25-bramble-house",
+      "name": "Bramble House housemates",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/25-bramble-house.png",
+      "voiceNote": "Relaxed young friends, chilled and friendly. One voice speaks for the house.",
+      "lines": [
+        {
+          "lineId": "handover-25-bramble-house-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-25-bramble-house-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "26-aisha-childrens-home",
+      "name": "Sunnybrook Children's Home",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/26-aisha-childrens-home.png",
+      "voiceNote": "A warm carer with a steady, reassuring voice.",
+      "lines": [
+        {
+          "lineId": "handover-26-aisha-childrens-home-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-26-aisha-childrens-home-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "27-tomas-care-home",
+      "name": "Oak Lodge Care Home",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/27-tomas-care-home.png",
+      "voiceNote": "Gentle, with a lilt. A carer or a resident who loves a lap.",
+      "lines": [
+        {
+          "lineId": "handover-27-tomas-care-home-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-27-tomas-care-home-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "28-iris-teacher",
+      "name": "Ms. Popescu's Year 3",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/28-iris-teacher.png",
+      "voiceNote": "A bright primary-school teacher. A class chorus is welcome but not needed.",
+      "lines": [
+        {
+          "lineId": "handover-28-iris-teacher-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-28-iris-teacher-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "30-two-houses",
+      "name": "Marcus & Rhubarb & Gosia",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/30-two-houses.png",
+      "voiceNote": "A cheerful family with two homes and one skateboard. Marcus's own voice fits here.",
+      "lines": [
+        {
+          "lineId": "handover-30-two-houses-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-30-two-houses-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    },
+    {
+      "id": "16-tata",
+      "name": "Ana \"Tata\" Silva",
+      "role": "guest",
+      "portrait": "/admin/scene-assets/cast/16-tata.png",
+      "voiceNote": "Capable, warm and steady, a farmer, fond of her dog Rufus.",
+      "lines": [
+        {
+          "lineId": "handover-16-tata-2",
+          "n": 2,
+          "expression": "neutral",
+          "text": "Hello, little one! We've come all this way to meet you."
+        },
+        {
+          "lineId": "handover-16-tata-4",
+          "n": 4,
+          "expression": "greeting",
+          "text": "Thank you, Marnie! We promise to love them forever."
+        }
+      ]
+    }
+  ]
+}

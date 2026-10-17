@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
   validatePin,
   validateUsername,
@@ -6,8 +8,6 @@ import {
   validateAvatarEmoji,
   validateAvatarBgColour,
   isUsernameSafe,
-  validatePinHint,
-  getHintIdeas,
   validateAnimalName,
 } from '../auth-validation';
 
@@ -64,11 +64,85 @@ describe('validateJoinCode', () => {
     expect(validateJoinCode('BAT-999')).toEqual({ valid: true });
   });
 
+  it('accepts the longer animals the word list grew in 2026-10', () => {
+    // The shape did not change, only how long the animal may be. A code
+    // minted before the list grew is still in a child's hands.
+    expect(validateJoinCode('OTTER-317')).toEqual({ valid: true });
+    expect(validateJoinCode('badger-902')).toEqual({ valid: true });
+    expect(validateJoinCode('PENGUIN-100')).toEqual({ valid: true });
+  });
+
   it('rejects invalid formats', () => {
     expect(validateJoinCode('FOX428')).toMatchObject({ valid: false });
     expect(validateJoinCode('FO-428')).toMatchObject({ valid: false });
     expect(validateJoinCode('FOXX-42')).toMatchObject({ valid: false });
+    expect(validateJoinCode('ELEPHANTS-428')).toMatchObject({ valid: false });
     expect(validateJoinCode('')).toMatchObject({ valid: false });
+  });
+});
+
+describe('the animals a join code can start with', () => {
+  /**
+   * The list lives in an Edge Function and the pattern that admits it
+   * lives here, in another package, so the two can drift apart without
+   * anything failing until a child cannot add a friend. This reads the
+   * list as the generator has it and holds the two together.
+   */
+  const ROOT = path.resolve(__dirname, '../../../..');
+  const source = fs.readFileSync(path.join(ROOT, 'supabase/functions/_shared/crypto.ts'), 'utf-8');
+  const block = source.match(/const JOIN_CODE_ANIMALS = \[([\s\S]*?)\];/);
+  const animals = (block?.[1] ?? '').match(/'([A-Z]+)'/g)?.map((s) => s.slice(1, -1)) ?? [];
+
+  it('every one of them makes a code this validator accepts', () => {
+    expect(animals.length).toBeGreaterThan(0);
+    expect(animals.filter((a) => !validateJoinCode(`${a}-428`).valid)).toEqual([]);
+  });
+
+  it('holds at least 150 animals, so the code space is not a ceiling', () => {
+    // 20 animals gave 18,000 codes, and join_code is unique: that was the
+    // most accounts the game could ever have. 150 gives 135,000.
+    expect(animals.length).toBeGreaterThanOrEqual(150);
+    expect(animals.length * 900).toBeGreaterThanOrEqual(135_000);
+  });
+
+  it('has no duplicates, which would quietly shrink the space', () => {
+    expect(animals.length - new Set(animals).size).toBe(0);
+  });
+
+  it('keeps the first twenty, because those codes are already in use', () => {
+    expect(animals.slice(0, 20)).toEqual([
+      'FOX', 'OWL', 'BAT', 'CAT', 'DOG', 'BEE', 'ELK', 'RAM', 'YAK', 'COW',
+      'HEN', 'JAY', 'KOI', 'EMU', 'APE', 'BUG', 'FLY', 'PIG', 'RAT', 'COD',
+    ]);
+  });
+
+  it('is readable aloud: 3 to 7 letters, nothing else', () => {
+    expect(animals.filter((a) => !/^[A-Z]{3,7}$/.test(a))).toEqual([]);
+  });
+
+  it('is admitted by every copy of the pattern, not just this one', () => {
+    // The friends page and the overlay each normalise a typed code with
+    // their own regex, because one is in an iframe and the other is not.
+    // Three copies of a rule drift, and the drift shows up as a child
+    // being told a perfectly good code is wrong.
+    const longest = animals.reduce((a, b) => (b.length > a.length ? b : a), '');
+    for (const rel of [
+      'apps/game/public/admin/friends.html',
+      'apps/game/src/auth-overlay/AuthOverlay.ts',
+    ]) {
+      const copy = fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+      const pattern = copy.match(/\/\^\(\[A-Z\]\{(\d+),(\d+)\}\)/);
+      expect(pattern, `${rel} has no join-code pattern`).not.toBeNull();
+      const [, min, max] = pattern!;
+      expect(Number(min), rel).toBeLessThanOrEqual(3);
+      expect(Number(max), rel).toBeGreaterThanOrEqual(longest.length);
+    }
+  });
+
+  it('avoids the animals that sound like another word a child would type', () => {
+    // EWE/you, GNU/new, DOE/dough, BOAR/bore. A code is often read out to
+    // a friend, and a homophone turns that into a code that does not work.
+    expect(animals.filter((a) => ['EWE', 'GNU', 'DOE', 'BOAR'].includes(a))).toEqual([]);
   });
 });
 
@@ -126,56 +200,6 @@ describe('isUsernameSafe', () => {
   });
 });
 
-describe('validatePinHint', () => {
-  it('accepts a sensible word-based hint', () => {
-    expect(validatePinHint("my dog's birthday", '1234')).toEqual({ valid: true });
-    expect(validatePinHint('the year mum was born', '1985')).toEqual({ valid: true });
-    expect(validatePinHint('door number plus 10', '4711')).toEqual({ valid: true });
-  });
-
-  it('rejects empty / too short / too long', () => {
-    expect(validatePinHint('', '1234')).toMatchObject({ valid: false });
-    expect(validatePinHint('a', '1234')).toMatchObject({ valid: false });
-    expect(validatePinHint('A'.repeat(80), '1234')).toMatchObject({ valid: false });
-  });
-
-  it('rejects literal PIN substring', () => {
-    expect(validatePinHint('my pin is 1234', '1234')).toMatchObject({ valid: false });
-    expect(validatePinHint('the code 0000 is mine', '0000')).toMatchObject({ valid: false });
-  });
-
-  it('rejects 3+ consecutive digits of the PIN', () => {
-    expect(validatePinHint('starts with 123 something', '1234')).toMatchObject({ valid: false });
-    expect(validatePinHint('ends in 234 today', '1234')).toMatchObject({ valid: false });
-  });
-
-  it('rejects any 3+ digit numeric run (defensive)', () => {
-    expect(validatePinHint('flat 999 minnis road', '1234')).toMatchObject({ valid: false });
-    expect(validatePinHint('see page 100', '1234')).toMatchObject({ valid: false });
-  });
-
-  it('rejects only-digits hints', () => {
-    expect(validatePinHint('1 2 3 4', '1234')).toMatchObject({ valid: false });
-    expect(validatePinHint('5678', '1234')).toMatchObject({ valid: false });
-  });
-
-  it('rejects spelled-out PIN digits (single words)', () => {
-    expect(validatePinHint('one two three four', '1234')).toMatchObject({ valid: false });
-    expect(validatePinHint('zero zero zero zero is the code', '0000')).toMatchObject({ valid: false });
-    expect(validatePinHint('say one and two and three and four', '1234')).toMatchObject({ valid: false });
-  });
-
-  it('rejects spelled-out compound forms', () => {
-    expect(validatePinHint('twelve thirty four', '1234')).toMatchObject({ valid: false });
-    expect(validatePinHint('twelve thirty-four', '1234')).toMatchObject({ valid: false });
-  });
-
-  it('accepts hints that mention small numbers as words but not the PIN', () => {
-    expect(validatePinHint('my favourite is two', '5678')).toEqual({ valid: true });
-    expect(validatePinHint('three little pigs', '5678')).toEqual({ valid: true });
-  });
-});
-
 describe('validateAnimalName', () => {
   it('accepts ordinary kid-chosen names', () => {
     expect(validateAnimalName('Marmalade')).toEqual({ valid: true });
@@ -216,32 +240,5 @@ describe('validateAnimalName', () => {
   it('rejects system reserved words', () => {
     expect(validateAnimalName('Admin')).toMatchObject({ valid: false });
     expect(validateAnimalName('SystemCat')).toMatchObject({ valid: false });
-  });
-});
-
-describe('getHintIdeas', () => {
-  it('returns 4 ideas', () => {
-    expect(getHintIdeas('Lily')).toHaveLength(4);
-  });
-
-  it('is deterministic for the same seed', () => {
-    expect(getHintIdeas('Lily')).toEqual(getHintIdeas('Lily'));
-  });
-
-  it('returns different sets for different kids', () => {
-    // 20-deep pool, picking 4 — clash across two random kids should be
-    // < all-four-match in practice. Compare two pairs.
-    const lily = getHintIdeas('Lily');
-    const ben = getHintIdeas('Ben');
-    const sam = getHintIdeas('Sam');
-    // At least one of (Lily vs Ben) and (Lily vs Sam) should differ.
-    const lilyBenDiffer = JSON.stringify(lily) !== JSON.stringify(ben);
-    const lilySamDiffer = JSON.stringify(lily) !== JSON.stringify(sam);
-    expect(lilyBenDiffer || lilySamDiffer).toBe(true);
-  });
-
-  it('returns no duplicates within a kid\'s set', () => {
-    const ideas = getHintIdeas('Charlie');
-    expect(new Set(ideas).size).toBe(ideas.length);
   });
 });

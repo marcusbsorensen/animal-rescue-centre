@@ -124,11 +124,36 @@ rather than only in the PTV mirror.
 `tools/analyze-set-consistency.sh` must be corrected to match this file, or
 it will keep grading new sprites against the rules that caused the problem.
 
-## Keeping the wardrobe option open
+## The wardrobe, as built (2026-10-11)
 
-`packages/game-logic/src/wardrobe.ts` describes compositing garments onto
-each pose. The seven garment PNGs exist; `wardrobe-anchors.json` does not,
-and nothing renders them — `docs/audit-2026-08-22.md:332` already lists them
-as orphaned. If that system is ever finished, it needs **clean, unobstructed
-necks, backs and heads in every pose**, which the rules above give for free.
-Worth honouring even though nothing uses it yet.
+This section used to say that nothing renders the garments. Something does now,
+and the rules above are what it leans on.
+
+`createAnimalSprite` paints the animal's garment onto her sprite and draws her
+from the result (`apps/game/src/ui/wardrobe-art.ts`), so the one object every
+screen already moves, flips and fades is still one object. It needs, in every
+pose except `arriving`, **a clean, unobstructed neck, back and head** — which
+is what the contract above gives, and why a collar, a bandana or a lead baked
+into a sprite would now collide with a garment as well as with the child's
+collar choice.
+
+Where each garment goes is measured, per sprite, by
+`tools/measure-wardrobe-anchors.py` into `public/data/wardrobe-anchors.json`,
+and not per species: the restyled variants were each drawn on their own, so the
+ginger cat's `sheltered` is a loaf and the siamese's sits upright. A new or
+redrawn sprite needs the tool run again; the test in
+`src/lib/__tests__/wardrobe-anchors.test.ts` fails until it is, and also if a
+garment would sit outside the box the sprite layer cuts the animal's frame to
+(anything outside it is cut off, and anything that grew it would shrink her).
+
+The garments are drawn by `tools/draw-garments.py` in four tones and an ink
+line, and coloured at render time with the colour the child picked.
+Anything that replaces them — a commissioned set, say — has to keep that
+convention (see the tool's header) and the register of the restyled animals:
+flat fills, one thin dark key-line, no gradient.
+
+**Still to draw:** `hedgehog-scarf.png`. Until it exists a hedgehog is not
+offered a garment and is not required to wear one in snow or fog
+(`SPECIES_AWAITING_GARMENT_ART` in `wardrobe.ts`); a test fails the day the file
+appears, to remind whoever adds it to take the species off that list and run the
+anchor tool.

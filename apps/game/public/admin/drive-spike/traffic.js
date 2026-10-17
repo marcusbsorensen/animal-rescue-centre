@@ -1,0 +1,1156 @@
+// traffic.js — other road users in the driving spike.
+//
+// The contract below is what drive-spike.html calls. traffic.check.mjs drives
+// it under plain node against a synthetic route and proves the one rule that
+// is never crossed: nothing ever overlaps the van, whatever the child does.
+//
+// The route is a polyline in world metres. A position on it is s, the distance
+// along it in metres; route.atDistance(s) gives {x, y, h} with h the heading in
+// radians. A lateral offset of route.laneOffset(lane, s) metres to the left of
+// the direction of travel puts something in a lane: lane 0 is ours (keep left),
+// lane 1 is the overtaking side — the oncoming lane on an ordinary road, our
+// own fast lane on the dual carriageway (`trunk`). On a `track` both lanes are
+// the middle of a single unmarked road. laneOffset is always called with s,
+// because the answer depends on the road class there.
+//
+// How the never-an-accident rule is kept. Everything is reasoned along the
+// route, in s, by lane:
+//   - the van's speedCap keeps it able to stop behind whatever is ahead in a
+//     lane it occupies (stopping at 20 m/s² against the page's 26), and before
+//     an oncoming vehicle that is itself stopping for it
+//   - every vehicle behind the van that shares its lane assumes the van could
+//     stop dead this instant and keeps its own stopping distance (20 m/s²)
+//   - oncoming vehicles brake for the van whenever it is in their lane
+//   - laneBlocked keeps the van out of the oncoming lane unless the whole
+//     overtake fits before the next oncoming vehicle, and never near a sharp
+//     bend, on a track, or across the ends of the dual carriageway
+//   - poking out to look (37A) is not overtaking: the van stays in lane 0
+//     (laneWant 0) and eases part way out, never further than peekMax, which
+//     keeps it PEEK_MARGIN clear of anything coming the other way. While it
+//     looks, an oncoming vehicle conflicts with it only if they really
+//     overlap sideways (they never do), and there is nothing to hold it out
+//     for: it comes back in whenever she lets go
+//   - the one move the page does not let us refuse is the child swiping BACK
+//     to lane 0 while something is alongside. Then step() sets van.laneWant
+//     back to 1 (the van stays out until there is room, then returns by
+//     itself) and the vehicle alongside eases off to make that room. This
+//     writes to the van object, which the contract does not document: see the
+//     commit message for the field the page should grow instead.
+//   - no animal is ever hurt (Marcus, 2026-10-12: "make SURE that the crossing
+//     animals on the road are not run over by vehicles coming in the other
+//     direction!"). The page passes crossings.js's closed stretches, where an
+//     animal is on the road or stepping onto it; every vehicle, either way,
+//     slows at a careful driver's ANIMAL_STOP and stands short of the stretch
+//     until it opens. crossings.js lets an animal step out only when every
+//     vehicle can still do that, so the stop is always a gentle one.
+
+/**
+ * @typedef {Object} Route
+ * @property {number} length                     metres
+ * @property {(s:number) => {x:number, y:number, h:number}} atDistance
+ * @property {(lane:0|1, s?:number) => number} laneOffset  metres from the centreline
+ * @property {(s:number) => string} roadClassAt  OSM class of the road at s
+ * @property {number} laneWidth                  metres
+ */
+
+/**
+ * @typedef {Object} Van
+ * @property {number} s        distance along the route, metres
+ * @property {number} lane     current lateral offset, metres (eases between lanes)
+ * @property {0|1} laneWant    the lane the child has asked for
+ * @property {number} v        speed, metres per second
+ * @property {number} length   metres
+ * @property {number} width    metres
+ * @property {number} [laneT]  0..1 across from lane 0 to lane 1 (the page has it)
+ * @property {number} [gear]   1..3 (the page has it; used for the beep)
+ * @property {boolean} [peek]  she is easing out to look (37A), not overtaking:
+ *           laneWant is 0 and the van may be part way out
+ * @property {number} [peekT]  how far out she is asking to look, 0..1 across
+ */
+
+/**
+ * @typedef {Object} TrafficResult
+ * @property {number} speedCap     the fastest the van may go this frame without
+ *           touching anything. Infinity when the road ahead is clear. If the van
+ *           is faster, the spike brakes it hard itself — there is never an
+ *           accident, and the hard stop is what jostles the animals.
+ * @property {boolean} laneBlocked the overtaking lane is not safe now. The
+ *           spike refuses a swipe into it and, if the van is already there,
+ *           brings it back, which also counts as a swerve.
+ * @property {number} peekMax     how far out (laneT, 0..1) the van may ease to look
+ *           without coming within PEEK_MARGIN of anything coming the other way,
+ *           and 0 near a sharp bend or a change of road
+ * @property {string[]} events     one-off moments for the HUD, e.g. 'close'
+ *           for a clean overtake (the reference's "CLOSE!"), 'beep' for a
+ *           queue behind a van in first gear on a dual carriageway.
+ */
+
+// ------------------------------------------------------------------ the art
+
+import * as look from './vehicle-look.js';
+
+const TOPDOWN = '/assets/driving/topdown/vehicle-topdown-';
+
+/** Which way each sprite's nose points in the image, checked by eye one by one
+ *  (2026-10-11). The fronts that come in pairs are painted from the front, so
+ *  they face down the image the way oncoming traffic comes at the camera; the
+ *  rears face up, driving away. The three single sprites have no pair and are
+ *  all nose-up: the bus (mirrors and windscreen at the top), the bin lorry (cab
+ *  at the top, bins hanging off the bottom) and the scooter (handlebars at the
+ *  top). Never assume — the old game's trap was exactly this.
+ *
+ *  | sprite            | nose | aspect h/w |  | sprite             | nose | aspect |
+ *  |-------------------|------|------------|--|--------------------|------|--------|
+ *  | car-red           | down | 1.51       |  | car-red-rear       | up   | 1.65   |
+ *  | car-blue          | down | 1.38       |  | car-blue-rear      | up   | 1.60   |
+ *  | car-yellow        | down | 1.34       |  | car-yellow-rear    | up   | 1.61   |
+ *  | pickup            | down | 1.60       |  | pickup-rear        | up   | 1.56   |
+ *  | truck             | down | 1.83       |  | truck-rear         | up   | 1.73   |
+ *  | tractor (green)   | down | 1.32       |  | tractor-rear       | up   | 1.45   |
+ *  | tractor-red       | down | 1.32       |  | tractor-red-rear   | up   | 1.45   |
+ *  | tractor-blue      | down | 1.32       |  | tractor-blue-rear  | up   | 1.45   |
+ *  | ambulance         | down | 1.85       |  | ambulance-rear     | up   | 1.79   |
+ *  | fireengine        | down | 1.49       |  | fireengine-rear    | up   | 1.75   |
+ *  | bus (only one)    | up   | 2.11       |  | spark-rear (van)   | up   | 1.88   |
+ *  | binlorry (one)    | up   | 1.68       |  | spark (front)      | down | 1.89   |
+ *  | motorbike (one)   | up   | 2.17       |  |                    |      |        |
+ *
+ *  Aspect is the opaque body's height over its width, measured from the PNGs
+ *  (they are cropped to the body). Length is width times this, so nothing is
+ *  squashed and the physics knows each length before any image has loaded. */
+export const SPRITES = {
+  'car-red': { nose: 'down', aspect: 1.51 }, 'car-red-rear': { nose: 'up', aspect: 1.65 },
+  'car-blue': { nose: 'down', aspect: 1.38 }, 'car-blue-rear': { nose: 'up', aspect: 1.60 },
+  'car-yellow': { nose: 'down', aspect: 1.34 }, 'car-yellow-rear': { nose: 'up', aspect: 1.61 },
+  'pickup': { nose: 'down', aspect: 1.60 }, 'pickup-rear': { nose: 'up', aspect: 1.56 },
+  'truck': { nose: 'down', aspect: 1.83 }, 'truck-rear': { nose: 'up', aspect: 1.73 },
+  'tractor': { nose: 'down', aspect: 1.32 }, 'tractor-rear': { nose: 'up', aspect: 1.45 },
+  'tractor-red': { nose: 'down', aspect: 1.32 }, 'tractor-red-rear': { nose: 'up', aspect: 1.45 },
+  'tractor-blue': { nose: 'down', aspect: 1.32 }, 'tractor-blue-rear': { nose: 'up', aspect: 1.45 },
+  'ambulance': { nose: 'down', aspect: 1.85 }, 'ambulance-rear': { nose: 'up', aspect: 1.79 },
+  'fireengine': { nose: 'down', aspect: 1.49 }, 'fireengine-rear': { nose: 'up', aspect: 1.75 },
+  'bus': { nose: 'up', aspect: 2.11 },
+  'binlorry': { nose: 'up', aspect: 1.68 },
+  'motorbike': { nose: 'up', aspect: 2.17 },
+};
+
+/** The kinds, from the old game's catalogue (src/driving/traffic.ts), with
+ *  real widths in metres. `height` is for the shadow only. `pair` means the
+ *  skin has a -rear sprite for same-direction traffic. */
+const KINDS = {
+  car: { width: 1.8, height: 1.5, skins: ['car-red', 'car-blue', 'car-yellow'], pair: true, colour: '#6a9fd0' },
+  pickup: { width: 2.0, height: 1.8, skins: ['pickup'], pair: true, colour: '#e08a3c' },
+  truck: { width: 2.5, height: 3.0, skins: ['truck'], pair: true, colour: '#cf6b52' },
+  tractor: { width: 2.4, height: 2.6, skins: ['tractor', 'tractor-red', 'tractor-blue'], pair: true, colour: '#4e9f3d' },
+  motorbike: { width: 0.8, height: 1.3, skins: ['motorbike'], pair: false, colour: '#d85a3a' },
+  bus: { width: 2.5, height: 3.8, skins: ['bus'], pair: false, colour: '#d23c34' },
+  binlorry: { width: 2.5, height: 3.2, skins: ['binlorry'], pair: false, colour: '#3f8f83' },
+  ambulance: { width: 2.3, height: 2.7, skins: ['ambulance'], pair: true, colour: '#f0d040' },
+  fireengine: { width: 2.5, height: 3.0, skins: ['fireengine'], pair: true, colour: '#d8392b' },
+};
+
+// ------------------------------------------------------------- what drives where
+
+/** Road classes grouped by what traffic they carry. */
+const GROUP = {
+  trunk: 'trunk', secondary: 'main', tertiary: 'main', primary: 'main',
+  unclassified: 'lane', residential: 'lane', track: 'track', path: 'path',
+};
+const groupAt = (cls) => GROUP[cls] ?? 'main';
+/** Trikey's cycleways, bridleways and paths, and her crossing of the A28 at
+ *  the lights (the page's class 'path'): single and unmarked as a farm track,
+ *  so every track rule holds there (no overtaking, nothing coming the other
+ *  way, a car turns off before it), and no motor traffic at all (no MIX). */
+const trackLike = (cls) => cls === 'track' || cls === 'path';
+
+/** Per group: kind -> [weight, cruising speed m/s]. Speeds sit under what the
+ *  van's allowed gears can do there (7 / 13 / 20 m/s), so there is usually
+ *  something to catch: tractors and the bin lorry on the lanes, cars and vans
+ *  on the main roads, the odd bus or lorry. The weights are the old game's,
+ *  with the specials (bus, bin lorry) kept to the roads they belong to. */
+const MIX = {
+  trunk: { car: [8, 15], pickup: [3, 14], truck: [3, 12.5], bus: [1, 12.5], ambulance: [0.3, 16], fireengine: [0.2, 15] },
+  main: { car: [7, 11], pickup: [3, 10], truck: [2, 9], tractor: [2.5, 5.5], bus: [1, 8.5], motorbike: [1.5, 10.5], ambulance: [0.2, 12], fireengine: [0.15, 11] },
+  lane: { car: [4, 7.5], pickup: [2, 7], tractor: [3, 4.5], binlorry: [1.5, 4], motorbike: [1, 7.5] },
+  track: { tractor: [1, 3.5] },
+};
+/** Mean metres between same-direction vehicles, and between oncoming ones. */
+const SPACING = { trunk: 95, main: 115, lane: 160, track: 280, path: 280 };
+const ONC_SPACING = { trunk: 110, main: 125, lane: 180 };   // none on a track
+
+// ------------------------------------------------------------ the safety numbers
+
+const GAP = 2.5;          // bumper to bumper, metres, never less
+const VAN_STOP = 20;      // the van's stopping rate we plan on (the page brakes at 26)
+const VAN_APPROACH = 12;  // how hard the van closes on a slower vehicle before the cap bites
+const FOLLOW_STOP = 20;   // a vehicle behind the van can stop at this, and assumes the van stops dead
+const ONC_STOP = 10;      // an oncoming vehicle's hard stop
+const SPAWN_AHEAD = 215, SPAWN_ONC = 235, SPAWN_BEHIND = 75;
+const DESPAWN_BEHIND = 95, DESPAWN_AHEAD = 340;
+const IN_VIEW = 70;       // metres from the van inside which nothing pops in or out
+const BEND_M = 60;        // no overtaking this close before a sharp bend
+const BEND_DEG = 30;
+const PEEK_MARGIN = 0.7;   // metres kept between a peeking van and anything coming the other way
+const PEEK_LOOK = 150;     // how far ahead an oncoming vehicle limits the peek
+const PEEK_NEAR_M = 40;    // no peeking this near a sharp bend or a change of road
+const OWN_BEND_M = 45;    // in our own second lane, back in this far before a sharp bend or its end      // a "sharp bend": the route turns more than this within 30 m
+const CORNER_DEG = 22;    // past this, oncoming traffic takes a corner one at a time with the van
+const LANE_CHANGE_S = 0.7;
+const ANIMAL_STOP = 3.5;  // how hard a vehicle slows for a crossing animal, m/s²: a careful driver
+const ANIMAL_GAP = 1.2;   // and where it stands, this far short of the closed stretch
+/** The world's speed in each gear, m/s: a van's own are van.gears (the
+ *  page's VAN_GEARS; Trikey's are half), which overtakes are planned at. */
+const GEAR_V = { 1: 7, 2: 13, 3: 20 };
+
+// --------------------------------------------------------------------- set-up
+
+/** A fresh set of traffic for a new route. Called on every route change.
+ *  @param {Route} route
+ *  @param {{random?: () => number}} [opts] a seeded random for the check */
+export function create(route, opts = {}) {
+  const T = {
+    route, rand: opts.random ?? Math.random,
+    vehicles: [], nextId: 1, ready: false, lastVanS: 0, time: 0,
+    nextGap: 0, nextOncGap: 0, behindTimer: 4, beepCooldown: 0,
+    hold: false, pendingReturn: false, blocker: null,
+    imgs: null, last: null,
+  };
+  T.closed = [];
+  survey(T);
+  return T;
+}
+
+/** Walk the route once: where the tracks and dual carriageways are, where it
+ *  turns and by how much. Everything later is a lookup in these lists. */
+function survey(T) {
+  const r = T.route, L = r.length;
+  T.tracks = []; T.trunks = []; T.vertices = []; T.bends = []; T.boundaries = [];
+  let prevCls = null, open = null, prevH = null, prevOnc = null;
+  for (let s = 0; s <= L; s += 1) {
+    // Where lane 1 stops being our own and becomes the oncoming lane (the
+    // A28 from divided to single), the van must not carry it across.
+    const onc = lane1Oncoming(T, s);
+    if (prevOnc !== null && onc !== prevOnc && !T.boundaries.includes(s)) T.boundaries.push(s);
+    prevOnc = onc;
+    const cls = r.roadClassAt(s);
+    if (cls !== prevCls) {
+      if (open) { open.list.push([open.a, s]); open = null; }
+      if (trackLike(cls)) open = { list: T.tracks, a: s };
+      if (cls === 'trunk') open = { list: T.trunks, a: s };
+      if (prevCls !== null && (trackLike(cls) || trackLike(prevCls) || cls === 'trunk' || prevCls === 'trunk')) T.boundaries.push(s);
+      prevCls = cls;
+    }
+    const h = r.atDistance(s).h;
+    if (prevH !== null) {
+      const turn = wrap(h - prevH);
+      if (Math.abs(turn) > 1e-4) T.vertices.push({ s: s - 0.5, turn });
+    }
+    prevH = h;
+  }
+  if (open) open.list.push([open.a, L + 1000]);
+  for (const v of T.vertices) {
+    let sum = 0;
+    for (const u of T.vertices) if (Math.abs(u.s - v.s) <= 15) sum += u.turn;
+    if (Math.abs(sum) * 180 / Math.PI > BEND_DEG) T.bends.push(v.s);
+  }
+  // One at a time round a sharp corner. The route is straight segments, so at
+  // a corner the van's tail, drawn along the new heading, swings back across
+  // the old segment's oncoming lane. Oncoming traffic waits for the van there,
+  // as a car would at a blind bend on a narrow road.
+  T.zones = [];
+  for (const v of T.vertices) {
+    let sum = 0;
+    for (const u of T.vertices) if (Math.abs(u.s - v.s) <= 8) sum += u.turn;
+    const turn = Math.min(Math.abs(sum), 2.2);
+    if (turn * 180 / Math.PI < CORNER_DEG) continue;
+    const z = 2.7 + 4.6 * Math.tan(turn / 2) + 1.5;
+    const sharp = turn * 180 / Math.PI > BEND_DEG, trunk = r.roadClassAt(v.s) === 'trunk';
+    const last = T.zones[T.zones.length - 1];
+    if (last && v.s - z <= last.b) { last.b = Math.max(last.b, v.s + z); last.sharp ||= sharp; last.trunk &&= trunk; }
+    else T.zones.push({ a: v.s - z, b: v.s + z, sharp, trunk });
+  }
+}
+
+// ------------------------------------------------------------------ geometry
+
+function wrap(a) { return Math.atan2(Math.sin(a), Math.cos(a)); }
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+/** Route position, extended straight past both ends so nothing piles up at
+ *  the start point. */
+function at(T, s) {
+  if (s >= 0) return T.route.atDistance(s);
+  const p = T.route.atDistance(0);
+  return { x: p.x + Math.cos(p.h) * s, y: p.y + Math.sin(p.h) * s, h: p.h };
+}
+const clsAt = (T, s) => T.route.roadClassAt(clamp(s, 0, T.route.length));
+const off = (T, lane, s) => T.route.laneOffset(lane, clamp(s, 0, T.route.length));
+const inAny = (list, a, b) => list.some(([x, y]) => x <= b && y >= a);
+const anyPoint = (list, a, b) => list.some(x => x >= a && x <= b);
+
+/** Whether lane 1 at s is the oncoming lane: on an ordinary road it is the
+ *  mirror of our lane 0. On the dual carriageway, and on a stretch of the A28
+ *  split by a kerbed island, lane 1 is our own (or there is none) and the
+ *  oncoming traffic is beyond the strip or the island. Read off the page's
+ *  lane geometry, so a road the page draws divided needs no class of its own. */
+function lane1Oncoming(T, s) {
+  if (clsAt(T, s) === 'trunk') return false;
+  return Math.abs(off(T, 0, s) + off(T, 1, s)) < 0.5;
+}
+
+/** Where a vehicle's lateral position should be at s. Same direction: our
+ *  lane 0. Oncoming: the mirror of our lane 0, which is lane 1 on an
+ *  ordinary road, and on the dual carriageway or a divided road the far
+ *  side beyond the grass strip or the island. */
+function lateralTarget(T, w, s) {
+  if (w.dir > 0) return off(T, 0, s);
+  return -off(T, 0, s);
+}
+
+/** On a polyline the inside of a corner is shorter than the centreline: two
+ *  things in a lane at different s can be closer in the world than their s
+ *  says. This is how much closer, at most, for a stretch of route. */
+function cornerExtra(T, a, b, lat) {
+  // A corner just ahead of the pair counts in part, growing as they near it,
+  // so a following gap opens smoothly instead of the cap jumping at a bend.
+  let sum = 0;
+  for (const v of T.vertices) {
+    if (v.s >= a - 6 && v.s <= b + 6) sum += Math.abs(v.turn);
+    else if (v.s > b + 6 && v.s < b + 31) sum += Math.abs(v.turn) * (1 - (v.s - b - 6) / 25);
+  }
+  if (sum < 1e-3) return 0;
+  // Up to a 155° hairpin, which the real graph has where a lane leaves the A28.
+  return Math.min(40, 2 * (Math.abs(lat) + 1.4) * Math.tan(Math.min(sum, 2.7) / 2));
+}
+
+/** The one of two lateral offsets further from the centreline: the corner
+ *  between two things is as short as it is for the one more on the inside,
+ *  which on the A28's wide carriageways is often the van. */
+const wider = (a, b) => Math.abs(a) > Math.abs(b) ? a : b;
+
+/** A vehicle's footprint in the world: a rigid body from its rear axle point
+ *  on the route to its front one, so it cuts a corner the way a car does.
+ *  @returns {{x:number, y:number, h:number, L:number, W:number}} h is the
+ *  direction it is travelling in */
+export function footprint(T, w) {
+  const f = at(T, w.s + w.dir * w.L / 2), r = at(T, w.s - w.dir * w.L / 2);
+  const fx = f.x + Math.cos(f.h + Math.PI / 2) * w.d, fy = f.y + Math.sin(f.h + Math.PI / 2) * w.d;
+  const rx = r.x + Math.cos(r.h + Math.PI / 2) * w.d, ry = r.y + Math.sin(r.h + Math.PI / 2) * w.d;
+  return { x: (fx + rx) / 2, y: (fy + ry) / 2, h: Math.atan2(fy - ry, fx - rx), L: w.L, W: w.W };
+}
+
+// ------------------------------------------------------------------ vehicles
+
+function pickKind(T, group) {
+  const mix = MIX[group];
+  if (!mix) return null;
+  let total = 0;
+  for (const k in mix) total += mix[k][0];
+  let t = T.rand() * total;
+  for (const k in mix) { t -= mix[k][0]; if (t < 0) return k; }
+  return Object.keys(mix)[0];
+}
+
+function spawn(T, kind, dir, s) {
+  // Never into the middle of an animal crossing, or so near one it could
+  // not stop for it.
+  if (T.closed.some(z => s > z.s0 - 45 && s < z.s1 + 45)) return null;
+  // Nor where the route folds back past the van: far along the route, but
+  // on the screen beside it.
+  if (T.lastVanS != null) {
+    const p = at(T, s), q = at(T, T.lastVanS), dw = Math.hypot(p.x - q.x, p.y - q.y);
+    if (dw < IN_VIEW && dw < 0.6 * Math.abs(s - T.lastVanS)) return null;
+  }
+  const K = KINDS[kind];
+  const base = K.skins[(T.rand() * K.skins.length) | 0];
+  const skin = dir > 0 && K.pair ? base + '-rear' : base;
+  const W = K.width, L = W * SPRITES[skin].aspect;
+  const w = {
+    id: T.nextId++, kind, skin, dir, s, W, L, H: K.height,
+    pace: 0.9 + T.rand() * 0.2, v: 0, d: 0, pass: null, yieldTo: 0,
+  };
+  w.d = lateralTarget(T, w, s);
+  w.v = desired(T, w);
+  T.vehicles.push(w);
+  return w;
+}
+
+/** How fast a vehicle wants to go where it is, looking a little ahead so it
+ *  slows before a lane or a track rather than on it. */
+function desired(T, w) {
+  const look = w.s + w.dir * 25;
+  const v = Math.min(cruise(T, w, w.s), cruise(T, w, look));
+  if (w.yieldTo > 0) return w.yieldTo;
+  return v;
+}
+function cruise(T, w, s) {
+  const g = groupAt(clsAt(T, s));
+  const entry = MIX[g]?.[w.kind];
+  let v = entry ? entry[1] : { trunk: 12, main: 9, lane: 6, track: 3.5, path: 3.5 }[g];
+  if (w.kind === 'tractor') v = Math.min(v, 5.5);
+  return v * w.pace;
+}
+
+// ------------------------------------------------- where the route folds back
+
+/** Everything above reasons along the route, but a route can fold back on
+ *  itself: a hairpin, a road that doubles back alongside, or a road that
+ *  later bends on a point of one already driven (the A28 at Westgate bends
+ *  on the house street beside it, and the two share a strip of road there).
+ *  A vehicle on the far part is then on the screen beside the van though far
+ *  from it along the route, and it is drawn where it is.
+ *
+ *  So each such place is a fold zone: two stretches of the route, more than
+ *  FOLD_ZONE_S apart along it (nearer, the corner rules above already take
+ *  it one at a time), whose centrelines come within FOLD_NEAR_M, so that
+ *  anything on one could touch anything on the other. It is used one side at
+ *  a time, like a bridge with room for one: the van has it while it is on or
+ *  approaching its own stretch, and a vehicle on the other stretch waits
+ *  short of it; one already on it goes on through, and the van waits short
+ *  of its own stretch until it is clear. Worked out once per route. Behind
+ *  that, in world space as drawn, nothing on the far part ever closes on the
+ *  van and the van stops short of anything there in its road. */
+const FOLD_S = 40, FOLD_ZONE_S = 100, FOLD_NEAR_M = 12, FOLD_SAMPLE = 2.5, FOLD_END_M = 3, FOLD_STOP = 6;
+const FOLD_STEP = 1.5, FOLD_MARGIN = 1;
+
+function foldZones(T) {
+  if (T.foldZones) return T.foldZones;
+  const n = Math.ceil(T.route.length / FOLD_SAMPLE) + 1, pts = [], grid = new Map();
+  const key = (cx, cy) => cx * 65536 + cy;
+  for (let i = 0; i < n; i++) {
+    const p = T.route.atDistance(Math.min(T.route.length, i * FOLD_SAMPLE));
+    pts.push(p);
+    const k = key(Math.floor(p.x / FOLD_NEAR_M), Math.floor(p.y / FOLD_NEAR_M));
+    if (!grid.has(k)) grid.set(k, []);
+    grid.get(k).push(i);
+  }
+  const gap = Math.ceil(FOLD_ZONE_S / FOLD_SAMPLE), zones = [];
+  for (let i = 0; i < n; i++) {
+    const p = pts[i], cx = Math.floor(p.x / FOLD_NEAR_M), cy = Math.floor(p.y / FOLD_NEAR_M);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      for (const j of grid.get(key(cx + dx, cy + dy)) ?? []) {
+        if (j - i <= gap || Math.hypot(pts[j].x - p.x, pts[j].y - p.y) >= FOLD_NEAR_M) continue;
+        // Join it to a zone it continues, or start one.
+        const z = zones.find(z => i >= z.i0 - 2 && i <= z.i1 + 2 && j >= z.j0 - 2 && j <= z.j1 + 2);
+        if (z) { z.i0 = Math.min(z.i0, i); z.i1 = Math.max(z.i1, i); z.j0 = Math.min(z.j0, j); z.j1 = Math.max(z.j1, j); }
+        else zones.push({ i0: i, i1: i, j0: j, j1: j });
+      }
+    }
+  }
+  return (T.foldZones = zones.map(z => ({
+    parts: [[z.i0 * FOLD_SAMPLE - FOLD_END_M, z.i1 * FOLD_SAMPLE + FOLD_END_M], [z.j0 * FOLD_SAMPLE - FOLD_END_M, z.j1 * FOLD_SAMPLE + FOLD_END_M]],
+  })));
+}
+
+/** Whether [lo, hi] along the route overlaps the stretch [a, b]. */
+const onPart = (lo, hi, [a, b]) => hi > a && lo < b;
+
+/** The part of each fold zone the van has: the one it is on, or will be on
+ *  before it could stop gently. -1 for a zone it is nowhere near. */
+function vanParts(T, van, vb) {
+  const reach = van.v * van.v / (2 * VAN_APPROACH) + 15;
+  return foldZones(T).map(z => z.parts.findIndex(([a, b]) => vb.front > a - reach && vb.rear < b));
+}
+
+/** A vehicle's speed held for the fold zones: never onto the other part of
+ *  a zone the van has. One already on it goes on through, and so does one
+ *  going too fast to stop short when the van takes the zone (the van then
+ *  waits). Once held it stays held until the van lets the zone go: it used
+ *  to be let go in the last metre before the part, or once the speed it
+ *  wanted (not the speed it had) could no longer stop there, and so came on
+ *  while the van was on its own part, and each then stood for the other as
+ *  drawn (seed 28 of safety.check, 900 s). */
+function foldZoneSpeed(T, w, v, mine, dt) {
+  const zones = foldZones(T);
+  const lo = w.s - w.L / 2, hi = w.s + w.L / 2, front = w.dir > 0 ? hi : lo;
+  const held = w.foldHeld ?? (w.foldHeld = new Set());
+  for (let k = 0; k < zones.length; k++) {
+    if (mine[k] < 0) { held.delete(k); continue; }
+    const part = zones[k].parts[1 - mine[k]];
+    if (onPart(lo, hi, part) || (w.dir > 0 ? lo >= part[1] : hi <= part[0])) {
+      held.delete(k);                                 // on it: through and off; or past it
+      continue;
+    }
+    const room = w.dir > 0 ? part[0] - front - 1 : front - part[1] - 1;
+    if (room > 200) continue;                         // far
+    if (!held.has(k) && room < w.v * dt + w.v * w.v / (2 * ONC_STOP)) continue;   // too late to stop: it goes, the van waits
+    held.add(k);
+    v = Math.min(v, stopSpeed(room, FOLD_STOP, dt));
+  }
+  return v;
+}
+
+/** The van's cap for the fold zones: short of its own part while anything
+ *  is on the other. */
+function foldZoneCap(T, van, vb, mine, dt) {
+  const zones = foldZones(T);
+  let cap = Infinity;
+  for (let k = 0; k < zones.length; k++) {
+    if (mine[k] < 0) continue;
+    const own = zones[k].parts[mine[k]], other = zones[k].parts[1 - mine[k]];
+    if (vb.front > own[0]) continue;                 // on it already
+    if (!T.vehicles.some(w => onPart(w.s - w.L / 2, w.s + w.L / 2, other))) continue;
+    // Gently: it claimed the zone while it could still stop at this rate.
+    cap = Math.min(cap, stopSpeed(own[0] - vb.front - 1, VAN_APPROACH, dt));
+  }
+  return cap;
+}
+
+function foldBox(T, s, d, L, W) {
+  const p = at(T, s);
+  return { x: p.x + Math.cos(p.h + Math.PI / 2) * d, y: p.y + Math.sin(p.h + Math.PI / 2) * d, h: p.h, L, W };
+}
+function boxCorners(b) {
+  const c = Math.cos(b.h), s = Math.sin(b.h), l = b.L / 2, w = b.W / 2;
+  return [[l, w], [-l, w], [-l, -w], [l, -w]].map(([u, v]) => [b.x + u * c - v * s, b.y + u * s + v * c]);
+}
+function segGap([px, py], [ax, ay], [bx, by]) {
+  const dx = bx - ax, dy = by - ay, t = clamp(((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy), 0, 1);
+  return Math.hypot(px - ax - t * dx, py - ay - t * dy);
+}
+/** Gap between two boxes {x, y, h, L, W}, metres; 0 when they overlap. */
+function boxGap(P, Q) {
+  const far = Math.hypot(P.x - Q.x, P.y - Q.y) - Math.hypot(P.L, P.W) / 2 - Math.hypot(Q.L, Q.W) / 2;
+  if (far > 3) return far;
+  const A = boxCorners(P), B = boxCorners(Q);
+  let apart = false;
+  for (const R of [A, B]) for (let i = 0; i < 4 && !apart; i++) {
+    const [ax, ay] = R[i], [bx, by] = R[(i + 1) % 4], nx = ay - by, ny = bx - ax;
+    let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+    for (const [x, y] of A) { const d = x * nx + y * ny; a0 = Math.min(a0, d); a1 = Math.max(a1, d); }
+    for (const [x, y] of B) { const d = x * nx + y * ny; b0 = Math.min(b0, d); b1 = Math.max(b1, d); }
+    if (a1 < b0 || b1 < a0) apart = true;
+  }
+  if (!apart) return 0;
+  let best = Infinity;
+  for (const [U, V] of [[A, B], [B, A]]) for (const p of U) for (let i = 0; i < 4; i++) best = Math.min(best, segGap(p, V[i], V[(i + 1) % 4]));
+  return best;
+}
+/** The vehicles on the far part of a fold near the van: far from it along
+ *  the route, near it on the screen. */
+function foldVehicles(T, van) {
+  if (!foldZones(T).length) return [];
+  const p = at(T, van.s), out = [];
+  for (const w of T.vehicles) {
+    const ds = Math.abs(w.s - van.s);
+    if (ds <= FOLD_S) continue;
+    const q = at(T, w.s), dw = Math.hypot(q.x - p.x, q.y - p.y);
+    if (dw < 40 && dw < 0.5 * ds) out.push({ w, fp: footprint(T, w) });
+  }
+  return out;
+}
+/** The backstop, as drawn: a vehicle on the far part never closes on the
+ *  van to within FOLD_MARGIN... */
+function foldTouchSpeed(T, w, fp, v, here, dt) {
+  const now = boxGap(here, fp);
+  for (let j = 1; (j - 1) * FOLD_STEP <= v * dt + FOLD_STEP; j++) {
+    const g = boxGap(here, footprint(T, { ...w, s: w.s + w.dir * j * FOLD_STEP }));
+    if (g < FOLD_MARGIN && g < now - 1e-6) return Math.min(v, stopSpeed((j - 1) * FOLD_STEP, FOLD_STOP, dt));
+  }
+  return v;
+}
+/** ...and the van stops short of one in its road ahead. */
+function foldTouchCap(T, van, fp, dt) {
+  const reach = van.v * dt + van.v * van.v / (2 * VAN_STOP) + 12;
+  for (let k = 1; k * FOLD_STEP <= reach; k++) {
+    if (boxGap(foldBox(T, van.s + k * FOLD_STEP, van.lane, van.length, van.width), fp) < FOLD_MARGIN) {
+      return stopSpeed((k - 1) * FOLD_STEP, VAN_STOP, dt);
+    }
+  }
+  return Infinity;
+}
+
+/** The van's footprint along the route. */
+function vanBox(van) {
+  return { rear: van.s - van.length / 2, front: van.s + van.length / 2 };
+}
+
+// ---------------------------------------------------------------------- step
+
+/** Advance the traffic and report what it means for the van.
+ *  @param {{closed?: {s0:number, s1:number}[]}} [world] what else is on the
+ *  road: closed, the stretches crossings.closed() reports, where an animal is
+ *  crossing. Every vehicle stops short of them.
+ *  @returns {TrafficResult} */
+export function step(T, dt, van, world = {}) {
+  const events = [];
+  T.closed = world.closed ?? [];
+  if (!T.ready || Math.abs(van.s - T.lastVanS) > 40) reset(T, van);
+  T.lastVanS = van.s;
+  T.time += dt;
+  T.beepCooldown = Math.max(0, T.beepCooldown - dt);
+
+  const vb = vanBox(van);
+  const off0 = off(T, 0, van.s), off1 = off(T, 1, van.s);
+  const span = off1 - off0;
+  const laneT = typeof van.laneT === 'number' ? van.laneT
+    : Math.abs(span) < 1e-3 ? (van.laneWant ? 1 : 0) : clamp((van.lane - off0) / span, 0, 1);
+
+  // ---- 1. may the van be in the overtaking lane, and may it come back?
+  const peeking = !!van.peek && van.laneWant === 0;
+  const unsafe = laneUnsafe(T, van, vb, laneT);
+  const inLane1 = laneT > 0.001;
+  if (T.pendingReturn && van.laneWant === 1 && !inLane1) T.pendingReturn = false;
+  // Easing back from a look is not coming back from an overtake: nothing
+  // can be alongside it, and nothing holds it out.
+  const wantsBack = !peeking && inLane1 && (van.laneWant === 0 || unsafe || T.pendingReturn);
+  // Once a return is under way the caps on both sides already hold the gaps,
+  // so only something actually alongside turns it round.
+  const underway = laneT < 0.999 && van.laneWant === 0;
+  const blocker = wantsBack ? returnBlocker(T, van, vb, dt, underway) : null;
+  let laneBlocked = unsafe !== '';
+  T.hold = false; T.blocker = null;
+  if (blocker) {
+    // Something is alongside: stay out until there is room. The van comes
+    // back by itself once there is.
+    if (van.laneWant === 0 || unsafe) T.pendingReturn = true;
+    van.laneWant = 1;
+    laneBlocked = false;
+    T.hold = true; T.blocker = blocker;
+  } else if (T.pendingReturn && inLane1) {
+    van.laneWant = 0; T.pendingReturn = false;
+  }
+  const want = laneBlocked ? 0 : van.laneWant;
+
+  // Which lanes the van is in or moving into this frame, and the band of road
+  // it sweeps sideways.
+  const occ0 = laneT < 0.999 || want === 0;
+  const occ1 = laneT > 0.001 || want === 1;
+  const tgtLat = off0 + Math.max(want, peeking ? clamp(van.peekT ?? 0, 0, 1) : 0) * span;
+  const bandLo = Math.min(van.lane, tgtLat) - van.width / 2;
+  const bandHi = Math.max(van.lane, tgtLat) + van.width / 2;
+  const conflicts = (w) => {
+    const latHit = w.d + w.W / 2 + 0.3 > bandLo && w.d - w.W / 2 - 0.3 < bandHi;
+    if (latHit) return true;
+    if (w.dir > 0) return occ0;
+    if (peeking) return false;   // looking, not out: only a real overlap counts
+    return occ1 && lane1Oncoming(T, w.s);
+  };
+  const peekMax = peekRoom(T, van, vb, off0, span);
+
+  // ---- 2. the vehicles move
+  for (const w of T.vehicles) {
+    w.yieldTo = 0;
+    if (T.blocker === w) {
+      // Make room for the van to come back in: drop back if the van is ahead,
+      // pull on if it is behind.
+      w.yieldTo = van.s >= w.s ? Math.max(0, van.v - 3) : Math.max(cruise(T, w, w.s), van.v + 3);
+    }
+  }
+  const same = T.vehicles.filter(w => w.dir > 0).sort((a, b) => a.s - b.s);
+  const onc = T.vehicles.filter(w => w.dir < 0).sort((a, b) => b.s - a.s);
+  const newV = new Map();
+  same.forEach((w, i) => newV.set(w, sameSpeed(T, w, same[i + 1], van, vb, conflicts(w), dt)));
+  onc.forEach((w, i) => newV.set(w, oncSpeed(T, w, onc[i + 1], van, vb, conflicts(w), dt)));
+  // Where the route folds back past the van.
+  const mine = vanParts(T, van, vb), folded = foldVehicles(T, van);
+  if (mine.some(k => k >= 0)) {
+    // For the checks: how often the van had a fold zone, and with what on
+    // its other part.
+    T.foldHad = (T.foldHad ?? 0) + 1;
+    const zs = foldZones(T);
+    if (T.vehicles.some(w => mine.some((k, i) => k >= 0 && onPart(w.s - w.L / 2, w.s + w.L / 2, zs[i].parts[1 - k])))) T.foldShared = (T.foldShared ?? 0) + 1;
+  }
+  if (mine.some(k => k >= 0) || folded.length) {
+    const here = foldBox(T, van.s, van.lane, van.length, van.width);
+    for (const w of T.vehicles) {
+      let v = foldZoneSpeed(T, w, newV.get(w), mine, dt);
+      const f = folded.find(o => o.w === w);
+      if (f) v = foldTouchSpeed(T, w, f.fp, v, here, dt);
+      if (v >= newV.get(w) - 1e-9) continue;
+      T.foldHolds = (T.foldHolds ?? 0) + 1;
+      newV.set(w, v);
+    }
+  }
+  // How long each vehicle on a fold has stood (for the checks).
+  for (const w of T.vehicles) {
+    w.foldStood = newV.get(w) < 0.2 && mine.some(k => k >= 0) ? (w.foldStood ?? 0) + dt : 0;
+    T.foldLongest = Math.max(T.foldLongest ?? 0, w.foldStood);
+  }
+  for (const w of T.vehicles) {
+    w.v = newV.get(w);
+    w.s += w.dir * w.v * dt;
+    const tgt = lateralTarget(T, w, w.s);
+    w.d += clamp(tgt - w.d, -4 * dt, 4 * dt);
+  }
+
+  // ---- 3. the van's cap, against where everything is now
+  let speedCap = Infinity, capBy = '';
+  for (const w of T.vehicles) {
+    if (!conflicts(w)) continue;
+    const wRear = w.s - w.L / 2, wFront = w.s + w.L / 2;
+    if (w.dir > 0) {
+      if (w.s < van.s) continue;   // behind: it keeps off us, not we off it
+      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, wider(w.d, van.lane));
+      // Close in hard, then settle at a following gap that breathes: it
+      // drifts out and back by a metre or so, slowly and unevenly, so the van
+      // does not move in lockstep with the vehicle in front (Marcus,
+      // 2026-10-12). Never nearer than the band; below it the cap falls
+      // away as before.
+      const band = 3 + 0.4 * w.v, want = band + breath(T.time, w.id);
+      // (The approach is rounded off near the gap, so the gap moving does
+      // not jerk the cap.)
+      const cap = g >= want ? w.v + Math.sqrt(2 * VAN_APPROACH * (g - want) + ROUND * ROUND) - ROUND
+        : g >= 0 ? Math.max(0, w.v - Math.min(FOLLOW_DROP, FOLLOW_EASE * (want - g)))
+        : Math.max(0, Math.min(w.v - FOLLOW_DROP, w.v + 1.5 * g));
+      if (cap < speedCap) { speedCap = Math.max(0, cap); capBy = 'lead'; }
+    } else {
+      if (wFront < vb.rear) continue;   // gone past
+      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, wider(w.d, van.lane));
+      const theirs = w.v * dt + w.v * w.v / (2 * ONC_STOP);
+      const cap = stopSpeed(g - theirs, VAN_STOP, dt);
+      if (cap < speedCap) { speedCap = cap; capBy = 'oncoming'; }
+    }
+  }
+  // A vehicle on the far part of a fold, in the van's road ahead.
+  {
+    let cap = mine.some(k => k >= 0) ? foldZoneCap(T, van, vb, mine, dt) : Infinity;
+    for (const { w } of folded) cap = Math.min(cap, foldTouchCap(T, van, footprint(T, w), dt));
+    if (cap < speedCap) { speedCap = cap; capBy = 'fold'; }
+  }
+  // An oncoming vehicle already committed to a sharp corner has it: the van
+  // waits short of it. (Oncoming traffic only commits when the van is far
+  // enough off not to arrive first, so this rarely bites.)
+  for (const z of T.zones) {
+    if (z.trunk || z.b < vb.rear || z.a > vb.front + 80 || vb.front > z.a) continue;
+    if (T.vehicles.some(w => w.dir < 0 && w.zone === z)) {
+      const cap = stopSpeed(z.a - vb.front - 1, VAN_STOP, dt);
+      if (cap < speedCap) { speedCap = cap; capBy = 'corner'; }
+    }
+  }
+  // Nor round a sharp bend, where the corner of the road folds lane 0 and
+  // lane 1 into each other. (laneBlocked has called it back long before; this
+  // is for when something alongside has kept it out.)
+  if (laneT > 0.001) {
+    const z = T.zones.find(z => z.sharp && z.b > vb.rear && z.a - vb.front < 70);
+    if (z) {
+      const cap = Math.sqrt(2 * VAN_APPROACH * Math.max(0, z.a - vb.front - 6));
+      if (cap < speedCap) { speedCap = cap; capBy = 'bend'; }
+    }
+  }
+  // The van must not carry the overtaking lane into a track or across either
+  // end of the dual carriageway, where the lanes move under it.
+  if (laneT > 0.001) {
+    const b = T.boundaries.find(x => x > vb.front - 7);
+    if (b !== undefined && b - vb.front < 70) {
+      // Short of the line by more than half a bus, so nothing still alongside
+      // is yet moving sideways onto the new road.
+      const cap = Math.sqrt(2 * VAN_APPROACH * Math.max(0, b - vb.front - 6));
+      if (cap < speedCap) { speedCap = cap; capBy = 'lane ends'; }
+    }
+  }
+
+  // ---- 4. moments
+  for (const w of same) {
+    const wRear = w.s - w.L / 2, wFront = w.s + w.L / 2;
+    if (vb.front < wRear) w.pass = 'behind';
+    else if (w.pass === 'behind' && laneT > 0.5) w.pass = 'alongside';
+    else if (w.pass === 'alongside' && laneT < 0.5 && vb.rear > wFront) {
+      w.pass = 'done'; events.push('close');
+    }
+  }
+  if (clsAt(T, van.s) === 'trunk' && (van.gear === 1 || (van.gear == null && van.v < 8))
+      && van.v < 8.5 && T.beepCooldown === 0) {
+    const q = same.find(w => w.s < van.s && conflicts(w) && vb.rear - (w.s + w.L / 2) < 22
+      && desired(T, w) > w.v + 1.5);
+    if (q) { events.push('beep'); T.beepCooldown = 4.5; }
+  }
+
+  // ---- 5. arrivals and departures
+  populate(T, van, vb, dt);
+
+  T.last = { speedCap, capBy, laneBlocked, hold: T.hold, laneT, unsafe, peekMax };
+  return { speedCap, laneBlocked, laneHold: T.hold, peekMax, events };
+}
+
+/** How much further back than the band the van sits behind a leader, metres:
+ *  three slow swells with unrelated periods, so it never repeats and never
+ *  looks like a wobble, phased by the leader so each follow is its own.
+ *  0 to BREATH_M. */
+const BREATH_M = 1.4;
+const FOLLOW_EASE = 0.45;   // 1/s: how quickly the van drifts to the gap it wants
+const ROUND = 2;            // m/s: how gently the approach meets the following gap
+const FOLLOW_DROP = 1;      // m/s: and at most this much slower than the leader as it drops back
+function breath(t, id) {
+  const p = id * 2.399;
+  const u = 0.5 * Math.sin(t * 2 * Math.PI / 9.7 + p) + 0.3 * Math.sin(t * 2 * Math.PI / 15.3 + 1.7 * p)
+    + 0.2 * Math.sin(t * 2 * Math.PI / 6.1 + 2.9 * p);
+  return BREATH_M * (0.5 + 0.5 * u);
+}
+
+/** The fastest speed from which a stop at `rate` fits in `room` metres,
+ *  counting the one frame of travel before the brakes bite. */
+function stopSpeed(room, rate, dt) {
+  if (room <= 0) return 0;
+  return rate * (-dt + Math.sqrt(dt * dt + 2 * room / rate));
+}
+
+/** A same-direction vehicle's speed for this frame: comfortable following
+ *  (IDM) under a hard cap that can always stop behind what is ahead. */
+function sameSpeed(T, w, aiLead, van, vb, conflictsVan, dt) {
+  const front = w.s + w.L / 2;
+  let lead = null;
+  if (aiLead) lead = { rear: aiLead.s - aiLead.L / 2, v: aiLead.v, van: false, d: aiLead.d };
+  if (conflictsVan && van.s > w.s && (!lead || vb.rear < lead.rear)) lead = { rear: vb.rear, v: van.v, van: true, d: van.lane };
+  const v0 = desired(T, w);
+  let gap = Infinity, dv = 0;
+  if (lead) {
+    gap = lead.rear - front - cornerExtra(T, front, lead.rear, wider(w.d, lead.d));
+    dv = w.v - lead.v;
+  }
+  // An animal crossing ahead: slowed for at a steady ANIMAL_STOP and no
+  // harder (the following model would brake hard once close).
+  const z = animalRoom(T, w, front);
+  let v = w.v + clamp(idm(w.v, v0, gap, dv), -9, 2) * dt;
+  if (lead) {
+    const room = gap - (lead.van ? GAP : 1);
+    // Behind the van: assume it stops dead this instant. Behind traffic: it
+    // brakes no harder than we can.
+    const cap = lead.van ? stopSpeed(room, FOLLOW_STOP, dt)
+      : stopSpeed(room + lead.v * lead.v / 16, 8, dt);
+    v = Math.min(v, cap);
+  }
+  if (isFinite(z)) v = Math.min(v, stopSpeed(z, ANIMAL_STOP, dt));
+  return clamp(v, 0, 40);
+}
+
+/** An oncoming vehicle's speed: it follows the one in front of it, waits at
+ *  the end of a track it cannot fit down, and stops for the van whenever the
+ *  van is on its side of the road. */
+function oncSpeed(T, w, aiLead, van, vb, conflictsVan, dt) {
+  const front = w.s - w.L / 2;   // lower s
+  const v0 = desired(T, w);
+  let gap = Infinity, dv = 0, cap = Infinity;
+  if (aiLead) {
+    const g = front - (aiLead.s + aiLead.L / 2);
+    gap = g; dv = w.v - aiLead.v;
+    cap = Math.min(cap, stopSpeed(g - 1 + aiLead.v * aiLead.v / 16, 8, dt));
+  }
+  // A single-track road ahead of it: wait at the end rather than meet the van
+  // where there is no room to pass. (Out of view it simply turns off.)
+  const tr = T.tracks.find(([a, b]) => b <= front + 0.01 && b > front - 200);
+  if (tr) {
+    const g = front - (tr[1] + 12);
+    if (g < gap) { gap = g; dv = w.v; }
+    cap = Math.min(cap, stopSpeed(g, 4, dt));
+  }
+  // A sharp corner: go only if it is clear before the van could get there.
+  w.zone = null;
+  for (const z of T.zones) {
+    if (z.trunk || z.a > w.s + w.L / 2 || z.b < front - 120) continue;   // far side, behind it, or far
+    if (vb.rear > z.b || vb.front < z.a - 200) continue;      // the van is past it, or far
+    const inside = front < z.b;
+    const canStop = front - z.b - 1 > w.v * dt + w.v * w.v / (2 * ONC_STOP);
+    if (inside || !canStop) { w.zone = z; continue; }           // committed
+    const clearIn = travelTime(w.s + w.L / 2 - z.a, w.v, desired(T, w), 1.2);
+    const vanIn = vb.front >= z.a ? 0 : travelTime(z.a - vb.front, van.v, 20);
+    if (vanIn > clearIn + 1) { if (front - z.b < 25) w.zone = z; continue; }
+    const g = front - z.b - 1;
+    if (g < gap) { gap = g; dv = w.v; }
+    cap = Math.min(cap, stopSpeed(g, ONC_STOP, dt));
+  }
+  if (conflictsVan && vb.front < w.s + w.L / 2) {
+    const g = front - vb.front - GAP - cornerExtra(T, vb.front, front, wider(w.d, van.lane));
+    if (g < gap) { gap = g; dv = w.v + van.v; }
+    const vans = van.v * dt + van.v * van.v / (2 * 26);
+    cap = Math.min(cap, stopSpeed(g - vans, ONC_STOP, dt));
+  }
+  const z = animalRoom(T, w, front);
+  if (isFinite(z)) cap = Math.min(cap, stopSpeed(z, ANIMAL_STOP, dt));
+  let v = w.v + clamp(idm(w.v, v0, gap, dv), -9, 2) * dt;
+  return clamp(Math.min(v, cap), 0, 40);
+}
+
+/** Metres a vehicle may still go before the nearest closed stretch ahead of
+ *  it (Infinity when none), its nose `front` stopping ANIMAL_GAP short, and
+ *  more on the inside of a corner. A stretch it is already past is behind
+ *  it; one it is somehow in is 0, so it stands where it is. */
+function animalRoom(T, w, front) {
+  let best = Infinity;
+  for (const z of T.closed) {
+    if (w.dir > 0) {
+      if (w.s - w.L / 2 > z.s1) continue;
+      best = Math.min(best, Math.max(0, z.s0 - front - ANIMAL_GAP - cornerExtra(T, front, z.s0, w.d)));
+    } else {
+      if (w.s + w.L / 2 < z.s0) continue;
+      best = Math.min(best, Math.max(0, front - z.s1 - ANIMAL_GAP - cornerExtra(T, z.s1, front, w.d)));
+    }
+  }
+  return best;
+}
+export const ANIMAL_STOP_RATE = ANIMAL_STOP, ANIMAL_STOP_GAP = ANIMAL_GAP;
+
+/** Seconds to cover d metres from speed v, accelerating at a (the page's
+ *  9 m/s² for the van) up to vMax. */
+function travelTime(d, v, vMax, a = 9) {
+  if (d <= 0) return 0;
+  const tUp = Math.max(0, vMax - v) / a, dUp = v * tUp + a * tUp * tUp / 2;
+  if (dUp >= d) return (-v + Math.sqrt(v * v + 2 * a * d)) / a;
+  return tUp + (d - dUp) / Math.max(0.1, vMax);
+}
+
+/** Intelligent Driver Model acceleration: free road, or settling in behind. */
+function idm(v, v0, gap, dv) {
+  const a = 1.6, b = 2.4, T = 1.2, s0 = GAP;
+  const free = 1 - Math.pow(v / Math.max(0.5, v0), 4);
+  if (!isFinite(gap)) return a * free;
+  const sStar = s0 + Math.max(0, v * T + v * dv / (2 * Math.sqrt(a * b)));
+  return a * (free - Math.pow(sStar / Math.max(0.1, gap), 2));
+}
+
+/** Why lane 1 is not safe for the van now, or '' when it is. */
+function laneUnsafe(T, van, vb, laneT) {
+  // The overtake is planned at the speed this van makes in its gear: Trikey,
+  // pedalled at half of every gear, takes twice as long to get past.
+  const gears = van.gears ?? GEAR_V;
+  const vGear = Math.max(van.v, gears[van.gear] ?? gears[2]);
+  const cls = clsAt(T, van.s);
+  // The vehicle being overtaken, if any: the nearest one ahead in lane 0 that
+  // the van has not yet cleared.
+  let target = null;
+  for (const w of T.vehicles) {
+    if (w.dir < 0 || w.s + w.L / 2 + 6 < vb.rear || w.s - w.L / 2 - vb.front > 80) continue;
+    if (!target || w.s < target.s) target = w;
+  }
+  let need = 3;
+  if (target) {
+    const rest = (target.s + target.L / 2 + 8) - vb.rear;
+    need = Math.max(0, rest) / Math.max(1.5, vGear - target.v) + 2 * LANE_CHANGE_S;
+  }
+  const horizon = clamp(need * vGear, BEND_M, 160);
+
+  if (trackLike(cls) || inAny(T.tracks, vb.rear - 5, vb.front + horizon)) return 'track';
+  // Nor across a change of road: a track, either end of the dual
+  // carriageway, the A28 from divided to single. From our own second lane
+  // only the last OWN_BEND_M count: she may use it until then.
+  if (T.boundaries.some(b => b >= vb.rear - 10 && b <= vb.front + horizon
+      && (lane1Oncoming(T, b - 1) || b <= vb.front + OWN_BEND_M))) return 'road ends';
+  // No overtaking into the oncoming lane near a bend. Where lane 1 is our
+  // own (the dual carriageway, the A28's divided stretches with two lanes
+  // each way, which in town bend often) a bend only calls her back in just
+  // before it, where the corner folds the two lanes together.
+  const bendTo = vb.front + 3 + Math.min(horizon, 120);
+  if (T.bends.some(b => b >= vb.rear - 10 && b <= bendTo && (lane1Oncoming(T, b) || b <= vb.front + OWN_BEND_M))) return 'bend';
+  for (const w of T.vehicles) {
+    if (w.dir > 0) continue;
+    if (w.s + w.L / 2 < vb.rear - 2) continue;              // already past
+    if (!lane1Oncoming(T, w.s) && !lane1Oncoming(T, w.s - w.L)) continue;   // far carriageway
+    const D = (w.s - w.L / 2) - vb.front;
+    const vo = Math.max(w.v, cruise(T, w, w.s));
+    if (D < need * (vGear + vo) + 25) return 'oncoming';
+  }
+  return '';
+}
+
+/** How far out the van may ease to look (laneT, 0..1): its offside kept
+ *  PEEK_MARGIN clear of every vehicle coming the other way within
+ *  PEEK_LOOK, and not at all near a sharp bend or a change of road, where
+ *  the lanes fold or move under it, nor within BEND_M of a bend it could
+ *  not overtake round. */
+function peekRoom(T, van, vb, off0, span) {
+  if (Math.abs(span) < 1e-3) return 0;
+  if (T.zones.some(z => z.sharp && z.b > vb.rear - 2 && z.a < vb.front + PEEK_NEAR_M)) return 0;
+  // Nor looking out where it could not overtake for a bend: there is nothing
+  // to see round it.
+  if (T.bends.some(b => b >= vb.rear - 10 && b <= vb.front + BEND_M + 3 && lane1Oncoming(T, b))) return 0;
+  if (anyPoint(T.boundaries, vb.rear - 5, vb.front + PEEK_NEAR_M)) return 0;
+  let lat = Infinity;
+  for (const w of T.vehicles) {
+    if (w.dir > 0 || w.s + w.L / 2 < vb.rear - 2 || w.s - w.L / 2 - vb.front > PEEK_LOOK) continue;
+    lat = Math.min(lat, w.d - w.W / 2 - PEEK_MARGIN);
+  }
+  return clamp((lat - van.width / 2 - off0) / span, 0, 1);
+}
+
+/** The vehicle in lane 0 that the van cannot move back in beside, or null. */
+function returnBlocker(T, van, vb, dt, underway) {
+  for (const w of T.vehicles) {
+    if (w.dir < 0) continue;
+    const wRear = w.s - w.L / 2, wFront = w.s + w.L / 2;
+    if (underway) {
+      if (wRear < vb.front + 0.5 && wFront > vb.rear - 0.5) return w;
+      continue;
+    }
+    if (wRear >= vb.front) {
+      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, wider(w.d, van.lane));
+      const dv = Math.max(0, van.v - w.v);
+      if (g < dv * dv / (2 * VAN_STOP) + dv * dt + 0.5) return w;
+    } else if (wFront <= vb.rear) {
+      const g = vb.rear - wFront - GAP - cornerExtra(T, wFront, vb.rear, wider(w.d, van.lane));
+      if (g < w.v * dt * 2 + w.v * w.v / (2 * FOLLOW_STOP) + 0.5) return w;
+    } else return w;
+  }
+  return null;
+}
+
+// ------------------------------------------------------------------ arrivals
+
+function reset(T, van) {
+  T.vehicles = [];
+  T.lastVanS = van.s;
+  T.ready = true;
+  T.pendingReturn = false;
+  const g0 = groupAt(clsAt(T, van.s));
+  // Same direction: from just out of view to the spawn line.
+  for (let s = van.s + 55 + T.rand() * 40; s < van.s + SPAWN_AHEAD; ) {
+    const g = groupAt(clsAt(T, s));
+    const k = pickKind(T, g);
+    if (k) spawn(T, k, +1, s);
+    s += SPACING[g] * (0.5 + T.rand());
+  }
+  for (let s = van.s + 70 + T.rand() * 60; s < van.s + SPAWN_ONC; ) {
+    const g = groupAt(clsAt(T, s));
+    if (oncomingMayStart(T, s)) { const k = pickKind(T, g); if (k) spawn(T, k, -1, s); }
+    s += (ONC_SPACING[g] ?? 150) * (0.5 + T.rand());
+  }
+  T.nextGap = SPACING[g0] * (0.5 + T.rand());
+  T.nextOncGap = (ONC_SPACING[g0] ?? 150) * (0.5 + T.rand());
+}
+
+function oncomingMayStart(T, s) {
+  return !trackLike(clsAt(T, s)) && !inAny(T.tracks, s - 25, s + 25)
+    && Math.abs(s - T.lastVanS) > IN_VIEW;
+}
+
+function populate(T, van, vb, dt) {
+  // Departures: far behind, far ahead, or a car that would turn down a farm
+  // track — it turns off instead, out of sight.
+  T.vehicles = T.vehicles.filter(w => {
+    const far = Math.abs(w.s - van.s) > IN_VIEW;
+    if (w.s < van.s - DESPAWN_BEHIND || w.s > van.s + DESPAWN_AHEAD) return false;
+    if (w.s > T.route.length + 60) return false;
+    if (far && w.dir > 0 && w.kind !== 'tractor' && inAny(T.tracks, w.s, w.s + 30)) return false;
+    if (far && w.dir < 0 && inAny(T.tracks, w.s - 30, w.s)) return false;
+    return true;
+  });
+
+  // Same direction, ahead: whenever the stretch before the spawn line has
+  // opened up by the next spacing.
+  const sH = van.s + SPAWN_AHEAD;
+  if (sH < T.route.length - 20) {
+    const near = T.vehicles.some(w => w.dir > 0 && w.s > sH - T.nextGap && w.s < sH + 30);
+    if (!near) {
+      const g = groupAt(clsAt(T, sH));
+      const k = pickKind(T, g);
+      if (k) {
+        const w = spawn(T, k, +1, sH);
+        const lead = w && T.vehicles.find(u => u !== w && u.dir > 0 && u.s > sH && u.s < sH + 60);
+        if (lead) w.v = Math.min(w.v, lead.v);
+      }
+      T.nextGap = SPACING[g] * (0.5 + T.rand());
+    }
+  }
+
+  // Oncoming, at their own spawn line.
+  const sO = van.s + SPAWN_ONC;
+  if (sO < T.route.length && oncomingMayStart(T, sO)) {
+    const near = T.vehicles.some(w => w.dir < 0 && w.s > sO - T.nextOncGap && w.s < sO + 30);
+    if (!near) {
+      const g = groupAt(clsAt(T, sO));
+      const k = pickKind(T, g);
+      if (k) spawn(T, k, -1, sO);
+      T.nextOncGap = (ONC_SPACING[g] ?? 150) * (0.5 + T.rand());
+    }
+  }
+
+  // On the dual carriageway, faster traffic comes up from behind now and
+  // then — which is who beeps at a van dawdling in first.
+  T.behindTimer -= dt;
+  if (T.behindTimer <= 0) {
+    T.behindTimer = 5 + T.rand() * 9;
+    const sB = van.s - SPAWN_BEHIND;
+    if (sB > 0 && clsAt(T, sB) === 'trunk' && clsAt(T, van.s) === 'trunk'
+        && !T.vehicles.some(w => w.dir > 0 && Math.abs(w.s - sB) < 40)) {
+      const k = pickKind(T, 'trunk');
+      const w = spawn(T, k, +1, sB);
+      if (w) w.v = Math.min(w.v, stopSpeed(vb.rear - (sB + w.L / 2) - GAP, FOLLOW_STOP, 0.05));
+    }
+  }
+}
+
+// ---------------------------------------------------------------------- draw
+
+let IMGS = null;
+function images() {
+  if (IMGS || typeof Image === 'undefined') return IMGS;
+  IMGS = {};
+  for (const name of Object.keys(SPRITES)) {
+    const img = new Image();
+    // The outline and tread are built as each sprite arrives, not mid-drive.
+    img.onload = () => look.prepare(name, img, widthOf(name));
+    img.src = TOPDOWN + name + '.png';
+    IMGS[name] = img;
+  }
+  return IMGS;
+}
+
+/** A skin's width in metres, from the kind it belongs to. */
+function widthOf(skin) {
+  const base = skin.replace(/-rear$/, '');
+  for (const k in KINDS) if (KINDS[k].skins.includes(base)) return KINDS[k].width;
+  return 2;
+}
+
+/** Called with ctx in world metres, rotated by the camera, after the scenery
+ *  and before the van. Shadows use view.sun, as scenery.js does. */
+export function draw(ctx, T, view) {
+  if (!T.vehicles.length) return;
+  const r2 = (view.radius + 12) ** 2;
+  const shown = [];
+  for (const w of T.vehicles) {
+    const fp = footprint(T, w);
+    if ((fp.x - view.cx) ** 2 + (fp.y - view.cy) ** 2 > r2) continue;
+    shown.push({ ...fp, skin: w.skin, kind: w.kind, w: w.W, H: w.H, id: w.id, odo: w.s * w.dir });
+  }
+  drawBodies(ctx, shown, view);
+}
+
+/** Vehicles drawn as traffic draws its own, for lights.js's traffic on the
+ *  A28 at Trikey's crossing: each { x, y, h, L, W, skin, kind, w (the kind's
+ *  width), H, id, odo }, with ctx in world metres as in draw(). */
+export function drawBodies(ctx, shown, view) {
+  if (!shown.length) return;
+  const imgs = images();
+  // Shadows first, all of them, so no shadow falls across a body. Fixed in
+  // the world like the van's: the sun does not turn with the camera. Cast
+  // from the outlined silhouette once it is built, an ellipse until then.
+  ctx.fillStyle = 'rgba(40,46,38,.22)';
+  for (const fp of shown) {
+    ctx.save();
+    ctx.translate(fp.x + view.sun.x * fp.H, fp.y + view.sun.y * fp.H);
+    ctx.rotate(fp.h + (SPRITES[fp.skin].nose === 'up' ? Math.PI / 2 : -Math.PI / 2));
+    if (!look.shadow(ctx, fp.skin, imgs?.[fp.skin], fp.w, fp.W, fp.L)) {
+      ctx.beginPath(); ctx.ellipse(0, 0, fp.W * 0.48, fp.L * 0.48, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  for (const fp of shown) {
+    ctx.save();
+    ctx.translate(fp.x, fp.y);
+    // Turn the sprite so its own nose, up or down the image, points the way
+    // the vehicle travels.
+    ctx.rotate(fp.h + (SPRITES[fp.skin].nose === 'up' ? Math.PI / 2 : -Math.PI / 2));
+    // Outlined, with its tyres turning by the distance it has come.
+    const m = { key: fp.id, odo: fp.odo, nose: SPRITES[fp.skin].nose };
+    if (!look.body(ctx, fp.skin, imgs?.[fp.skin], fp.w, fp.W, fp.L, m)) {
+      ctx.fillStyle = KINDS[fp.kind].colour; ctx.fillRect(-fp.W / 2, -fp.L / 2, fp.W, fp.L);
+    }
+    ctx.restore();
+  }
+}
+
+/** A vehicle for a main road, from the main roads' mix (MIX.main), for
+ *  lights.js: its kind, its skin (seen from behind, `rear`, where the kind
+ *  has one), its width and length in metres, its height for the shadow and
+ *  its cruising speed. */
+export function mainRoadVehicle(rand, rear) {
+  const mix = MIX.main;
+  let total = 0;
+  for (const k in mix) total += mix[k][0];
+  let t = rand() * total, kind = Object.keys(mix)[0];
+  for (const k in mix) { t -= mix[k][0]; if (t < 0) { kind = k; break; } }
+  const K = KINDS[kind];
+  const base = K.skins[(rand() * K.skins.length) | 0];
+  const skin = rear && K.pair ? base + '-rear' : base;
+  return { kind, skin, W: K.width, L: K.width * SPRITES[skin].aspect, H: K.height, cruise: mix[kind][1] };
+}

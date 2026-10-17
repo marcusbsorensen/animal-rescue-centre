@@ -138,6 +138,51 @@ describe('wild-visit constraints', () => {
   });
 });
 
+// ── Animals placed with keepers ─────────────────────────────────────
+
+describe('scheduleVisitsForDay — an animal placed with keepers', () => {
+  // A placement sits in `rehomed` under a placement id. Keepers send word of
+  // the animal; they do not drop off gifts or "welcome another friend",
+  // which is what a household's weights would have them do.
+  const placed = (id: string) => rehomed(id, 'place:wilderwood', 'Dusk');
+
+  it('only ever sends a drop-by or a postcard', () => {
+    const realRandom = Math.random;
+    const types = new Set<VisitType>();
+    for (let i = 0; i < 400; i += 1) {
+      let first = true;
+      vi.spyOn(Math, 'random').mockImplementation(() => {
+        if (first) { first = false; return 0; }
+        return realRandom();
+      });
+      for (const e of scheduleVisitsForDay(makeStore({ rehomed: [placed('p1')] }))) types.add(e.type);
+      vi.restoreAllMocks();
+    }
+    expect([...types].sort()).toEqual(['drop-by', 'photo-letter']);
+  });
+
+  it('leaves a household’s visits as they were', () => {
+    // The same draw that gives a household a donation gives a placed animal
+    // something else, so the two really use different weights.
+    const seq = [0.01, 0.5, 0.0, 0.0];
+    let i = 0;
+    vi.spyOn(Math, 'random').mockImplementation(() => seq[i++] ?? 0.5);
+    expect(scheduleVisitsForDay(makeStore({ rehomed: [rehomed('a1')] }))[0].type).toBe('donation');
+
+    vi.restoreAllMocks();
+    i = 0;
+    vi.spyOn(Math, 'random').mockImplementation(() => seq[i++] ?? 0.5);
+    expect(scheduleVisitsForDay(makeStore({ rehomed: [placed('a1')] }))[0].type).toBe('drop-by');
+  });
+
+  it('cites the placement as the sender, like any rehomed animal', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const entries = scheduleVisitsForDay(makeStore({ rehomed: [placed('p1')] }));
+    expect(entries[0].householdId).toBe('place:wilderwood');
+    expect(entries[0].animalId).toBe('p1');
+  });
+});
+
 // ── Type distribution (rough sanity) ────────────────────────────────
 
 describe('scheduleVisitsForDay — distribution', () => {

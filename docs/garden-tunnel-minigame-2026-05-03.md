@@ -304,6 +304,55 @@ central path (south end, where the building's staff area meets
 the path). Tap that painted hatch → tunnel grid overlay. May also
 be discoverable via in-habitat hatches at higher tiers for variety.
 
+### 7. Later decisions (Marcus, 2026-10-14)
+
+- **One network that grows (110A).** Tier 1 is the fox; tier 2 adds the
+  hedgehog; tier 3 the raccoon; tier 4 the skunk; tier 5 is the same four
+  with a third gate. Each tier is the previous board plus one run (the
+  2026-05-06 "one animal per tier" restructure is reverted).
+- **The site map at full strength (111A).** The overlay is not dimmed as a
+  whole: the building shows at 1.0, the garden patches at 0.45, the gravel
+  paths at 0.5.
+- **Domes on every tier, on the painted path (112A).** The glass domes of
+  the site map stand on col 6, rows 2, 5 and 8 whatever the tunnel beneath
+  does; the fox is seen through the glass where it passes under.
+- **Wins cheer the animals up three times a day (104A).** Happiness and bond
+  are given for at most three wins a UTC day (the day the daily seed and the
+  paid re-digs use). Later wins still play; the win card says the animals
+  enjoyed the play, without numbers.
+- **QUICK works during a run (102A).** It is on from "Send the animals!"
+  until pressed, pauses the animal for three seconds while the board is
+  open for turning tiles, then starts the run again with her fixes.
+- **Zoom where tiles are small (103A).** Under about 40px a tile (a phone on
+  its side) the page offers a magnifier; zoomed, a tile is 48px, dragging
+  pans (over 10px of movement; a pan never turns a tile), and "Send the
+  animals!" zooms back out.
+- **A crossing where two runs meet (118A).** The fox, raccoon and skunk own
+  adjacent columns 6, 7 and 8, so 110A had to drop the fox's z-east shape and
+  every bend of the raccoon and skunk. A crossing is a bridge tile where two
+  runs pass straight through at right angles, the newer run over the older.
+  It is fixed and never turns (a tap does nothing, as on a goal tile), it is
+  only ever built on a plain straight of both runs (never an end, corner,
+  connector, dome, or a gate the board already has), and it is no longer dealt
+  as a decoy, so every bridge she sees is two runs meeting. It is drawn in
+  code in the page's own corridor style: a planked wooden deck with a rail down
+  each side over a passage that goes into a dark mouth and out of another; an
+  animal on the run beneath fades into the mouth and out of the far side, one
+  on the run above walks over the planks in plain view. The shapes are back:
+  fox straight / z-west / z-east / approach-north, raccoon straight / z-west /
+  approach-north, skunk straight / z-west / z-west-high (the way round when the
+  fox has taken col 8). Each is dealt only where it fits beside the runs already
+  laid, so tier N is still tier N-1 plus a branch.
+- **Arrivals wait for the tunnel (119A).** While the tunnel is open, an
+  arrival, a visitor or a badge that would mount over it waits in a queue and
+  is shown, one at a time and in the order it came, once she closes the tunnel
+  with Done or Close. She never loses a puzzle to a plaque.
+- **"Tap!" until her first gate (120A).** The label over a shut gate shows only
+  until she has opened her first gate in the app session; after that the gates'
+  pulsing rings are the only hint. (Session means the app session, not each
+  opening of the tunnel: it is kept in sessionStorage, so it lasts as long as
+  the tab or the iPad app's web view, and a new launch shows the labels again.)
+
 ## Implementation backlog (high level)
 
 - [ ] **Spec:** a fuller spec following the brainstorming flow —

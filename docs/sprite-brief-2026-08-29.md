@@ -101,7 +101,7 @@ breed, so only the character lock is short — topped up with its reference shee
 **OpenAI route** — pass local paths, `$ASSETS` = `apps/game/public/assets/animals/`.
 Prefer the 2752px masters in `manus-variants/` for character lock where one exists.
 
-**Manus route** — public URLs only, `https://animal-rescue-centre.vercel.app/assets/animals/<file>.png`
+**Manus route** — public URLs only, `https://play.arcgame.app/assets/animals/<file>.png`
 and `/assets/reference/<file>-reference.png`. All confirmed live and 200 today.
 Do **not** cite `manus-variants/` or `asset-drafts/` — not served, and a brief
 citing them silently gets no reference at all. Include verbatim:

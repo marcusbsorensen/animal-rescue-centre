@@ -14,6 +14,14 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * Baselines live in e2e/__screenshots__/ and are committed to git.
  */
+/**
+ * Point the suite at a dev server that is already running, instead of
+ * starting one on 4173: `ARC_E2E_BASE_URL=http://localhost:5173`. Nothing is
+ * started or stopped, which is what you want when another session owns the
+ * server.
+ */
+const EXTERNAL_BASE_URL = process.env.ARC_E2E_BASE_URL;
+
 export default defineConfig({
   testDir: './e2e',
   // CI only runs the structural smoke tests — visual snapshot tests
@@ -31,7 +39,7 @@ export default defineConfig({
   // server's on-the-fly workspace-symlink resolution has been flaky
   // on Linux runners. Locally we keep the dev server for fast feedback
   // with HMR.
-  webServer: {
+  webServer: EXTERNAL_BASE_URL ? undefined : {
     command: process.env.CI
       ? 'pnpm preview --host 127.0.0.1 --port 4173 --strictPort'
       : 'pnpm dev --host 127.0.0.1 --port 4173',
@@ -41,7 +49,7 @@ export default defineConfig({
   },
 
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: EXTERNAL_BASE_URL ?? 'http://127.0.0.1:4173',
     // Canvas snapshots need a fixed viewport.
     viewport: { width: 1280, height: 720 },
     // Short trace when tests fail, for debugging.

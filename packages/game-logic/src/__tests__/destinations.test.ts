@@ -6,11 +6,13 @@ import {
   mapExtentFor,
   MAP_EXTENT_MIN,
   habitatForSpecies,
+  HOG_HOSPITAL_NAME,
+  WILDLIFE_PARK_NAME,
 } from '../destinations';
 
 describe('destinations catalogue', () => {
-  it('contains the expected 13 destinations (A.R.C., 10 outward, 2 inbound)', () => {
-    expect(DESTINATIONS).toHaveLength(13);
+  it('contains the expected 15 destinations (A.R.C., 12 outward, 2 inbound)', () => {
+    expect(DESTINATIONS).toHaveLength(15);
     const ids = DESTINATIONS.map((d) => d.id);
     expect(ids).toContain('arc');
     expect(ids).toContain('vet');
@@ -27,6 +29,9 @@ describe('destinations catalogue', () => {
     // the centre sends an animal to. See collection-calls.test.ts.
     expect(ids).toContain('goose-end-farm');
     expect(ids).toContain('bay-chapel');
+    // The two places that keep an animal for good. See exits.test.ts.
+    expect(ids).toContain('hog-hospital');
+    expect(ids).toContain('wilderwood');
   });
 
   it('every destination sits on the map, as a [0, 1] fraction of the image', () => {
@@ -91,10 +96,67 @@ describe('getAvailableDestinations', () => {
     expect(getAvailableDestinations(9).map((d) => d.id)).toContain('wetlands');
   });
 
+  it('opens the hog hospital with the hedgehogs (7) and the wildlife park with the snakes (4)', () => {
+    expect(getAvailableDestinations(6).map((d) => d.id)).not.toContain('hog-hospital');
+    expect(getAvailableDestinations(7).map((d) => d.id)).toContain('hog-hospital');
+    expect(getAvailableDestinations(3).map((d) => d.id)).not.toContain('wilderwood');
+    expect(getAvailableDestinations(4).map((d) => d.id)).toContain('wilderwood');
+  });
+
   it('unlocks everything at level 10+', () => {
     const ids = getAvailableDestinations(10).map((d) => d.id);
     expect(ids).toHaveLength(DESTINATIONS.length);
     expect(ids).toContain('pinebark-medical');
+  });
+});
+
+describe('the placements', () => {
+  it('are named by constants, so a rename is one line', () => {
+    expect(getDestination('hog-hospital')?.label).toBe(HOG_HOSPITAL_NAME);
+    expect(getDestination('wilderwood')?.label).toBe(WILDLIFE_PARK_NAME);
+  });
+
+  it('each have a kind, an arrival, a pin and a card for the map', () => {
+    for (const id of ['hog-hospital', 'wilderwood']) {
+      const d = getDestination(id);
+      expect(d?.kind, id).toBe('placement');
+      expect(d?.arrival, id).toBe('placement');
+      expect(d?.emoji, id).toBeTruthy();
+      expect(d?.description.length, id).toBeGreaterThan(10);
+      expect(d?.distance, id).toBeGreaterThan(0);
+    }
+  });
+
+  it('stand inland, on the empty south edge of the map, a little apart', () => {
+    const hog = getDestination('hog-hospital');
+    const park = getDestination('wilderwood');
+    if (!hog || !park) throw new Error('missing');
+    for (const d of [hog, park]) {
+      expect(d.fx, d.id).toBeLessThan(0.4);
+      expect(d.fy, d.id).toBeGreaterThan(0.9);
+    }
+    // The hospital's name is the longest on the map, and its label is centred
+    // on the pin, so the pin has to be far enough in for the label to fit.
+    // The pin is at the end of its track (0.1115, a node of the road graph:
+    // road-graph-reach.test.ts holds it there), so the floor is below that.
+    // map.html pulls a marker in by whatever its label needs, so a narrow
+    // stage moves the pin a little and the name stays whole.
+    expect(hog.fx).toBeGreaterThan(0.1);
+    // Far enough that two 40px discs and their labels do not land on each other.
+    expect(Math.hypot(hog.fx - park.fx, hog.fy - park.fy)).toBeGreaterThan(0.08);
+  });
+
+  it('keep clear of every other pin', () => {
+    for (const id of ['hog-hospital', 'wilderwood']) {
+      const d = getDestination(id);
+      if (!d) throw new Error('missing');
+      for (const other of DESTINATIONS.filter((x) => x.id !== id)) {
+        expect(
+          Math.hypot(d.fx - other.fx, d.fy - other.fy),
+          `${id} against ${other.id}`,
+        ).toBeGreaterThan(0.07);
+      }
+    }
   });
 });
 
@@ -146,8 +208,14 @@ describe('habitatForSpecies', () => {
     expect(habitatForSpecies('fox')).toBe('moorland');
     expect(habitatForSpecies('bat')).toBe('deep-forest');
     expect(habitatForSpecies('snake')).toBe('wetlands');
-    expect(habitatForSpecies('parrot')).toBe('sea-cliffs');
     expect(habitatForSpecies('bunny')).toBe('woodland');
+  });
+
+  it('does not release a parrot: it is not British wildlife', () => {
+    // Releasing a non-native pet is illegal and harms native birds. It used
+    // to map to the sea cliffs; do not put it back as a "missing" route.
+    expect(habitatForSpecies('parrot')).toBeUndefined();
+    expect(getDestination('sea-cliffs')?.suitableSpecies).not.toContain('parrot');
   });
 
   it('returns undefined for non-rewildable species (cat, dog)', () => {

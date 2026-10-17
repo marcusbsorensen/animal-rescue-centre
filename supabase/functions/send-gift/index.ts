@@ -1,7 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { checkRateLimit, clientIp } from '../_shared/rate-limit.ts';
+import { checkRateLimit, addressKey } from '../_shared/rate-limit.ts';
 import { requireSession } from '../_shared/session.ts';
+import { isGiftMessageCode } from '../_shared/gift-messages.ts';
 
 const VALID_GIFT_TYPES = ['treat_bundle', 'toy', 'blanket_pattern', 'decoration'];
 
@@ -29,7 +30,10 @@ Deno.serve(async (req) => {
     if (!giftType || !VALID_GIFT_TYPES.includes(giftType)) {
       return jsonResponse({ error: 'Invalid gift type' }, 400);
     }
-    if (!messagePresetCode || typeof messagePresetCode !== 'string') {
+    // One of the fifteen ready-made lines, and nothing else. The screen
+    // offers no box to type in, but a client that had been altered could
+    // put any text here and the recipient's inbox would print it.
+    if (!isGiftMessageCode(messagePresetCode)) {
       return jsonResponse({ error: 'Message preset required' }, 400);
     }
     if (userId === toUserId) {
@@ -52,10 +56,11 @@ Deno.serve(async (req) => {
     // gets ten times however many accounts they hold. Set well clear of
     // a household — six accounts could each spend their full budget
     // before this is felt.
-    const ip = clientIp(req);
-    if (ip) {
+    // Keyed by a hash of the address, never the address (addressKey).
+    const addr = await addressKey(req);
+    if (addr) {
       const ipRl = await checkRateLimit(
-        supabase, `gift-ip:${ip}`, 60, 15 * 60 * 1000,
+        supabase, `gift-ip:${addr}`, 60, 15 * 60 * 1000,
       );
       if (!ipRl.allowed) {
         return jsonResponse({
@@ -63,8 +68,6 @@ Deno.serve(async (req) => {
           retryAfterMs: ipRl.retryAfterMs,
         }, 429);
       }
-    } else {
-      console.error('no client IP header; address limit skipped');
     }
 
     // Verify they are friends
@@ -137,10 +140,16 @@ Deno.serve(async (req) => {
       .eq('user_id', userId)
       .single();
 
+    // The new count goes back with the reply, so the client can hand it to
+    // the badge check (`giver`, `generous`) without a second round trip and
+    // without counting for itself. Left out when there is no stats row to
+    // have counted in, which the client reads as "unchanged".
+    let giftsSentCount: number | undefined;
     if (stats) {
+      giftsSentCount = (stats.gifts_sent_count ?? 0) + 1;
       await supabase
         .from('rescue_stats')
-        .update({ gifts_sent_count: (stats.gifts_sent_count ?? 0) + 1 })
+        .update({ gifts_sent_count: giftsSentCount })
         .eq('user_id', userId);
     }
 
@@ -152,7 +161,7 @@ Deno.serve(async (req) => {
       metadata: { gift_id: gift.id, gift_type: giftType },
     });
 
-    return jsonResponse({ gift });
+    return jsonResponse({ gift, giftsSentCount });
   } catch (err) {
     console.error('Send gift error:', err);
     return jsonResponse({ error: 'Internal server error' }, 500);

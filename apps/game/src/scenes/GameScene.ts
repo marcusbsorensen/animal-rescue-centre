@@ -47,7 +47,23 @@ import {
   getAvailableToys,
   calculateAdoptionFee,
   getEligibleApplicants,
-  L1_CURTAILED_HOUSEHOLD_DEFS,
+  ADOPTER_HOUSEHOLD_DEFS,
+  isAdoptableSpecies,
+  canonicalHouseholdId,
+  exitsForAnimal,
+  rewildingPlanForAnimal,
+  rewildingCopy,
+  canReleaseAt,
+  commitRewilding as commitRewildingLogic,
+  placementPlanFor,
+  placementCopy,
+  placementCard,
+  canPlaceAt,
+  commitPlacement as commitPlacementLogic,
+  lifetimeRescuedCount,
+  consecutiveDays,
+  totalDaysPlayed,
+  realDayKey,
   buildHandoverDialogue,
   WARDEN_SPEAKER,
   commitAdoption as commitAdoptionLogic,
@@ -72,15 +88,22 @@ import {
   offerableCalls,
   pendingCall,
   unlockedCollectionDestinations,
+  tunnelDailySeed,
+  tunnelDayKey,
+  tunnelPaidDigsLeft,
+  recordTunnelDig,
+  recordTunnelWin,
+  TUNNEL_PAID_DIGS_PER_DAY,
 } from '@arc/game-logic';
 import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef, CharmUnlockEvent, CharmId, CrateGrid, MapDestinationDef } from '@arc/game-logic';
-import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
-import { driveTypeFor } from '../driving/drive-state';
+import { mountInGame, unmountInGame, postToInGame } from '../game-overlay/InGameOverlay';
+import { carriesAnimalsFor, driveTypeFor } from '../driving/drive-state';
 import { getSession } from '../lib/auth';
 import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
 import { registerSickAnimals } from '../ui/sprites';
-import { runDialogue, type DialoguePortrait } from '../ui/DialogueRunner';
+import { runDialogue, type DialoguePortrait, type DialogueVoice } from '../ui/DialogueRunner';
+import { portraitCropFor } from '../ui/dialogue-framing';
 import { buildDecoratePanel, getDecorationEmoji, getDecorationLabel } from '../ui/DecoratePanel';
 import { GameStateStore, loadGameState, saveGameState } from '../game-state';
 import {
@@ -325,10 +348,20 @@ export class GameScene extends Phaser.Scene {
       this.store.animals = updatedAnimals;
       this.registry.remove('updatedAnimals');
 
-      // Check for vet results (clear sickness if healed)
+      // Check for vet results (clear sickness if healed). This is the path a
+      // vet visit really reports by: VetScene sets `vetResult` and starts
+      // this scene, and never calls the `onComplete` doVetVisit hands it.
       const vetResult = this.registry.get('vetResult') as { healed: boolean; animalId?: string } | undefined;
       if (vetResult?.healed && vetResult.animalId) {
-        this.store.sickAnimals.delete(vetResult.animalId);
+        this.healedByCare(vetResult.animalId);
+      }
+      // Likewise a walk: WalkScene sets `walkResult` on its results screen
+      // and never calls its `onComplete`. `roadSafe` is "no road incident",
+      // which is all the Pavement Pro badge asks; `perfectWalk` also wants
+      // 60% explored and is not what it counts.
+      const walkResult = this.registry.get('walkResult') as { perfectWalk?: boolean; roadSafe?: boolean } | undefined;
+      if (walkResult?.roadSafe) {
+        this.store.walksWithoutIncident++;
       }
       this.registry.remove('vetResult');
       this.registry.remove('walkResult');
@@ -389,10 +422,15 @@ export class GameScene extends Phaser.Scene {
       this.spawnNewAnimal();
     }
 
-    // Viewport resize handling
+    // Viewport resize handling. (A restart ends any conversation, so it starts clear.)
+    this.handoverActive = false;
     this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
       const w = gameSize.width;
       const h = gameSize.height;
+      // A restart would tear the hand-over conversation down mid-sentence and
+      // the adoption with it. The dialogue lays itself out again on a resize;
+      // the scene catches up when the adoption is over (restartIfResized).
+      if (this.handoverActive) return;
       if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
         this._lastWidth = w;
         this._lastHeight = h;
@@ -421,6 +459,13 @@ export class GameScene extends Phaser.Scene {
     // view once the texture is in cache so the kid sees the right
     // breed appear. Debounced — variant textures land in bursts.
     this.load.on('filecomplete', this.onVariantTextureLanded, this);
+
+    // Badges whose inputs changed while this scene was not running: the day
+    // (counted when the store was loaded, at the menu), the server's gift
+    // counts (a send or a claim in the social scene), and a heal or a walk
+    // that has just come back through the registry. Not when a van is
+    // arriving, which is about to open a room over the top of a plaque.
+    if (!this.arrived) this.checkBadges();
 
     // Last, because it opens a room over the one we have just drawn.
     this.handleArrival();
@@ -511,7 +556,34 @@ export class GameScene extends Phaser.Scene {
         const animal = arrival.animalId
           ? this.store.animals.find((a) => a.id === arrival.animalId)
           : undefined;
-        if (animal) { this.openRewildingOverlay(animal); return; }
+        // The right animal at the right place. The map has always listed which
+        // species belong at each habitat; arrival did not ask, so a cat could
+        // be driven to the moor and let go. Asked of the whole animal, so one
+        // that cannot be released is not let go either.
+        if (animal && canReleaseAt(animal, dest.id)) {
+          this.openRewildingOverlay(animal);
+          return;
+        }
+        if (animal) {
+          showToast(this, this.elsewhereToast(animal, dest.emoji));
+          return;
+        }
+        showToast(this, `${dest.emoji} You have arrived at ${dest.label}.`);
+        return;
+      }
+      case 'placement': {
+        const animal = arrival.animalId
+          ? this.store.animals.find((a) => a.id === arrival.animalId)
+          : undefined;
+        // Same rule as the habitats: the right animal at the right place.
+        if (animal && canPlaceAt(animal, dest.id)) {
+          this.openPlacementOverlay(animal);
+          return;
+        }
+        if (animal) {
+          showToast(this, this.elsewhereToast(animal, dest.emoji));
+          return;
+        }
         showToast(this, `${dest.emoji} You have arrived at ${dest.label}.`);
         return;
       }
@@ -1341,7 +1413,7 @@ export class GameScene extends Phaser.Scene {
         allAnimals: this.store.animals,
         onComplete: (updatedAnimals: Animal[], healed: boolean) => {
           this.store.animals = updatedAnimals;
-          if (healed) this.store.sickAnimals.delete(animal.id);
+          if (healed) this.healedByCare(animal.id);
           this.checkBadges();
           this.saveState();
         },
@@ -1427,7 +1499,10 @@ export class GameScene extends Phaser.Scene {
 
     renderAnimalCard(this, this.store, this.animalCard(), animal, {
       onClose: () => this.closePopup(),
-      onFeed: () => { doFeed(); this.tickClock('feed'); },
+      // Saved here, after tickClock, and not inside doFeed: the tick
+      // is what advances the clock and the weather, and a save taken
+      // before it would leave those behind in a closed lid.
+      onFeed: () => { doFeed(); this.tickClock('feed'); this.saveState(); },
       onPlay: () => { doPlay(); this.tickClock('play'); },
       onWalk: doWalk,
       onGroom: doGroom,
@@ -1498,6 +1573,8 @@ export class GameScene extends Phaser.Scene {
    * for now the ceremony / adopter flows chain off the aspiration choice.
    */
   private openPathsOverlay(animal: Animal): void {
+    const exits = exitsForAnimal(animal);
+    const placement = placementPlanFor(animal);
     const unmount = mountInGame('paths', {
       onAction: (action) => {
         if (action === 'close' || action === 'back-to-menu') {
@@ -1516,6 +1593,14 @@ export class GameScene extends Phaser.Scene {
           this.openRewildingOverlay(animal);
           return;
         }
+        if (action === 'aspire-place') {
+          // Keepers are a kind of forever home, and the entry lands in
+          // `rehomed`, so that is the aspiration that is saved.
+          this.setAspiration(animal, 'rehome');
+          unmount();
+          this.openPlacementOverlay(animal);
+          return;
+        }
         if (action === 'aspire-stay') {
           // Aspiration saved — final commit happens later via a working-
           // animal slot. For now dismiss back to the game.
@@ -1524,12 +1609,31 @@ export class GameScene extends Phaser.Scene {
           return;
         }
       },
-    }, { animalName: animal.name, animalSpecies: animal.species, bond: animal.bondLevel });
+    }, {
+      animalName: animal.name,
+      animalSpecies: animal.species,
+      animalSpriteSrc: animal.variant
+        ? `/assets/animals/${animal.species}-${animal.variant}-sheltered.png`
+        : `/assets/animals/${animal.species}-sheltered.png`,
+      bond: animal.bondLevel,
+      // Which of the paths this animal has (game-logic/exits.ts). The page
+      // cannot import the rule, so it is sent: a cat or dog is never offered
+      // the wild, a parrot is never offered the wild, a hedgehog — whom no
+      // household takes — is never offered a forever family, and an animal
+      // that cannot be released is offered its keepers instead of the wild.
+      // So no card is left that goes nowhere.
+      canRehome: exits.adopt,
+      canRewild: exits.rewild,
+      habitatPhrase: rewildingPlanForAnimal(animal)?.habitatPhrase,
+      // The keepers' card, worded in game-logic like the ceremony it opens.
+      place: placement ? placementCard(animal.name, placement) : undefined,
+    });
     this.events.once('shutdown', unmountInGame);
   }
 
   /**
-   * Mount the new adoption-office iframe (L1 curtailed roster).
+   * Mount the adoption-office iframe (the older picker; the game uses
+   * `openAdoptionMatchOverlay`).
    *
    * Architecture note: the office iframe reads the animal banner info
    * from URL query params (`animalName`, `species`, `variant`,
@@ -1594,6 +1698,15 @@ export class GameScene extends Phaser.Scene {
    * `commitAdoption` path is unchanged.
    */
   public openAdoptionMatchOverlay(animal: Animal): void {
+    // Nobody adopts a fox, a bat or a hedgehog — they go back to the wild,
+    // or to keepers when they cannot be released. The Paths panel does not
+    // offer this screen for them; if some other caller arrives here, send the
+    // animal where it can actually go rather than open an office with no one
+    // in it.
+    if (!isAdoptableSpecies(animal.species)) {
+      this.openRewildingOverlay(animal);
+      return;
+    }
     this.scene.pause();
     this.scene.launch('AdoptionMatchScene', {
       animal,
@@ -1614,6 +1727,20 @@ export class GameScene extends Phaser.Scene {
    * failure (feature off, missing applicant, empty sequence) falls straight
    * through to `then()` — a dialogue bug must never strand an adoption.
    */
+  /** True while the hand-over conversation is on screen; see the resize handler. */
+  private handoverActive = false;
+
+  /** Restart the scene if the window changed size while a conversation held the restart back. */
+  private restartIfResized(): void {
+    const w = this.scale.width;
+    const h = this.scale.height;
+    if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
+      this._lastWidth = w;
+      this._lastHeight = h;
+      this.scene.restart();
+    }
+  }
+
   private playAdoptionHandover(animal: Animal, householdId: string, then: () => void): void {
     if (!ADOPTION_DIALOGUE_ENABLED) { then(); return; }
     const applicant = getEligibleApplicants(animal, this.store)
@@ -1625,38 +1752,68 @@ export class GameScene extends Phaser.Scene {
     // the adopter (right) uses the greeting variant when warm, else the
     // neutral portrait (already cached by AdoptionMatchScene), else a
     // painted-initials chip. The greeting file lives under variants/ and is
-    // derived from the (corrected) neutral avatarSrc.
+    // derived from the (corrected) neutral avatarSrc. Every portrait carries
+    // its waist-up crop (tools/build-dialogue-framing.py), because the
+    // catalogue shots are full-figure.
     const neutralKey = `cast:${householdId}`;
     const greetingUrl = applicant.avatarSrc.replace(
       /\/([^/]+)\.png$/,
       '/variants/$1-greeting.png',
     );
+    const wardenUrl = '/admin/scene-assets/cast/warden-marnie.png';
+    const wardenHappyUrl = '/admin/scene-assets/cast/warden-marnie-happy.png';
     const resolvePortrait = (beat: { speakerId: string; expression: string }): DialoguePortrait => {
       if (beat.speakerId === WARDEN_SPEAKER.id) {
         const wardenHappy = beat.expression === 'happy' || beat.expression === 'greeting';
         return wardenHappy
           ? {
               key: 'cast:warden:happy',
-              url: '/admin/scene-assets/cast/warden-marnie-happy.png',
+              url: wardenHappyUrl,
               altKey: 'cast:warden',
               fallbackName: WARDEN_SPEAKER.name,
+              crop: portraitCropFor(wardenHappyUrl),
             }
           : {
               key: 'cast:warden',
-              url: '/admin/scene-assets/cast/warden-marnie.png',
+              url: wardenUrl,
               fallbackName: WARDEN_SPEAKER.name,
+              crop: portraitCropFor(wardenUrl),
             };
       }
       const wantsGreeting = beat.expression === 'greeting' || beat.expression === 'happy';
       return wantsGreeting
-        ? { key: `${neutralKey}:greeting`, url: greetingUrl, altKey: neutralKey, fallbackName: applicant.name }
-        : { key: neutralKey, url: applicant.avatarSrc, fallbackName: applicant.name };
+        ? {
+            key: `${neutralKey}:greeting`,
+            url: greetingUrl,
+            altKey: neutralKey,
+            fallbackName: applicant.name,
+            crop: portraitCropFor(greetingUrl),
+          }
+        : {
+            key: neutralKey,
+            url: applicant.avatarSrc,
+            fallbackName: applicant.name,
+            crop: portraitCropFor(applicant.avatarSrc),
+          };
     };
 
-    try {
-      runDialogue(this, sequence, { onComplete: then, resolvePortrait });
-    } catch {
+    // A recorded line plays when one has shipped for it and the child has not
+    // turned sound effects off; every other line is silent.
+    const resolveVoice = (beat: { lineId?: string }): DialogueVoice | undefined => {
+      if (!AudioManager.getInstance().isSfxOn()) return undefined;
+      const url = AssetLoader.getInstance().voiceUrl(beat.lineId);
+      return url && beat.lineId ? { key: `voice:${beat.lineId}`, url } : undefined;
+    };
+
+    const done = () => {
+      this.handoverActive = false;
       then();
+    };
+    this.handoverActive = true;
+    try {
+      runDialogue(this, sequence, { onComplete: done, resolvePortrait, resolveVoice });
+    } catch {
+      done();
     }
   }
 
@@ -1666,17 +1823,20 @@ export class GameScene extends Phaser.Scene {
     // all, so every adoption in the game read "A forever home for Luna"
     // from "Theo, Kofi and Zuri" — the wrong animal and the wrong family,
     // every time. Resolve the household here, where the roster lives.
-    const household = L1_CURTAILED_HOUSEHOLD_DEFS.find((h) => h.householdId === householdId);
+    const household = ADOPTER_HOUSEHOLD_DEFS.find(
+      (h) => h.householdId === canonicalHouseholdId(householdId),
+    );
     const spriteSrc = animal.variant
       ? `/assets/animals/${animal.species}-${animal.variant}-sheltered.png`
       : `/assets/animals/${animal.species}-sheltered.png`;
 
     const unmount = mountInGame('adoption', {
       onAction: (action) => {
-        if (action === 'adoption-cancel') { unmount(); return; }
+        if (action === 'adoption-cancel') { unmount(); this.restartIfResized(); return; }
         if (action === 'adoption-confirm') {
           this.commitAdoption(animal, householdId);
           unmount();
+          this.restartIfResized();
           return;
         }
       },
@@ -1693,6 +1853,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   private openRewildingOverlay(animal: Animal): void {
+    // A cat, a dog or a parrot has no wild home to go to, and an animal that
+    // cannot be released does not go to one. Nothing offers this for them (the
+    // Paths card is not drawn, the drive's arrival checks), so this is only the
+    // last line: it sends the animal where it can go.
+    const plan = rewildingPlanForAnimal(animal);
+    if (!plan) {
+      if (placementPlanFor(animal)) {
+        this.openPlacementOverlay(animal);
+        return;
+      }
+      showToast(this, `🏡 ${animal.name} loves people — let's find them a family.`);
+      return;
+    }
     const unmount = mountInGame('rewilding', {
       onAction: (action) => {
         if (action === 'rewild-cancel') { unmount(); return; }
@@ -1705,14 +1878,63 @@ export class GameScene extends Phaser.Scene {
     }, {
       animalId: animal.id,
       animalName: animal.name,
-      // Same story as adoption: the page had no listener, so every
-      // release said "Farewell, Luna" at "Bond: Champion" regardless.
+      // Same story as adoption: the page had no listener, so every release
+      // said "Farewell, Luna" at "Bond: Champion" regardless.
       animalSpriteSrc: animal.variant
         ? `/assets/animals/${animal.species}-${animal.variant}-sheltered.png`
         : `/assets/animals/${animal.species}-sheltered.png`,
       bond: animal.bondLevel,
+      // The words come from game-logic, which knows the habitat and who helps,
+      // so the page holds no table of either. Read aloud, they are the whole
+      // ending for a child who cannot read them.
+      copy: rewildingCopy(animal.name, plan),
     });
     this.events.once('shutdown', unmountInGame);
+  }
+
+  /**
+   * The ceremony for an animal going to keepers: the hog hospital, the
+   * wildlife park. It is the release page with the placement's words — the
+   * page holds none of its own, so the same page and the same two actions
+   * (`rewild-confirm`, `rewild-cancel`) serve both.
+   */
+  private openPlacementOverlay(animal: Animal): void {
+    const plan = placementPlanFor(animal);
+    if (!plan) {
+      showToast(this, `🏡 ${animal.name} loves people — let's find them a family.`);
+      return;
+    }
+    const unmount = mountInGame('rewilding', {
+      onAction: (action) => {
+        if (action === 'rewild-cancel') { unmount(); return; }
+        if (action === 'rewild-confirm') {
+          this.commitPlacement(animal);
+          unmount();
+          return;
+        }
+      },
+    }, {
+      animalId: animal.id,
+      animalName: animal.name,
+      animalSpriteSrc: animal.variant
+        ? `/assets/animals/${animal.species}-${animal.variant}-sheltered.png`
+        : `/assets/animals/${animal.species}-sheltered.png`,
+      bond: animal.bondLevel,
+      copy: placementCopy(animal.name, plan),
+    });
+    this.events.once('shutdown', unmountInGame);
+  }
+
+  /**
+   * What a drive says when the animal aboard does not belong at the place the
+   * van has parked: where it does belong, in the order it can go there. Said
+   * as a place it is going TO, never as a reason it cannot stay.
+   */
+  private elsewhereToast(animal: Animal, emoji: string): string {
+    if (rewildingPlanForAnimal(animal)) return `${emoji} ${animal.name}'s wild home is somewhere else.`;
+    const place = placementPlanFor(animal);
+    if (place) return `${emoji} ${animal.name}'s safe home is ${place.name}.`;
+    return `🏡 ${animal.name} loves people — let's find them a family.`;
   }
 
   /**
@@ -1818,20 +2040,25 @@ export class GameScene extends Phaser.Scene {
     if (dest?.arrival === 'collection') { this.driveToCollect(dest); return; }
 
     this.saveState();
-    const passenger = animalId
+    // A supply run is the delivery race, with nothing alive aboard: no
+    // passenger, no cargo tray, so no loading screen and no journey for
+    // anybody's comfort to be scored on.
+    const driveType = driveTypeFor(destinationId);
+    const aboard = carriesAnimalsFor(driveType);
+    const passenger = aboard && animalId
       ? this.store.animals.filter((a) => a.id === animalId)
       : [];
-    const others = this.store.animals.filter((a) => a.id !== animalId);
+    const others = aboard ? this.store.animals.filter((a) => a.id !== animalId) : [];
     const cargo = [...passenger, ...others].slice(0, 8);
 
     this.scene.start('PtvDriveScene', {
       destinationId,
-      driveType: driveTypeFor(destinationId),
+      driveType,
       level: this.store.level,
       economy: this.store.economy,
       weather: this.store.gardenWeather?.current,
       returnTo: 'GameScene',
-      returnData: animalId ? { animalId } : {},
+      returnData: aboard && animalId ? { animalId } : {},
       cargo,
       preloadAnimalIds: passenger.map((a) => a.id),
       // Straight from the store's own illness map — the same one the
@@ -1910,12 +2137,13 @@ export class GameScene extends Phaser.Scene {
   /**
    * Garden-tunnel mini-game.
    *
-   * Tier picked from player level per docs/level-progression-overview:
+   * Tier picked from player level per docs/level-progression-overview. One
+   * network that grows, so each tier is the last one plus an animal:
    *   L1-3   → tier 1 (fox)
-   *   L4-5   → tier 2 (hedgehog)
-   *   L6-7   → tier 3 (raccoon)
-   *   L8-9   → tier 4 (skunk)
-   *   L10+   → tier 5 (multi-animal coordination)
+   *   L4-5   → tier 2 (+ hedgehog)
+   *   L6-7   → tier 3 (+ raccoon)
+   *   L8-9   → tier 4 (+ skunk: all four)
+   *   L10+   → tier 5 (all four, a third gate: rush hour)
    *
    * Daily-seed puzzle (host UTC date) so the same board persists
    * across same-day reloads. The iframe runs its own generator using
@@ -1923,11 +2151,20 @@ export class GameScene extends Phaser.Scene {
    *
    * Routing of iframe → host messages:
    *   - tunnel-complete → bump every rescued animal's happiness/bond
-   *     (payload.animalsRescued is an array of species strings)
+   *     (payload.animalsRescued is an array of species strings), save, and
+   *     tell the page what each one gained (`complete-result`) so the win
+   *     card can say so. Only the first TUNNEL_REWARDED_WINS_PER_DAY wins of
+   *     the UTC day give anything; after that the win still plays and the
+   *     result says `capped`, so the card says the animals enjoyed the play
+   *     and shows no numbers. The overlay STAYS UP: the child closes it with
+   *     "Done", and "Play again" works inside it.
    *   - tunnel-cancel   → dismiss with no side effects
-   *   - tunnel-override-reroll → grant +10 coins (centre-infrastructure
-   *     reward; intentionally NOT a happiness boost — the kid only
-   *     earns animal-care rewards by completing the tunnel).
+   *   - tunnel-override-reroll → a re-dig ("Re-dig tunnels" or "Play again").
+   *     The first TUNNEL_PAID_DIGS_PER_DAY of the UTC day pay coins
+   *     (centre-infrastructure reward, intentionally NOT a happiness boost);
+   *     later ones play normally and pay nothing. The page is told which
+   *     (`dig-result`) because a toast drawn on the canvas would be hidden
+   *     behind the iframe.
    */
   public openTunnelOverlay(): void {
     // Pick tier from player level (per level-progression doc).
@@ -1938,9 +2175,9 @@ export class GameScene extends Phaser.Scene {
       level >= 6  ? 3 :
       level >= 4  ? 2 : 1;
 
-    // Daily seed (UTC) so the puzzle stays put across same-day reloads.
-    const today = new Date();
-    const dailySeed = (today.getUTCFullYear() * 10000 + (today.getUTCMonth() + 1) * 100 + today.getUTCDate()) >>> 0;
+    // Daily seed (UTC) so the puzzle stays put across same-day reloads. The
+    // paid-dig allowance turns over on the same UTC day.
+    const dailySeed = tunnelDailySeed(new Date());
 
     // Pass current season so the iframe picks the matching seasonal soil
     // pool (spring/summer/autumn/winter). Without this, the tunnel falls
@@ -1959,52 +2196,81 @@ export class GameScene extends Phaser.Scene {
           // ['fox','hedgehog','raccoon','skunk'] for tier 5). For each
           // species, find the FIRST animal of that species in the shelter
           // and bump it. If a species hasn't arrived yet (e.g. kid is at
-          // L4 but no hedgehog yet), silently skip it.
-          const rescued = (payload as { animalsRescued?: string[] } | undefined)?.animalsRescued
-            ?? ['fox'];
-          const namesBumped: string[] = [];
+          // L4 but no hedgehog yet), it is reported as missing, not skipped
+          // silently, so the card can say nobody gained anything for it.
+          const rescued = (payload as { animalsRescued?: string[] } | undefined)
+            ?.animalsRescued ?? ['fox'];
+          const found: Array<{ idx: number; species: string }> = [];
+          const missing: string[] = [];
           for (const species of rescued) {
-            const animal = this.store.animals.find((a) => a.species === (species as Species));
-            if (!animal) continue;
-            const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+            const idx = this.store.animals.findIndex((a) => a.species === (species as Species));
+            if (idx < 0) { missing.push(species); continue; }
+            found.push({ idx, species });
+          }
+          // Happiness and bond are given for the first TUNNEL_REWARDED_WINS_PER_DAY
+          // wins of the UTC day (the day the daily seed and the paid digs use).
+          // A win that finds nobody at the centre is not counted: it gave
+          // nothing, so it should not use one up. After the cap the win is
+          // still a win and the card says the animals enjoyed the play,
+          // without numbers, so `capped` is sent and the gains are not.
+          const win = found.length > 0
+            ? recordTunnelWin(this.store.tunnelWins, tunnelDayKey(new Date()))
+            : null;
+          if (win) this.store.tunnelWins = win.wins;
+          const gains: Array<{ name: string; species: string; happiness: number; bond: number }> = [];
+          const played: Array<{ name: string; species: string }> = [];
+          for (const { idx, species } of found) {
+            const animal = this.store.animals[idx];
+            played.push({ name: animal.name, species });
+            if (!win?.rewarded) continue;
             const current = typeof animal.happiness === 'number' ? animal.happiness : 0;
-            this.store.animals[idx] = {
-              ...animal,
-              happiness: Math.min(100, current + 8),
-              bondLevel: Math.min(100, animal.bondLevel + 3),
-            };
-            namesBumped.push(animal.name);
+            const happiness = Math.min(100, current + 8);
+            const bondLevel = Math.min(100, animal.bondLevel + 3);
+            this.store.animals[idx] = { ...animal, happiness, bondLevel };
+            gains.push({
+              name: animal.name,
+              species,
+              // Whole numbers for the card: happiness is a float that the
+              // needs tick nudges all the time, so the raw difference reads
+              // "1.4999999999999716".
+              happiness: Math.round(happiness - current),
+              bond: Math.round(bondLevel - animal.bondLevel),
+            });
           }
-          if (namesBumped.length === 1) {
-            this.saveState();
-            showToast(this, `${namesBumped[0]} had a great run through the tunnel! +happiness`);
-          } else if (namesBumped.length > 1) {
-            this.saveState();
-            const list = namesBumped.length === 2
-              ? namesBumped.join(' and ')
-              : `${namesBumped.slice(0, -1).join(', ')} and ${namesBumped[namesBumped.length - 1]}`;
-            showToast(this, `${list} all had a great run! +happiness for all`);
+          if (win) this.saveState();
+          if (win && !win.rewarded) {
+            postToInGame('complete-result', { gains: [], missing: [], capped: true, played });
           } else {
-            showToast(this, 'You built the tunnels — animals arrive soon!');
+            postToInGame('complete-result', { gains, missing });
           }
-          unmount();
           return;
         }
         if (action === 'tunnel-override-reroll') {
-          // "Re-dig tunnels" override: small centre-infrastructure
-          // reward (NOT animal happiness — that only comes from
-          // completion). +10 coins as per design doc decision #2.
+          // "Re-dig tunnels" and "Play again" both land here. Pay the first
+          // few of the UTC day (design doc decision #2: centre
+          // infrastructure, NOT animal happiness); the rest are free.
+          const dig = recordTunnelDig(this.store.tunnelDigs, tunnelDayKey(new Date()));
+          this.store.tunnelDigs = dig.digs;
           const econ = this.store.economy as Economy | undefined;
-          if (econ) {
-            econ.coins = (econ.coins ?? 0) + 10;
-            this.saveState();
-            showToast(this, '+10 coins for rebuilding the tunnels');
+          if (dig.paid && econ) {
+            econ.coins = (econ.coins ?? 0) + dig.coins;
           }
+          this.saveState();
+          postToInGame('dig-result', {
+            paid: dig.paid && !!econ,
+            coins: dig.paid && econ ? dig.coins : 0,
+            left: dig.left,
+          });
           // The iframe stays mounted (it re-rolled itself); no unmount.
           return;
         }
       },
-    }, { seed: dailySeed, season }, { query: { tier: String(tier), season } });
+    }, {
+      seed: dailySeed,
+      season,
+      digsLeft: tunnelPaidDigsLeft(this.store.tunnelDigs, tunnelDayKey(new Date())),
+      digsPerDay: TUNNEL_PAID_DIGS_PER_DAY,
+    }, { query: { tier: String(tier), season } });
     this.events.once('shutdown', unmountInGame);
   }
 
@@ -2154,26 +2420,29 @@ export class GameScene extends Phaser.Scene {
       onAction: (action) => {
         if (action === 'close') { unmount(); return; }
         if (action === 'treatment-vet') {
-          // Full heal immediately (vet visit equivalent to doVetVisit).
+          // Full heal immediately (vet visit equivalent to doVetVisit). The
+          // vet did this, not the child, so it is not a self-heal.
           this.store.sickAnimals.delete(animal.id);
           if (this.store.economy?.coins != null && this.store.economy.coins >= 20) {
             this.store.economy.coins -= 20;
           }
-          this.checkBadges();
           this.saveState();
           this.renderView();
           unmount();
+          // After the popup is gone, not before: a badge plaque replaces
+          // whichever overlay is open, and checking first put it up and took
+          // it straight down again with `unmount()`.
+          this.checkBadges();
           return;
         }
         if (action === 'treatment-home') {
-          // 70% chance full heal, 30% stays sick.
-          if (Math.random() < 0.7) {
-            this.store.sickAnimals.delete(animal.id);
-            this.checkBadges();
-          }
+          // 70% chance full heal, 30% stays sick. Home care is the child's
+          // own nursing, so a heal here is a self-heal.
+          const healed = Math.random() < 0.7 && this.healedByCare(animal.id);
           this.saveState();
           this.renderView();
           unmount();
+          if (healed) this.checkBadges();
           return;
         }
         if (action === 'treatment-rest') {
@@ -2195,6 +2464,24 @@ export class GameScene extends Phaser.Scene {
       illnessName: illness.label?.toLowerCase() ?? 'tummy bug',
     });
     this.events.once('shutdown', unmountInGame);
+  }
+
+  /**
+   * A sick animal the child has nursed back to health. Clears the illness and
+   * counts it for `vet_apprentice` and `vet_pro` ("heal ... yourself"):
+   * through the vet game, or home care in the vet popup. Not a paid vet
+   * visit, where the vet does the healing, and not a rest, which heals
+   * itself inside the clock tick.
+   *
+   * Counts only if the animal was sick. `Map.delete` says whether it was, so
+   * a heal reported twice - VetScene sets the registry result, and the
+   * `onComplete` it was given would report it again if anything ever called
+   * it - is one heal.
+   */
+  private healedByCare(animalId: string): boolean {
+    const wasSick = this.store.sickAnimals.delete(animalId);
+    if (wasSick) this.store.selfHealed++;
+    return wasSick;
   }
 
   /** In-memory rest heal countdown keyed by animal id. MVP: not persisted. */
@@ -2251,22 +2538,39 @@ export class GameScene extends Phaser.Scene {
 
   /** Commit: remove animal from centre, record in rewilded list, save. */
   private commitRewilding(animal: Animal): void {
-    const idx = this.store.animals.findIndex((a) => a.id === animal.id);
-    if (idx < 0) return;
-    const a = this.store.animals[idx];
-    this.store.rewilded.push({
-      animalId: a.id,
-      animalName: a.name,
-      species: a.species,
-      variant: a.variant,
-      date: Date.now(),
-    });
-    this.store.animals.splice(idx, 1);
-    this.store.sickAnimals.delete(a.id);
+    const plan = rewildingPlanForAnimal(animal);
+    if (!plan) return;
+    let entry;
+    try {
+      entry = commitRewildingLogic(animal, this.store);
+    } catch {
+      showToast(this, "Couldn't complete the release — try again?");
+      return;
+    }
+    this.store.sickAnimals.delete(entry.animalId);
     AudioManager.getInstance().playSfx('animal_happy');
-    showToast(this, `🌲 ${a.name} is running free in the wild — they'll come to visit!`);
+    // Names the habitat, and who took them when someone did.
+    showToast(this, rewildingCopy(entry.animalName, plan).toast);
     // Charms — first rewilding drive unlocks the Fox Tail.
     this.fireCharmEvent('first-rewilding-drive');
+    this.saveState();
+    this.renderView();
+  }
+
+  /** Commit: remove animal from centre, record it as rehomed with its keepers, save. */
+  private commitPlacement(animal: Animal): void {
+    const plan = placementPlanFor(animal);
+    if (!plan) return;
+    let entry;
+    try {
+      entry = commitPlacementLogic(animal, this.store);
+    } catch {
+      showToast(this, "Couldn't complete the move — try again?");
+      return;
+    }
+    this.store.sickAnimals.delete(entry.animalId);
+    AudioManager.getInstance().playSfx('animal_happy');
+    showToast(this, placementCopy(entry.animalName, plan).toast);
     this.saveState();
     this.renderView();
   }
@@ -2448,9 +2752,16 @@ export class GameScene extends Phaser.Scene {
     return this.castFetchPromise;
   }
 
+  /**
+   * The cast.json entry for a household. The id is translated first: a
+   * visit scheduled from an adoption saved under one of the five L1
+   * households' original ids ('01-pri-kaur') would otherwise find nobody,
+   * and cast.json only knows the current ones.
+   */
   private findCast(householdId: string): Record<string, unknown> | undefined {
     if (!this.castData) return undefined;
-    return this.castData.find((c) => c['id'] === householdId);
+    const wanted = canonicalHouseholdId(householdId);
+    return this.castData.find((c) => c['id'] === wanted);
   }
 
   /**
@@ -2838,6 +3149,7 @@ export class GameScene extends Phaser.Scene {
   // ── Badge Evaluation ───────────────────────────────────────
 
   private checkBadges(): void {
+    const today = realDayKey(new Date());
     const pets = this.store.animals.filter((a) => a.state === 'pet');
     const siblingPairs = this.store.animals.filter(
       (a) => a.siblingId && a.state !== 'arriving'
@@ -2845,29 +3157,41 @@ export class GameScene extends Phaser.Scene {
 
     const stats = {
       userId: '',
-      catsRescued: this.store.animals.filter((a) => a.species === 'cat').length,
-      dogsRescued: this.store.animals.filter((a) => a.species === 'dog').length,
-      bunniesRescued: this.store.animals.filter((a) => a.species === 'bunny').length,
-      foxesRescued: this.store.animals.filter((a) => a.species === 'fox').length,
-      snakesRescued: this.store.animals.filter((a) => a.species === 'snake').length,
-      parrotsRescued: this.store.animals.filter((a) => a.species === 'parrot').length,
-      batsRescued: this.store.animals.filter((a) => a.species === 'bat').length,
+      // Everyone the child has rescued of a kind — in the centre, adopted or
+      // gone back to the wild. These used to count only who was in the
+      // building, so each animal that left took its badge progress with it.
+      catsRescued: lifetimeRescuedCount('cat', this.store),
+      dogsRescued: lifetimeRescuedCount('dog', this.store),
+      bunniesRescued: lifetimeRescuedCount('bunny', this.store),
+      foxesRescued: lifetimeRescuedCount('fox', this.store),
+      snakesRescued: lifetimeRescuedCount('snake', this.store),
+      parrotsRescued: lifetimeRescuedCount('parrot', this.store),
+      batsRescued: lifetimeRescuedCount('bat', this.store),
+      hedgehogsRescued: lifetimeRescuedCount('hedgehog', this.store),
       totalRescued: this.store.totalRescued,
       badgesUnlockedCount: this.store.earnedBadges.length,
-      giftsSentCount: 0,
-      giftsReceivedCount: 0,
+      // The server's own count of gifts; the store holds what it was told.
+      giftsSentCount: this.store.giftsSentCount,
+      giftsReceivedCount: this.store.giftsReceivedCount,
       extras: {
         totalBonded: this.store.totalBonded,
         siblingPairsReunited: Math.floor(siblingPairs),
-        selfHealed: 0,
-        walksWithoutIncident: 0,
+        selfHealed: this.store.selfHealed,
+        walksWithoutIncident: this.store.walksWithoutIncident,
+        // No training screen exists for tricks to be taught in, so
+        // `trainer` cannot be earned. Left at 0 on purpose, not forgotten.
         animalsTrained: 0,
         conflictsResolved: this.store.conflictsResolved,
-        houseUpgrades: 0,
+        houseUpgrades: this.store.houseUpgrades.length,
         totalPets: pets.length,
-        consecutiveDays: 1,
-        totalDaysPlayed: 1,
-        playerNumber: 999, // placeholder
+        // Read off the days the game has been opened on, up to today: a
+        // clock that was once set forward cannot add a day not yet played.
+        consecutiveDays: consecutiveDays(this.store.playedDays, today),
+        totalDaysPlayed: totalDaysPlayed(this.store.playedDays, today),
+        // Founding-friend order is the server's to know (it is the order
+        // accounts were created in), and nothing sends it. 999 keeps
+        // `early_supporter` unearned rather than handing it to everyone.
+        playerNumber: 999,
         level: this.store.level,
       },
     };
@@ -2960,6 +3284,10 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.checkBadges();
+    // The tally of squabbles settled is only worth having if it survives
+    // the lid being closed: it used to sit in memory until some other
+    // action happened to save, and was not in the save at all.
+    this.saveState();
   }
 
   // ── Level Progression ──────────────────────────────────────

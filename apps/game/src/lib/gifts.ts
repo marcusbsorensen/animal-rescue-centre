@@ -3,7 +3,8 @@ import { getSession, sessionHeaders } from './auth';
 
 export interface GiftInbox {
   id: string;
-  fromUsername: string;
+  /** The sender's display name from the word lists, never their login. */
+  fromDisplayName: string;
   fromAvatarEmoji: string;
   giftType: string;
   messagePresetCode: string;
@@ -11,7 +12,7 @@ export interface GiftInbox {
 }
 
 export interface ShowcaseData {
-  username: string;
+  displayName: string;
   avatarEmoji: string;
   avatarBgColour: string;
   level: number;
@@ -24,13 +25,14 @@ export interface ShowcaseData {
 }
 
 /**
- * Send a gift to a friend.
+ * Send a gift to a friend. Resolves with the sender's gift count as the
+ * server now has it, when the server says (`giver` and `generous` read it).
  */
 export async function sendGift(
   toUserId: string,
   giftType: string,
   messagePresetCode: string
-): Promise<void> {
+): Promise<{ giftsSentCount?: number }> {
   const session = getSession();
   if (!session || !isSupabaseConfigured()) throw new Error('Not available');
 
@@ -44,50 +46,39 @@ export async function sendGift(
 
   if (error) throw new Error(error.message ?? 'Failed to send gift');
   if (data?.error) throw new Error(data.error);
+
+  return typeof data?.giftsSentCount === 'number' ? { giftsSentCount: data.giftsSentCount } : {};
 }
 
 /**
  * Get unclaimed gifts for the current user.
+ *
+ * This used to read `gifts` directly. It could never work: the rule on that
+ * table is `to_user = auth.uid()`, and ARC's sessions are its own, so
+ * `auth.uid()` is null here and every read came back empty. Sending worked,
+ * receiving silently did not, and the gifts looked like they never arrived.
+ * The server does the read now, for whoever the session belongs to.
  */
 export async function getGiftInbox(): Promise<GiftInbox[]> {
   const session = getSession();
   if (!session || !isSupabaseConfigured()) return [];
 
-  const { data, error } = await supabase
-    .from('gifts')
-    .select(`
-      id,
-      gift_type,
-      message_preset_code,
-      sent_at,
-      sender:users!gifts_from_user_fkey (
-        username, avatar_emoji
-      )
-    `)
-    .eq('to_user', session.userId)
-    .is('claimed_at', null)
-    .order('sent_at', { ascending: false });
-
-  if (error || !data) return [];
-
-  return data.map((row) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sender = (row as any).sender as Record<string, string> | null;
-    return {
-      id: row.id,
-      fromUsername: sender?.username ?? 'Unknown',
-      fromAvatarEmoji: sender?.avatar_emoji ?? '🐾',
-      giftType: row.gift_type,
-      messagePresetCode: row.message_preset_code,
-      sentAt: row.sent_at,
-    };
+  const { data, error } = await supabase.functions.invoke('get-gifts', {
+    body: {},
+    headers: sessionHeaders(),
   });
+
+  if (error || data?.error || !Array.isArray(data?.gifts)) return [];
+  return data.gifts as GiftInbox[];
 }
 
 /**
- * Claim a gift from the inbox.
+ * Claim a gift from the inbox. Resolves with the recipient's claimed count as
+ * the server now has it, when the server says (`receiver` reads it).
  */
-export async function claimGift(giftId: string): Promise<{ giftType: string }> {
+export async function claimGift(
+  giftId: string,
+): Promise<{ giftType: string; giftsReceivedCount?: number }> {
   const session = getSession();
   if (!session || !isSupabaseConfigured()) throw new Error('Not available');
 
@@ -99,7 +90,10 @@ export async function claimGift(giftId: string): Promise<{ giftType: string }> {
   if (error) throw new Error(error.message ?? 'Failed to claim gift');
   if (data?.error) throw new Error(data.error);
 
-  return { giftType: data.gift.giftType };
+  return {
+    giftType: data.gift.giftType,
+    ...(typeof data.giftsReceivedCount === 'number' ? { giftsReceivedCount: data.giftsReceivedCount } : {}),
+  };
 }
 
 /**
@@ -136,56 +130,28 @@ export async function getShowcase(token: string): Promise<ShowcaseData | null> {
 
 /**
  * Get friend leaderboard (top friends by total rescued).
+ *
+ * Three direct reads — `friendships`, `rescue_stats` and `game_states` —
+ * all under rules keyed on `auth.uid()`, which ARC's sessions never set, so
+ * the board was empty for everyone. The server does all three now, and a
+ * player with no friends sees themselves rather than nothing.
  */
 export async function getFriendLeaderboard(): Promise<
-  Array<{ username: string; avatarEmoji: string; totalRescued: number; level: number }>
+  Array<{ displayName: string; avatarEmoji: string; totalRescued: number; level: number }>
 > {
   const session = getSession();
   if (!session || !isSupabaseConfigured()) return [];
 
-  // Get friend IDs
-  const { data: friendships } = await supabase
-    .from('friendships')
-    .select('friend_id')
-    .eq('user_id', session.userId);
-
-  if (!friendships || friendships.length === 0) return [];
-
-  const friendIds = friendships.map((f) => f.friend_id);
-  // Include self
-  friendIds.push(session.userId);
-
-  // Get rescue stats + user info for friends
-  const { data: stats } = await supabase
-    .from('rescue_stats')
-    .select(`
-      total_rescued,
-      user:users!rescue_stats_user_id_fkey (
-        username, avatar_emoji
-      )
-    `)
-    .in('user_id', friendIds)
-    .order('total_rescued', { ascending: false })
-    .limit(20);
-
-  if (!stats) return [];
-
-  // Get levels from game_states
-  const { data: levels } = await supabase
-    .from('game_states')
-    .select('user_id, level')
-    .in('user_id', friendIds);
-
-  const levelMap = new Map((levels ?? []).map((l) => [l.user_id, l.level]));
-
-  return stats.map((row) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const user = (row as any).user as Record<string, string> | null;
-    return {
-      username: user?.username ?? 'Unknown',
-      avatarEmoji: user?.avatar_emoji ?? '🐾',
-      totalRescued: row.total_rescued ?? 0,
-      level: levelMap.get((row as Record<string, unknown>).user_id as string) ?? 1,
-    };
+  const { data, error } = await supabase.functions.invoke('get-leaderboard', {
+    body: {},
+    headers: sessionHeaders(),
   });
+
+  if (error || data?.error || !Array.isArray(data?.board)) return [];
+  return data.board as Array<{
+    displayName: string;
+    avatarEmoji: string;
+    totalRescued: number;
+    level: number;
+  }>;
 }

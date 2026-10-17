@@ -1,0 +1,152 @@
+import { test, expect } from '@playwright/test';
+import http from 'node:http';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { AddressInfo } from 'node:net';
+import { createVoiceBoothHandler } from '../plugins/voice-booth-handler';
+import { planPublish } from '../tools/voice-publish.mjs';
+
+/**
+ * The voice booth page, driven in a real browser against the real save
+ * endpoint, with no Vite involved: a small server here serves public/ and
+ * mounts the same handler the dev plugin mounts, saving into a temp folder
+ * (never apps/game/voice-takes/). So this runs whether or not the dev server in
+ * use has been restarted with the plugin.
+ *
+ * The microphone is stood in for by a tone made in the page: headless Chrome
+ * here never answers getUserMedia, even with fake devices. Everything the
+ * booth does with the stream (MediaRecorder, upload, playback, keep) is real.
+ */
+
+const PUBLIC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public');
+const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.json': 'application/json' };
+
+let server: http.Server;
+let base: string;
+let takes: string;
+
+test.beforeAll(async () => {
+  takes = fs.mkdtempSync(path.join(os.tmpdir(), 'arc-booth-e2e-'));
+  const handler = createVoiceBoothHandler({ dir: takes });
+  server = http.createServer((req, res) => {
+    handler(req, res, () => {
+      const pathname = decodeURIComponent((req.url ?? '/').split('?')[0]);
+      const file = path.join(PUBLIC, pathname);
+      if (!file.startsWith(PUBLIC) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+        res.statusCode = 404;
+        res.end('not found');
+        return;
+      }
+      res.setHeader('Content-Type', TYPES[path.extname(file)] ?? 'application/octet-stream');
+      fs.createReadStream(file).pipe(res);
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+});
+
+test.afterAll(async () => {
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  fs.rmSync(takes, { recursive: true, force: true });
+});
+
+test('records, plays back, retakes and keeps a line, and refuses what it should', async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = async () => {
+      const ac = new AudioContext();
+      const osc = ac.createOscillator();
+      osc.frequency.value = 220;
+      const dest = ac.createMediaStreamDestination();
+      osc.connect(dest);
+      osc.start();
+      return dest.stream;
+    };
+  });
+  await page.goto(`${base}/admin/voice-booth.html`);
+  await expect(page.locator('#server-banner')).toContainText('Saving is on');
+
+  // Marnie first, every household after her (122B); two lines each.
+  const speakers = page.locator('details.speaker');
+  expect(await speakers.count()).toBe(30);
+  expect(await page.locator('.line').count()).toBe(60);
+  await expect(speakers.first().locator('.who')).toHaveText('Marnie');
+  await expect(page.locator('#progress')).toContainText('0 of 60 lines kept');
+
+  // Each of them shows their painted portrait and their voice note. A picture
+  // that failed to load has no width, so this also catches a path that is wrong.
+  const rows = await speakers.evaluateAll((els) => els.map((el) => {
+    const img = el.querySelector<HTMLImageElement>('summary .face img');
+    return {
+      id: (el as HTMLElement).dataset.speaker,
+      who: el.querySelector('.who')?.textContent ?? '',
+      portrait: img ? { loaded: img.complete && img.naturalWidth > 0, shown: img.getBoundingClientRect().width >= 48 } : null,
+      note: el.querySelector('.note')?.textContent ?? '',
+    };
+  }));
+  expect(rows.map((r) => r.id).slice(0, 3)).toEqual(['warden', '01-priya', '02-jan']);
+  for (const r of rows) {
+    expect(r.portrait, `${r.who} has a portrait`).not.toBeNull();
+    expect(r.portrait!.loaded, `${r.who}'s portrait loaded`).toBe(true);
+    expect(r.portrait!.shown, `${r.who}'s portrait is big enough to see`).toBe(true);
+    expect(r.note.length, `${r.who} has a voice note`).toBeGreaterThan(20);
+  }
+  expect(new Set(rows.map((r) => r.who)).size, 'thirty different names').toBe(30);
+
+  const line = page.locator('.line').first();
+  await expect(line.locator('.lineid')).toContainText('handover-warden-1');
+
+  // Nothing is recorded until someone has said who they are and agreed.
+  await expect(line.locator('button.rec')).toBeDisabled();
+  await page.fill('#by', 'Test Speaker');
+  await page.check('#consent');
+  await expect(line.locator('button.rec')).toBeEnabled();
+
+  // The words on the page are the words the game shows: no name in them.
+  await expect(line.locator('.text')).toHaveText('Meet our little friend! This one has been hoping for the perfect home.');
+  await expect(page.locator('#version')).toHaveCount(0);
+
+  // Two takes.
+  for (let n = 1; n <= 2; n++) {
+    await line.locator('button.rec').click();
+    await expect(line.locator('button.rec')).toHaveText('Stop');
+    await page.waitForTimeout(1200);
+    await line.locator('button.rec').click();
+    await expect(line.locator('.take')).toHaveCount(n);
+  }
+  expect(fs.readdirSync(path.join(takes, 'raw/warden')).sort()).toEqual([
+    'handover-warden-1__take1.webm',
+    'handover-warden-1__take2.webm',
+  ]);
+
+  // Play one back, keep it.
+  await line.locator('.take').nth(1).locator('button').first().click();
+  await expect(line.locator('button.keep')).toBeEnabled();
+  await line.locator('button.keep').click();
+  await expect(line.locator('.take.kept')).toHaveCount(1);
+  const sidecar = JSON.parse(fs.readFileSync(path.join(takes, 'keep/handover-warden-1.json'), 'utf8'));
+  expect(sidecar).toMatchObject({
+    lineId: 'handover-warden-1', speakerId: 'warden', takeFile: 'handover-warden-1__take2.webm',
+    by: 'Test Speaker', consent: true,
+  });
+  expect(sidecar.text).toBe('Meet our little friend! This one has been hoping for the perfect home.');
+  expect(fs.existsSync(path.join(takes, 'keep/handover-warden-1.webm'))).toBe(true);
+
+  // They are the words the game shows, the page says it will ship, and the
+  // publish tool agrees: the take a person just kept is accepted as it stands.
+  await expect(line.locator('.state')).toContainText('matches what the game shows');
+  const script = JSON.parse(fs.readFileSync(path.join(PUBLIC, 'admin/voice-script.json'), 'utf8'));
+  const plan = planPublish(script, [sidecar]);
+  expect(plan.held).toEqual([]);
+  expect(plan.publish.map((k: { lineId: string }) => k.lineId)).toEqual(['handover-warden-1']);
+
+  // A household's thanks says "Marnie", in amber, as the game draws it.
+  await expect(page.locator('[data-line="handover-01-priya-4"] .text')).toHaveText('Thank you, Marnie! We promise to love them forever.');
+  await expect(page.locator('[data-line="handover-01-priya-4"] .text .person')).toHaveText('Marnie');
+  await expect(page.locator('#progress')).toContainText('1 of 60 lines kept');
+
+  // Progress survives a reload, because it lives on the server.
+  await page.reload();
+  await expect(page.locator('#progress')).toContainText('1 of 60 lines kept');
+});

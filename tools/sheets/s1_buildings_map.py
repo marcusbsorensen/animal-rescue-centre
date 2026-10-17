@@ -31,7 +31,7 @@ DEST = [
     ('woodland', 'Woodland', 'site-woodland-place.png', 'rewilding-habitat', 3, 16, .80, .88,
      'bunny · hedgehog · squirrel'),
     ('sea-cliffs', 'Sea Cliffs', 'site-sea-cliffs-place.png', 'rewilding-habitat', 6, 34, .88, .34,
-     'parrot · seabird'),
+     'seabird (none spawn yet; not parrot, which is never released)'),
     ('deep-forest', 'Deep Forest', 'site-deep-forest-place.png', 'rewilding-habitat', 8, 40, .96, .72,
      'bat'),
     ('wetlands', 'Wetlands', 'site-wetlands-place.png', 'rewilding-habitat', 9, 22, .45, .88,

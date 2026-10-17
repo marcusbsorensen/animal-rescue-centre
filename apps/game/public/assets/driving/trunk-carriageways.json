@@ -1,0 +1,4068 @@
+{
+ "header": {
+  "source": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright). A28 ways from an Overpass extract, OSM base 2026-05-03T12:53:56Z (manus-output/birchie-osm/birchington.json, not in git), projected as tools/osm-to-svg.py does.",
+  "graph": "apps/game/public/assets/driving/birchie-graph.json",
+  "edgeKey": "edge = index into the graph's edges array; nodes = that entry's [i, j] as written",
+  "method": "Each trunk edge is sampled at 5 points and matched to the OSM A28 way with the smallest mean distance. kind: dual = one-way carriageways west of Brooksend (the real 1.7 km, 50 mph); divided = every other one-way pair (Birchington to Westgate, and the 0.14 km refuge split at Westgate); single = two-way. oneway = the OSM direction of the carriageway the edge lies on, as [from, to], null where OSM is two-way. matchM = mean distance to that way.",
+  "warning": "The game graph draws each dual or divided stretch as one line that keeps to one carriageway, with short side-loops onto the other; it does not have both carriageways end to end. Applying oneway edge by edge makes those stretches one-directional for cars (see checks). For routing, treat trunk edges as two-way; use kind, maxspeedMph and lanes for drawing and speed."
+ },
+ "summary": {
+  "trunkEdges": 184,
+  "byKind": {
+   "dual": 57,
+   "single": 70,
+   "divided": 57
+  },
+  "lengthMByKind": {
+   "dual": 2897,
+   "single": 3395,
+   "divided": 2772
+  },
+  "flaggedEdges": [
+   49,
+   50,
+   203,
+   204,
+   289,
+   290,
+   370,
+   371,
+   376,
+   393,
+   394,
+   395,
+   578,
+   699,
+   700,
+   722,
+   723,
+   949
+  ]
+ },
+ "edges": [
+  {
+   "edge": 13,
+   "nodes": [
+    11,
+    871
+   ],
+   "lengthM": 58.5,
+   "kind": "dual",
+   "oneway": [
+    871,
+    11
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.0,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 14,
+   "nodes": [
+    11,
+    872
+   ],
+   "lengthM": 84.1,
+   "kind": "dual",
+   "oneway": [
+    11,
+    872
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.3,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 15,
+   "nodes": [
+    11,
+    892
+   ],
+   "lengthM": 78.6,
+   "kind": "dual",
+   "oneway": [
+    892,
+    11
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 5.8,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 42,
+   "nodes": [
+    39,
+    852
+   ],
+   "lengthM": 71.0,
+   "kind": "dual",
+   "oneway": [
+    852,
+    39
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 2.1,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 43,
+   "nodes": [
+    39,
+    853
+   ],
+   "lengthM": 24.6,
+   "kind": "dual",
+   "oneway": [
+    39,
+    853
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 2.1,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 44,
+   "nodes": [
+    39,
+    901
+   ],
+   "lengthM": 26.5,
+   "kind": "dual",
+   "oneway": [
+    901,
+    39
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 3.9,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 49,
+   "nodes": [
+    42,
+    43
+   ],
+   "lengthM": 32.6,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    921248198
+   ],
+   "matchM": 10.8,
+   "lanes": 2,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 50,
+   "nodes": [
+    42,
+    879
+   ],
+   "lengthM": 56.7,
+   "kind": "dual",
+   "oneway": [
+    879,
+    42
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178156592
+   ],
+   "matchM": 11.9,
+   "lanes": 1,
+   "otherCarriageway": 178156589,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 51,
+   "nodes": [
+    43,
+    922
+   ],
+   "lengthM": 41.4,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    921248202
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 118,
+   "nodes": [
+    96,
+    811
+   ],
+   "lengthM": 37.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963756
+   ],
+   "matchM": 0.3,
+   "lanes": 2
+  },
+  {
+   "edge": 119,
+   "nodes": [
+    96,
+    890
+   ],
+   "lengthM": 51.5,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963756
+   ],
+   "matchM": 0.4,
+   "lanes": 2
+  },
+  {
+   "edge": 120,
+   "nodes": [
+    97,
+    888
+   ],
+   "lengthM": 44.6,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963756
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 121,
+   "nodes": [
+    97,
+    907
+   ],
+   "lengthM": 81.6,
+   "kind": "divided",
+   "oneway": [
+    97,
+    907
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    889383071
+   ],
+   "matchM": 1.4,
+   "lanes": 2,
+   "otherCarriageway": 889383072
+  },
+  {
+   "edge": 122,
+   "nodes": [
+    98,
+    813
+   ],
+   "lengthM": 46.2,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30722758
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 123,
+   "nodes": [
+    98,
+    814
+   ],
+   "lengthM": 40.1,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30722758
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 203,
+   "nodes": [
+    152,
+    193
+   ],
+   "lengthM": 42.7,
+   "kind": "divided",
+   "oneway": [
+    193,
+    152
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963754
+   ],
+   "matchM": 9.6,
+   "lanes": 2,
+   "otherCarriageway": 105135737,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 204,
+   "nodes": [
+    152,
+    206
+   ],
+   "lengthM": 66.2,
+   "kind": "divided",
+   "oneway": [
+    152,
+    206
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963754
+   ],
+   "matchM": 15.9,
+   "lanes": 2,
+   "otherCarriageway": 105135737,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 236,
+   "nodes": [
+    173,
+    808
+   ],
+   "lengthM": 42.0,
+   "kind": "divided",
+   "oneway": [
+    808,
+    173
+   ],
+   "maxspeedMph": 30,
+   "osmWays": [
+    915923556
+   ],
+   "matchM": 5.6,
+   "lanes": 1,
+   "otherCarriageway": 915923546
+  },
+  {
+   "edge": 237,
+   "nodes": [
+    173,
+    911
+   ],
+   "lengthM": 54.8,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    915923555
+   ],
+   "matchM": 3.1,
+   "lanes": 3
+  },
+  {
+   "edge": 240,
+   "nodes": [
+    175,
+    906
+   ],
+   "lengthM": 15.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    658764973
+   ],
+   "matchM": 0.1,
+   "lanes": 3
+  },
+  {
+   "edge": 241,
+   "nodes": [
+    175,
+    911
+   ],
+   "lengthM": 63.8,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    915923553
+   ],
+   "matchM": 3.8,
+   "lanes": 3
+  },
+  {
+   "edge": 243,
+   "nodes": [
+    176,
+    889
+   ],
+   "lengthM": 36.4,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963756
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 244,
+   "nodes": [
+    176,
+    890
+   ],
+   "lengthM": 52.8,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963756
+   ],
+   "matchM": 0.5,
+   "lanes": 2
+  },
+  {
+   "edge": 246,
+   "nodes": [
+    179,
+    181
+   ],
+   "lengthM": 51.7,
+   "kind": "divided",
+   "oneway": [
+    181,
+    179
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    607951330
+   ],
+   "matchM": 4.2,
+   "lanes": 2,
+   "otherCarriageway": 147963752
+  },
+  {
+   "edge": 247,
+   "nodes": [
+    179,
+    909
+   ],
+   "lengthM": 32.7,
+   "kind": "divided",
+   "oneway": [
+    909,
+    179
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    889383071
+   ],
+   "matchM": 4.5,
+   "lanes": 2,
+   "otherCarriageway": 889383072
+  },
+  {
+   "edge": 248,
+   "nodes": [
+    180,
+    182
+   ],
+   "lengthM": 58.6,
+   "kind": "divided",
+   "oneway": [
+    182,
+    180
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963752
+   ],
+   "matchM": 0.7,
+   "lanes": 2,
+   "otherCarriageway": 607951330
+  },
+  {
+   "edge": 249,
+   "nodes": [
+    180,
+    882
+   ],
+   "lengthM": 27.7,
+   "kind": "divided",
+   "oneway": [
+    180,
+    882
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963752
+   ],
+   "matchM": 0.0,
+   "lanes": 2,
+   "otherCarriageway": 607951330
+  },
+  {
+   "edge": 250,
+   "nodes": [
+    181,
+    182
+   ],
+   "lengthM": 53.6,
+   "kind": "divided",
+   "oneway": [
+    181,
+    182
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963752
+   ],
+   "matchM": 0.4,
+   "lanes": 2,
+   "otherCarriageway": 607951330
+  },
+  {
+   "edge": 266,
+   "nodes": [
+    192,
+    802
+   ],
+   "lengthM": 60.4,
+   "kind": "divided",
+   "oneway": [
+    802,
+    192
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    607951329
+   ],
+   "matchM": 5.1,
+   "lanes": 2,
+   "otherCarriageway": 23418626
+  },
+  {
+   "edge": 267,
+   "nodes": [
+    192,
+    926
+   ],
+   "lengthM": 39.9,
+   "kind": "divided",
+   "oneway": [
+    192,
+    926
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    607951329
+   ],
+   "matchM": 6.3,
+   "lanes": 2,
+   "otherCarriageway": 23418626
+  },
+  {
+   "edge": 269,
+   "nodes": [
+    193,
+    843
+   ],
+   "lengthM": 48.3,
+   "kind": "divided",
+   "oneway": [
+    843,
+    193
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 4.5,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 270,
+   "nodes": [
+    193,
+    926
+   ],
+   "lengthM": 40.0,
+   "kind": "divided",
+   "oneway": [
+    926,
+    193
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    607951329
+   ],
+   "matchM": 2.7,
+   "lanes": 2,
+   "otherCarriageway": 23418626
+  },
+  {
+   "edge": 273,
+   "nodes": [
+    195,
+    803
+   ],
+   "lengthM": 65.0,
+   "kind": "divided",
+   "oneway": [
+    803,
+    195
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    23418626
+   ],
+   "matchM": 4.5,
+   "lanes": 2,
+   "otherCarriageway": 607951329
+  },
+  {
+   "edge": 274,
+   "nodes": [
+    195,
+    804
+   ],
+   "lengthM": 30.2,
+   "kind": "divided",
+   "oneway": [
+    195,
+    804
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    23418626
+   ],
+   "matchM": 4.4,
+   "lanes": 2,
+   "otherCarriageway": 607951329
+  },
+  {
+   "edge": 289,
+   "nodes": [
+    206,
+    842
+   ],
+   "lengthM": 45.7,
+   "kind": "divided",
+   "oneway": [
+    206,
+    842
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963754
+   ],
+   "matchM": 9.0,
+   "lanes": 2,
+   "otherCarriageway": 105135737,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 290,
+   "nodes": [
+    206,
+    843
+   ],
+   "lengthM": 64.3,
+   "kind": "divided",
+   "oneway": [
+    843,
+    206
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963754
+   ],
+   "matchM": 8.9,
+   "lanes": 2,
+   "otherCarriageway": 105135737,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 298,
+   "nodes": [
+    213,
+    829
+   ],
+   "lengthM": 26.1,
+   "kind": "divided",
+   "oneway": [
+    829,
+    213
+   ],
+   "maxspeedMph": 30,
+   "osmWays": [
+    105135736
+   ],
+   "matchM": 4.5,
+   "lanes": 2,
+   "otherCarriageway": 105135738
+  },
+  {
+   "edge": 299,
+   "nodes": [
+    213,
+    830
+   ],
+   "lengthM": 56.1,
+   "kind": "divided",
+   "oneway": [
+    213,
+    830
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 5.3,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 300,
+   "nodes": [
+    214,
+    834
+   ],
+   "lengthM": 37.3,
+   "kind": "divided",
+   "oneway": [
+    834,
+    214
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 301,
+   "nodes": [
+    214,
+    835
+   ],
+   "lengthM": 55.8,
+   "kind": "divided",
+   "oneway": [
+    214,
+    835
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 305,
+   "nodes": [
+    219,
+    220
+   ],
+   "lengthM": 67.5,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    105135740
+   ],
+   "matchM": 0.7,
+   "lanes": 2
+  },
+  {
+   "edge": 306,
+   "nodes": [
+    219,
+    845
+   ],
+   "lengthM": 64.0,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    105135740
+   ],
+   "matchM": 0.4,
+   "lanes": 2
+  },
+  {
+   "edge": 307,
+   "nodes": [
+    220,
+    846
+   ],
+   "lengthM": 39.1,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    105135740
+   ],
+   "matchM": 0.3,
+   "lanes": 2
+  },
+  {
+   "edge": 351,
+   "nodes": [
+    256,
+    827
+   ],
+   "lengthM": 64.9,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30891751
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 352,
+   "nodes": [
+    256,
+    927
+   ],
+   "lengthM": 46.9,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30891751
+   ],
+   "matchM": 7.9,
+   "lanes": 2
+  },
+  {
+   "edge": 355,
+   "nodes": [
+    258,
+    819
+   ],
+   "lengthM": 56.6,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 0.3,
+   "lanes": 2
+  },
+  {
+   "edge": 356,
+   "nodes": [
+    258,
+    820
+   ],
+   "lengthM": 40.0,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 0.5,
+   "lanes": 2
+  },
+  {
+   "edge": 364,
+   "nodes": [
+    265,
+    282
+   ],
+   "lengthM": 72.0,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 7.0,
+   "lanes": 2
+  },
+  {
+   "edge": 366,
+   "nodes": [
+    265,
+    816
+   ],
+   "lengthM": 50.0,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 0.2,
+   "lanes": 2
+  },
+  {
+   "edge": 370,
+   "nodes": [
+    270,
+    277
+   ],
+   "lengthM": 93.5,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 20.8,
+   "lanes": 2,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 371,
+   "nodes": [
+    270,
+    816
+   ],
+   "lengthM": 52.3,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 20.8,
+   "lanes": 2,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 376,
+   "nodes": [
+    273,
+    923
+   ],
+   "lengthM": 74.0,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    1292420260
+   ],
+   "matchM": 9.7,
+   "lanes": 2,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 377,
+   "nodes": [
+    273,
+    924
+   ],
+   "lengthM": 44.3,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    1292420260
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 378,
+   "nodes": [
+    274,
+    815
+   ],
+   "lengthM": 48.3,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 379,
+   "nodes": [
+    274,
+    925
+   ],
+   "lengthM": 85.0,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    1292420260
+   ],
+   "matchM": 0.3,
+   "lanes": 2
+  },
+  {
+   "edge": 384,
+   "nodes": [
+    277,
+    815
+   ],
+   "lengthM": 29.4,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 392,
+   "nodes": [
+    282,
+    817
+   ],
+   "lengthM": 28.9,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 7.1,
+   "lanes": 2
+  },
+  {
+   "edge": 393,
+   "nodes": [
+    283,
+    817
+   ],
+   "lengthM": 27.8,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 11.5,
+   "lanes": 2,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 394,
+   "nodes": [
+    283,
+    818
+   ],
+   "lengthM": 84.9,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 10.4,
+   "lanes": 2,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 395,
+   "nodes": [
+    284,
+    480
+   ],
+   "lengthM": 74.8,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 13.0,
+   "lanes": 2,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 396,
+   "nodes": [
+    284,
+    820
+   ],
+   "lengthM": 52.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 0.3,
+   "lanes": 2
+  },
+  {
+   "edge": 404,
+   "nodes": [
+    288,
+    826
+   ],
+   "lengthM": 34.2,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30891751
+   ],
+   "matchM": 0.3,
+   "lanes": 2
+  },
+  {
+   "edge": 405,
+   "nodes": [
+    288,
+    827
+   ],
+   "lengthM": 58.0,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30891751
+   ],
+   "matchM": 0.7,
+   "lanes": 2
+  },
+  {
+   "edge": 407,
+   "nodes": [
+    291,
+    823
+   ],
+   "lengthM": 34.0,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30891751
+   ],
+   "matchM": 0.2,
+   "lanes": 2
+  },
+  {
+   "edge": 408,
+   "nodes": [
+    291,
+    824
+   ],
+   "lengthM": 58.2,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30891751
+   ],
+   "matchM": 1.0,
+   "lanes": 2
+  },
+  {
+   "edge": 478,
+   "nodes": [
+    360,
+    809
+   ],
+   "lengthM": 58.9,
+   "kind": "divided",
+   "oneway": [
+    809,
+    360
+   ],
+   "maxspeedMph": 30,
+   "osmWays": [
+    30722752
+   ],
+   "matchM": 2.8,
+   "lanes": 1,
+   "otherCarriageway": 915923949
+  },
+  {
+   "edge": 479,
+   "nodes": [
+    360,
+    814
+   ],
+   "lengthM": 31.9,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30722758
+   ],
+   "matchM": 0.2,
+   "lanes": 2
+  },
+  {
+   "edge": 578,
+   "nodes": [
+    461,
+    871
+   ],
+   "lengthM": 62.3,
+   "kind": "dual",
+   "oneway": [
+    461,
+    871
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 15.5,
+   "lanes": 2,
+   "otherCarriageway": 113224936,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 596,
+   "nodes": [
+    480,
+    821
+   ],
+   "lengthM": 46.2,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    889398345
+   ],
+   "matchM": 6.0,
+   "lanes": 2
+  },
+  {
+   "edge": 643,
+   "nodes": [
+    536,
+    836
+   ],
+   "lengthM": 114.3,
+   "kind": "divided",
+   "oneway": [
+    836,
+    536
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.3,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 644,
+   "nodes": [
+    536,
+    837
+   ],
+   "lengthM": 67.8,
+   "kind": "divided",
+   "oneway": [
+    837,
+    536
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.3,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 645,
+   "nodes": [
+    536,
+    838
+   ],
+   "lengthM": 25.2,
+   "kind": "divided",
+   "oneway": [
+    536,
+    838
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.2,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 677,
+   "nodes": [
+    577,
+    807
+   ],
+   "lengthM": 46.7,
+   "kind": "divided",
+   "oneway": [
+    807,
+    577
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    23418626
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 607951329
+  },
+  {
+   "edge": 678,
+   "nodes": [
+    577,
+    886
+   ],
+   "lengthM": 48.1,
+   "kind": "divided",
+   "oneway": [
+    886,
+    577
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963752
+   ],
+   "matchM": 4.4,
+   "lanes": 2,
+   "otherCarriageway": 607951330
+  },
+  {
+   "edge": 699,
+   "nodes": [
+    611,
+    848
+   ],
+   "lengthM": 63.9,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    105135740
+   ],
+   "matchM": 17.4,
+   "lanes": 2,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 700,
+   "nodes": [
+    611,
+    927
+   ],
+   "lengthM": 47.0,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30891751
+   ],
+   "matchM": 25.1,
+   "lanes": 2,
+   "flag": "unmatched"
+  },
+  {
+   "edge": 722,
+   "nodes": [
+    629,
+    881
+   ],
+   "lengthM": 42.8,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    147949989
+   ],
+   "matchM": 11.9,
+   "lanes": 2,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 723,
+   "nodes": [
+    629,
+    922
+   ],
+   "lengthM": 49.6,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    921248202
+   ],
+   "matchM": 10.4,
+   "lanes": 2,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 800,
+   "nodes": [
+    736,
+    810
+   ],
+   "lengthM": 40.6,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30722753
+   ],
+   "matchM": 0.3,
+   "lanes": 2
+  },
+  {
+   "edge": 801,
+   "nodes": [
+    736,
+    910
+   ],
+   "lengthM": 41.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    889394452
+   ],
+   "matchM": 0.3,
+   "lanes": 3
+  },
+  {
+   "edge": 858,
+   "nodes": [
+    802,
+    803
+   ],
+   "lengthM": 46.8,
+   "kind": "divided",
+   "oneway": [
+    802,
+    803
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    23418626
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 607951329
+  },
+  {
+   "edge": 859,
+   "nodes": [
+    804,
+    805
+   ],
+   "lengthM": 46.7,
+   "kind": "divided",
+   "oneway": [
+    804,
+    805
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    23418626
+   ],
+   "matchM": 0.0,
+   "lanes": 2,
+   "otherCarriageway": 607951329
+  },
+  {
+   "edge": 860,
+   "nodes": [
+    805,
+    806
+   ],
+   "lengthM": 46.8,
+   "kind": "divided",
+   "oneway": [
+    805,
+    806
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    23418626
+   ],
+   "matchM": 0.0,
+   "lanes": 2,
+   "otherCarriageway": 607951329
+  },
+  {
+   "edge": 861,
+   "nodes": [
+    805,
+    903
+   ],
+   "lengthM": 46.5,
+   "kind": "divided",
+   "oneway": [
+    903,
+    805
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    607951329
+   ],
+   "matchM": 4.5,
+   "lanes": 2,
+   "otherCarriageway": 23418626
+  },
+  {
+   "edge": 862,
+   "nodes": [
+    806,
+    807
+   ],
+   "lengthM": 46.7,
+   "kind": "divided",
+   "oneway": [
+    806,
+    807
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    23418626
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 607951329
+  },
+  {
+   "edge": 863,
+   "nodes": [
+    807,
+    903
+   ],
+   "lengthM": 48.8,
+   "kind": "divided",
+   "oneway": [
+    903,
+    807
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    23418626
+   ],
+   "matchM": 4.5,
+   "lanes": 2,
+   "otherCarriageway": 607951329
+  },
+  {
+   "edge": 864,
+   "nodes": [
+    808,
+    809
+   ],
+   "lengthM": 47.9,
+   "kind": "divided",
+   "oneway": [
+    808,
+    809
+   ],
+   "maxspeedMph": 30,
+   "osmWays": [
+    30722752
+   ],
+   "matchM": 0.6,
+   "lanes": 1,
+   "otherCarriageway": 915923949
+  },
+  {
+   "edge": 865,
+   "nodes": [
+    811,
+    812
+   ],
+   "lengthM": 43.1,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30722758
+   ],
+   "matchM": 0.4,
+   "lanes": 2
+  },
+  {
+   "edge": 866,
+   "nodes": [
+    812,
+    813
+   ],
+   "lengthM": 43.1,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30722758
+   ],
+   "matchM": 0.2,
+   "lanes": 2
+  },
+  {
+   "edge": 867,
+   "nodes": [
+    818,
+    819
+   ],
+   "lengthM": 48.3,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30890498
+   ],
+   "matchM": 0.0,
+   "lanes": 2
+  },
+  {
+   "edge": 868,
+   "nodes": [
+    821,
+    822
+   ],
+   "lengthM": 46.2,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30891751
+   ],
+   "matchM": 0.2,
+   "lanes": 2
+  },
+  {
+   "edge": 869,
+   "nodes": [
+    822,
+    823
+   ],
+   "lengthM": 46.1,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30891751
+   ],
+   "matchM": 0.5,
+   "lanes": 2
+  },
+  {
+   "edge": 870,
+   "nodes": [
+    824,
+    825
+   ],
+   "lengthM": 46.2,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30891751
+   ],
+   "matchM": 0.2,
+   "lanes": 2
+  },
+  {
+   "edge": 871,
+   "nodes": [
+    825,
+    826
+   ],
+   "lengthM": 46.1,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    30891751
+   ],
+   "matchM": 0.4,
+   "lanes": 2
+  },
+  {
+   "edge": 872,
+   "nodes": [
+    828,
+    829
+   ],
+   "lengthM": 32.8,
+   "kind": "divided",
+   "oneway": [
+    828,
+    829
+   ],
+   "maxspeedMph": 30,
+   "osmWays": [
+    105135736
+   ],
+   "matchM": 0.7,
+   "lanes": 2,
+   "otherCarriageway": 105135738
+  },
+  {
+   "edge": 873,
+   "nodes": [
+    828,
+    844
+   ],
+   "lengthM": 38.5,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    889383073
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 874,
+   "nodes": [
+    830,
+    831
+   ],
+   "lengthM": 46.5,
+   "kind": "divided",
+   "oneway": [
+    830,
+    831
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 875,
+   "nodes": [
+    831,
+    832
+   ],
+   "lengthM": 46.5,
+   "kind": "divided",
+   "oneway": [
+    831,
+    832
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 876,
+   "nodes": [
+    831,
+    887
+   ],
+   "lengthM": 70.1,
+   "kind": "divided",
+   "oneway": [
+    887,
+    831
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    1302597762
+   ],
+   "matchM": 6.4,
+   "lanes": 1,
+   "otherCarriageway": 105135737
+  },
+  {
+   "edge": 877,
+   "nodes": [
+    832,
+    833
+   ],
+   "lengthM": 46.6,
+   "kind": "divided",
+   "oneway": [
+    832,
+    833
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 878,
+   "nodes": [
+    833,
+    834
+   ],
+   "lengthM": 46.5,
+   "kind": "divided",
+   "oneway": [
+    833,
+    834
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.4,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 879,
+   "nodes": [
+    833,
+    887
+   ],
+   "lengthM": 27.5,
+   "kind": "divided",
+   "oneway": [
+    887,
+    833
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 6.7,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 880,
+   "nodes": [
+    835,
+    836
+   ],
+   "lengthM": 46.5,
+   "kind": "divided",
+   "oneway": [
+    835,
+    836
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.2,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 881,
+   "nodes": [
+    836,
+    837
+   ],
+   "lengthM": 46.5,
+   "kind": "divided",
+   "oneway": [
+    836,
+    837
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.2,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 882,
+   "nodes": [
+    838,
+    839
+   ],
+   "lengthM": 46.6,
+   "kind": "divided",
+   "oneway": [
+    838,
+    839
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 883,
+   "nodes": [
+    839,
+    840
+   ],
+   "lengthM": 46.5,
+   "kind": "divided",
+   "oneway": [
+    839,
+    840
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.2,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 884,
+   "nodes": [
+    840,
+    841
+   ],
+   "lengthM": 46.5,
+   "kind": "divided",
+   "oneway": [
+    840,
+    841
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.2,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 885,
+   "nodes": [
+    841,
+    842
+   ],
+   "lengthM": 46.5,
+   "kind": "divided",
+   "oneway": [
+    841,
+    842
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    105135737
+   ],
+   "matchM": 0.4,
+   "lanes": 2,
+   "otherCarriageway": 147963754
+  },
+  {
+   "edge": 886,
+   "nodes": [
+    844,
+    845
+   ],
+   "lengthM": 42.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    105135740
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 887,
+   "nodes": [
+    846,
+    847
+   ],
+   "lengthM": 42.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    105135740
+   ],
+   "matchM": 0.3,
+   "lanes": 2
+  },
+  {
+   "edge": 888,
+   "nodes": [
+    847,
+    848
+   ],
+   "lengthM": 42.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    105135740
+   ],
+   "matchM": 0.2,
+   "lanes": 2
+  },
+  {
+   "edge": 889,
+   "nodes": [
+    849,
+    850
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    849,
+    850
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.5,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 890,
+   "nodes": [
+    849,
+    876
+   ],
+   "lengthM": 87.2,
+   "kind": "dual",
+   "oneway": [
+    849,
+    876
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224979
+   ],
+   "matchM": 4.9,
+   "lanes": 1,
+   "otherCarriageway": 113225008
+  },
+  {
+   "edge": 891,
+   "nodes": [
+    849,
+    880
+   ],
+   "lengthM": 44.3,
+   "kind": "dual",
+   "oneway": [
+    880,
+    849
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113225008
+   ],
+   "matchM": 0.4,
+   "lanes": 2,
+   "otherCarriageway": 113224979
+  },
+  {
+   "edge": 892,
+   "nodes": [
+    849,
+    902
+   ],
+   "lengthM": 49.3,
+   "kind": "dual",
+   "oneway": [
+    902,
+    849
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 5.6,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 893,
+   "nodes": [
+    850,
+    851
+   ],
+   "lengthM": 47.6,
+   "kind": "dual",
+   "oneway": [
+    850,
+    851
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 894,
+   "nodes": [
+    851,
+    852
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    851,
+    852
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.0,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 895,
+   "nodes": [
+    851,
+    902
+   ],
+   "lengthM": 47.7,
+   "kind": "dual",
+   "oneway": [
+    851,
+    902
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 5.7,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 896,
+   "nodes": [
+    853,
+    854
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    853,
+    854
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.0,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 897,
+   "nodes": [
+    854,
+    855
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    854,
+    855
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.0,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 898,
+   "nodes": [
+    855,
+    856
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    855,
+    856
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.2,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 899,
+   "nodes": [
+    856,
+    857
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    856,
+    857
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.4,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 900,
+   "nodes": [
+    857,
+    858
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    857,
+    858
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.4,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 901,
+   "nodes": [
+    857,
+    898
+   ],
+   "lengthM": 49.6,
+   "kind": "dual",
+   "oneway": [
+    898,
+    857
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 5.5,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 902,
+   "nodes": [
+    858,
+    859
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    858,
+    859
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.5,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 903,
+   "nodes": [
+    858,
+    897
+   ],
+   "lengthM": 45.2,
+   "kind": "dual",
+   "oneway": [
+    858,
+    897
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 5.4,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 904,
+   "nodes": [
+    859,
+    860
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    859,
+    860
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.4,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 905,
+   "nodes": [
+    860,
+    861
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    860,
+    861
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 906,
+   "nodes": [
+    860,
+    896
+   ],
+   "lengthM": 89.8,
+   "kind": "dual",
+   "oneway": [
+    896,
+    860
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 5.9,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 907,
+   "nodes": [
+    860,
+    897
+   ],
+   "lengthM": 54.0,
+   "kind": "dual",
+   "oneway": [
+    897,
+    860
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 5.4,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 908,
+   "nodes": [
+    861,
+    862
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    861,
+    862
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 909,
+   "nodes": [
+    862,
+    863
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    862,
+    863
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.0,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 910,
+   "nodes": [
+    863,
+    864
+   ],
+   "lengthM": 47.6,
+   "kind": "dual",
+   "oneway": [
+    863,
+    864
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 911,
+   "nodes": [
+    863,
+    896
+   ],
+   "lengthM": 55.3,
+   "kind": "dual",
+   "oneway": [
+    896,
+    863
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 6.5,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 912,
+   "nodes": [
+    864,
+    865
+   ],
+   "lengthM": 47.6,
+   "kind": "dual",
+   "oneway": [
+    864,
+    865
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 913,
+   "nodes": [
+    864,
+    895
+   ],
+   "lengthM": 43.7,
+   "kind": "dual",
+   "oneway": [
+    895,
+    864
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 7.1,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 914,
+   "nodes": [
+    865,
+    866
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    865,
+    866
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.2,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 915,
+   "nodes": [
+    866,
+    867
+   ],
+   "lengthM": 47.6,
+   "kind": "dual",
+   "oneway": [
+    866,
+    867
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 916,
+   "nodes": [
+    866,
+    894
+   ],
+   "lengthM": 43.5,
+   "kind": "dual",
+   "oneway": [
+    866,
+    894
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 6.8,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 917,
+   "nodes": [
+    866,
+    895
+   ],
+   "lengthM": 55.5,
+   "kind": "dual",
+   "oneway": [
+    866,
+    895
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 6.9,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 918,
+   "nodes": [
+    867,
+    868
+   ],
+   "lengthM": 95.0,
+   "kind": "dual",
+   "oneway": [
+    867,
+    868
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.0,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 919,
+   "nodes": [
+    867,
+    894
+   ],
+   "lengthM": 14.7,
+   "kind": "dual",
+   "oneway": [
+    867,
+    894
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 6.8,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 920,
+   "nodes": [
+    868,
+    869
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    868,
+    869
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 921,
+   "nodes": [
+    868,
+    893
+   ],
+   "lengthM": 43.4,
+   "kind": "dual",
+   "oneway": [
+    868,
+    893
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 6.7,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 922,
+   "nodes": [
+    869,
+    870
+   ],
+   "lengthM": 47.6,
+   "kind": "dual",
+   "oneway": [
+    869,
+    870
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 923,
+   "nodes": [
+    870,
+    871
+   ],
+   "lengthM": 47.6,
+   "kind": "dual",
+   "oneway": [
+    870,
+    871
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 924,
+   "nodes": [
+    870,
+    893
+   ],
+   "lengthM": 55.5,
+   "kind": "dual",
+   "oneway": [
+    870,
+    893
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 6.6,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 925,
+   "nodes": [
+    872,
+    873
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    872,
+    873
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.4,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 926,
+   "nodes": [
+    873,
+    874
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    873,
+    874
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.3,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 927,
+   "nodes": [
+    873,
+    891
+   ],
+   "lengthM": 46.1,
+   "kind": "dual",
+   "oneway": [
+    891,
+    873
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 7.3,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 928,
+   "nodes": [
+    873,
+    892
+   ],
+   "lengthM": 54.8,
+   "kind": "dual",
+   "oneway": [
+    873,
+    892
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 7.1,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 929,
+   "nodes": [
+    874,
+    875
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    874,
+    875
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 930,
+   "nodes": [
+    875,
+    891
+   ],
+   "lengthM": 53.0,
+   "kind": "dual",
+   "oneway": [
+    891,
+    875
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224936
+   ],
+   "matchM": 7.7,
+   "lanes": 2,
+   "otherCarriageway": 178155133
+  },
+  {
+   "edge": 931,
+   "nodes": [
+    876,
+    877
+   ],
+   "lengthM": 42.3,
+   "kind": "dual",
+   "oneway": [
+    876,
+    877
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224979
+   ],
+   "matchM": 0.5,
+   "lanes": 1,
+   "otherCarriageway": 113225008
+  },
+  {
+   "edge": 932,
+   "nodes": [
+    876,
+    880
+   ],
+   "lengthM": 44.6,
+   "kind": "dual",
+   "oneway": [
+    880,
+    876
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224979
+   ],
+   "matchM": 5.8,
+   "lanes": 1,
+   "otherCarriageway": 113225008
+  },
+  {
+   "edge": 933,
+   "nodes": [
+    877,
+    878
+   ],
+   "lengthM": 42.2,
+   "kind": "dual",
+   "oneway": [
+    877,
+    878
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224979
+   ],
+   "matchM": 0.3,
+   "lanes": 1,
+   "otherCarriageway": 113225008
+  },
+  {
+   "edge": 934,
+   "nodes": [
+    878,
+    879
+   ],
+   "lengthM": 42.3,
+   "kind": "dual",
+   "oneway": [
+    878,
+    879
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    113224979
+   ],
+   "matchM": 0.1,
+   "lanes": 1,
+   "otherCarriageway": 113225008
+  },
+  {
+   "edge": 935,
+   "nodes": [
+    881,
+    912
+   ],
+   "lengthM": 44.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    921248201
+   ],
+   "matchM": 0.2,
+   "lanes": 2
+  },
+  {
+   "edge": 937,
+   "nodes": [
+    882,
+    883
+   ],
+   "lengthM": 46.7,
+   "kind": "divided",
+   "oneway": [
+    882,
+    883
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963752
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 607951330
+  },
+  {
+   "edge": 938,
+   "nodes": [
+    882,
+    905
+   ],
+   "lengthM": 43.5,
+   "kind": "divided",
+   "oneway": [
+    882,
+    905
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963752
+   ],
+   "matchM": 4.4,
+   "lanes": 2,
+   "otherCarriageway": 607951330
+  },
+  {
+   "edge": 939,
+   "nodes": [
+    883,
+    884
+   ],
+   "lengthM": 46.7,
+   "kind": "divided",
+   "oneway": [
+    883,
+    884
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963752
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 607951330
+  },
+  {
+   "edge": 940,
+   "nodes": [
+    884,
+    885
+   ],
+   "lengthM": 46.7,
+   "kind": "divided",
+   "oneway": [
+    884,
+    885
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963752
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 607951330
+  },
+  {
+   "edge": 941,
+   "nodes": [
+    884,
+    904
+   ],
+   "lengthM": 45.4,
+   "kind": "divided",
+   "oneway": [
+    904,
+    884
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    607951330
+   ],
+   "matchM": 4.5,
+   "lanes": 2,
+   "otherCarriageway": 147963752
+  },
+  {
+   "edge": 942,
+   "nodes": [
+    884,
+    905
+   ],
+   "lengthM": 51.7,
+   "kind": "divided",
+   "oneway": [
+    905,
+    884
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963752
+   ],
+   "matchM": 4.5,
+   "lanes": 2,
+   "otherCarriageway": 607951330
+  },
+  {
+   "edge": 943,
+   "nodes": [
+    885,
+    886
+   ],
+   "lengthM": 46.7,
+   "kind": "divided",
+   "oneway": [
+    885,
+    886
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963752
+   ],
+   "matchM": 0.2,
+   "lanes": 2,
+   "otherCarriageway": 607951330
+  },
+  {
+   "edge": 944,
+   "nodes": [
+    886,
+    904
+   ],
+   "lengthM": 49.4,
+   "kind": "divided",
+   "oneway": [
+    886,
+    904
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    607951330
+   ],
+   "matchM": 4.3,
+   "lanes": 2,
+   "otherCarriageway": 147963752
+  },
+  {
+   "edge": 945,
+   "nodes": [
+    888,
+    889
+   ],
+   "lengthM": 44.6,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    147963756
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 946,
+   "nodes": [
+    898,
+    899
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    898,
+    899
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 0.3,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 947,
+   "nodes": [
+    899,
+    900
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    899,
+    900
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 948,
+   "nodes": [
+    900,
+    901
+   ],
+   "lengthM": 47.5,
+   "kind": "dual",
+   "oneway": [
+    900,
+    901
+   ],
+   "maxspeedMph": 50,
+   "osmWays": [
+    178155133
+   ],
+   "matchM": 0.0,
+   "lanes": 2,
+   "otherCarriageway": 113224936
+  },
+  {
+   "edge": 949,
+   "nodes": [
+    906,
+    910
+   ],
+   "lengthM": 79.5,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    915923550
+   ],
+   "matchM": 12.3,
+   "lanes": 2,
+   "flag": "weak match: the game line cuts a corner or crosses between carriageways here"
+  },
+  {
+   "edge": 950,
+   "nodes": [
+    907,
+    908
+   ],
+   "lengthM": 41.2,
+   "kind": "divided",
+   "oneway": [
+    907,
+    908
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    889383071
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 889383072
+  },
+  {
+   "edge": 951,
+   "nodes": [
+    908,
+    909
+   ],
+   "lengthM": 41.2,
+   "kind": "divided",
+   "oneway": [
+    908,
+    909
+   ],
+   "maxspeedMph": 40,
+   "osmWays": [
+    889383071
+   ],
+   "matchM": 0.1,
+   "lanes": 2,
+   "otherCarriageway": 889383072
+  },
+  {
+   "edge": 952,
+   "nodes": [
+    912,
+    913
+   ],
+   "lengthM": 44.6,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    921248201
+   ],
+   "matchM": 0.5,
+   "lanes": 2
+  },
+  {
+   "edge": 953,
+   "nodes": [
+    913,
+    914
+   ],
+   "lengthM": 44.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    921248201
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 954,
+   "nodes": [
+    914,
+    915
+   ],
+   "lengthM": 44.6,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    921248201
+   ],
+   "matchM": 0.5,
+   "lanes": 2
+  },
+  {
+   "edge": 955,
+   "nodes": [
+    915,
+    916
+   ],
+   "lengthM": 44.6,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    921248201
+   ],
+   "matchM": 0.6,
+   "lanes": 2
+  },
+  {
+   "edge": 956,
+   "nodes": [
+    916,
+    917
+   ],
+   "lengthM": 44.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    921248201
+   ],
+   "matchM": 0.3,
+   "lanes": 2
+  },
+  {
+   "edge": 957,
+   "nodes": [
+    917,
+    918
+   ],
+   "lengthM": 44.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    921248201
+   ],
+   "matchM": 0.2,
+   "lanes": 2
+  },
+  {
+   "edge": 958,
+   "nodes": [
+    918,
+    919
+   ],
+   "lengthM": 44.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    921248201
+   ],
+   "matchM": 0.2,
+   "lanes": 2
+  },
+  {
+   "edge": 959,
+   "nodes": [
+    919,
+    920
+   ],
+   "lengthM": 44.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    921248201
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 960,
+   "nodes": [
+    920,
+    921
+   ],
+   "lengthM": 44.7,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    921248201
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 961,
+   "nodes": [
+    921,
+    923
+   ],
+   "lengthM": 33.2,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 40,
+   "osmWays": [
+    983847505
+   ],
+   "matchM": 0.1,
+   "lanes": 2
+  },
+  {
+   "edge": 962,
+   "nodes": [
+    924,
+    925
+   ],
+   "lengthM": 42.6,
+   "kind": "single",
+   "oneway": null,
+   "maxspeedMph": 30,
+   "osmWays": [
+    1292420260
+   ],
+   "matchM": 0.0,
+   "lanes": 2
+  }
+ ],
+ "carriagewayPairs": [
+  {
+   "edges": [
+    43,
+    948
+   ],
+   "gapM": 16.6,
+   "kind": "dual",
+   "osmWays": [
+    113224936,
+    178155133
+   ]
+  },
+  {
+   "edges": [
+    44,
+    896
+   ],
+   "gapM": 14.3,
+   "kind": "dual",
+   "osmWays": [
+    178155133,
+    113224936
+   ]
+  },
+  {
+   "edges": [
+    204,
+    269
+   ],
+   "gapM": 25.2,
+   "kind": "divided",
+   "osmWays": [
+    105135737,
+    147963754
+   ]
+  },
+  {
+   "edges": [
+    861,
+    862
+   ],
+   "gapM": 24.4,
+   "kind": "divided",
+   "osmWays": [
+    607951329,
+    23418626
+   ]
+  },
+  {
+   "edges": [
+    876,
+    877
+   ],
+   "gapM": 13.8,
+   "kind": "divided",
+   "osmWays": [
+    1302597762,
+    105135737
+   ]
+  },
+  {
+   "edges": [
+    889,
+    895
+   ],
+   "gapM": 26.8,
+   "kind": "dual",
+   "osmWays": [
+    113224936,
+    178155133
+   ]
+  },
+  {
+   "edges": [
+    892,
+    893
+   ],
+   "gapM": 24.2,
+   "kind": "dual",
+   "osmWays": [
+    178155133,
+    113224936
+   ]
+  },
+  {
+   "edges": [
+    896,
+    948
+   ],
+   "gapM": 12.4,
+   "kind": "dual",
+   "osmWays": [
+    113224936,
+    178155133
+   ]
+  },
+  {
+   "edges": [
+    897,
+    947
+   ],
+   "gapM": 12.5,
+   "kind": "dual",
+   "osmWays": [
+    113224936,
+    178155133
+   ]
+  },
+  {
+   "edges": [
+    898,
+    946
+   ],
+   "gapM": 12.3,
+   "kind": "dual",
+   "osmWays": [
+    113224936,
+    178155133
+   ]
+  },
+  {
+   "edges": [
+    899,
+    946
+   ],
+   "gapM": 27.2,
+   "kind": "dual",
+   "osmWays": [
+    113224936,
+    178155133
+   ]
+  },
+  {
+   "edges": [
+    906,
+    908
+   ],
+   "gapM": 7.2,
+   "kind": "dual",
+   "osmWays": [
+    178155133,
+    113224936
+   ]
+  },
+  {
+   "edges": [
+    912,
+    917
+   ],
+   "gapM": 22.6,
+   "kind": "dual",
+   "osmWays": [
+    113224936,
+    178155133
+   ]
+  },
+  {
+   "edges": [
+    913,
+    914
+   ],
+   "gapM": 27.8,
+   "kind": "dual",
+   "osmWays": [
+    178155133,
+    113224936
+   ]
+  },
+  {
+   "edges": [
+    920,
+    924
+   ],
+   "gapM": 22.1,
+   "kind": "dual",
+   "osmWays": [
+    113224936,
+    178155133
+   ]
+  },
+  {
+   "edges": [
+    927,
+    929
+   ],
+   "gapM": 26.8,
+   "kind": "dual",
+   "osmWays": [
+    178155133,
+    113224936
+   ]
+  },
+  {
+   "edges": [
+    14,
+    928
+   ],
+   "gapM": 22.2,
+   "kind": "dual",
+   "osmWays": [
+    178155133,
+    113224936
+   ]
+  },
+  {
+   "edges": [
+    940,
+    944
+   ],
+   "gapM": 23.0,
+   "kind": "divided",
+   "osmWays": [
+    147963752,
+    607951330
+   ]
+  },
+  {
+   "edges": [
+    941,
+    943
+   ],
+   "gapM": 24.9,
+   "kind": "divided",
+   "osmWays": [
+    607951330,
+    147963752
+   ]
+  }
+ ],
+ "checks": {
+  "everyTrunkEdgeHasEntry": true,
+  "carWithOneway": {
+   "pairsUnreachable": 74,
+   "unreachable": [
+    [
+     "arc",
+     "bramble-farm"
+    ],
+    [
+     "arc",
+     "hog-hospital"
+    ],
+    [
+     "arc",
+     "moorland"
+    ],
+    [
+     "bay-chapel",
+     "bramble-farm"
+    ],
+    [
+     "bay-chapel",
+     "hog-hospital"
+    ],
+    [
+     "bay-chapel",
+     "moorland"
+    ],
+    [
+     "bramble-farm",
+     "arc"
+    ],
+    [
+     "bramble-farm",
+     "bay-chapel"
+    ],
+    [
+     "bramble-farm",
+     "cove-harbour"
+    ],
+    [
+     "bramble-farm",
+     "deep-forest"
+    ],
+    [
+     "bramble-farm",
+     "goose-end-farm"
+    ],
+    [
+     "bramble-farm",
+     "pinebark-medical"
+    ],
+    [
+     "bramble-farm",
+     "sea-cliffs"
+    ],
+    [
+     "bramble-farm",
+     "vet"
+    ],
+    [
+     "bramble-farm",
+     "village-hall"
+    ],
+    [
+     "bramble-farm",
+     "wetlands"
+    ],
+    [
+     "bramble-farm",
+     "wilderwood"
+    ],
+    [
+     "bramble-farm",
+     "woodland"
+    ],
+    [
+     "cove-harbour",
+     "bramble-farm"
+    ],
+    [
+     "cove-harbour",
+     "hog-hospital"
+    ],
+    [
+     "cove-harbour",
+     "moorland"
+    ],
+    [
+     "deep-forest",
+     "bramble-farm"
+    ],
+    [
+     "deep-forest",
+     "hog-hospital"
+    ],
+    [
+     "deep-forest",
+     "moorland"
+    ],
+    [
+     "goose-end-farm",
+     "bramble-farm"
+    ],
+    [
+     "goose-end-farm",
+     "hog-hospital"
+    ],
+    [
+     "goose-end-farm",
+     "moorland"
+    ],
+    [
+     "hog-hospital",
+     "arc"
+    ],
+    [
+     "hog-hospital",
+     "bay-chapel"
+    ],
+    [
+     "hog-hospital",
+     "bramble-farm"
+    ],
+    [
+     "hog-hospital",
+     "cove-harbour"
+    ],
+    [
+     "hog-hospital",
+     "deep-forest"
+    ],
+    [
+     "hog-hospital",
+     "goose-end-farm"
+    ],
+    [
+     "hog-hospital",
+     "pinebark-medical"
+    ],
+    [
+     "hog-hospital",
+     "sea-cliffs"
+    ],
+    [
+     "hog-hospital",
+     "vet"
+    ],
+    [
+     "hog-hospital",
+     "village-hall"
+    ],
+    [
+     "hog-hospital",
+     "wetlands"
+    ],
+    [
+     "hog-hospital",
+     "wilderwood"
+    ],
+    [
+     "hog-hospital",
+     "woodland"
+    ],
+    [
+     "moorland",
+     "arc"
+    ],
+    [
+     "moorland",
+     "bay-chapel"
+    ],
+    [
+     "moorland",
+     "bramble-farm"
+    ],
+    [
+     "moorland",
+     "cove-harbour"
+    ],
+    [
+     "moorland",
+     "deep-forest"
+    ],
+    [
+     "moorland",
+     "goose-end-farm"
+    ],
+    [
+     "moorland",
+     "pinebark-medical"
+    ],
+    [
+     "moorland",
+     "sea-cliffs"
+    ],
+    [
+     "moorland",
+     "vet"
+    ],
+    [
+     "moorland",
+     "village-hall"
+    ],
+    [
+     "moorland",
+     "wetlands"
+    ],
+    [
+     "moorland",
+     "wilderwood"
+    ],
+    [
+     "moorland",
+     "woodland"
+    ],
+    [
+     "pinebark-medical",
+     "bramble-farm"
+    ],
+    [
+     "pinebark-medical",
+     "hog-hospital"
+    ],
+    [
+     "pinebark-medical",
+     "moorland"
+    ],
+    [
+     "sea-cliffs",
+     "bramble-farm"
+    ],
+    [
+     "sea-cliffs",
+     "hog-hospital"
+    ],
+    [
+     "sea-cliffs",
+     "moorland"
+    ],
+    [
+     "vet",
+     "bramble-farm"
+    ],
+    [
+     "vet",
+     "hog-hospital"
+    ],
+    [
+     "vet",
+     "moorland"
+    ],
+    [
+     "village-hall",
+     "bramble-farm"
+    ],
+    [
+     "village-hall",
+     "hog-hospital"
+    ],
+    [
+     "village-hall",
+     "moorland"
+    ],
+    [
+     "wetlands",
+     "bramble-farm"
+    ],
+    [
+     "wetlands",
+     "hog-hospital"
+    ],
+    [
+     "wetlands",
+     "moorland"
+    ],
+    [
+     "wilderwood",
+     "bramble-farm"
+    ],
+    [
+     "wilderwood",
+     "hog-hospital"
+    ],
+    [
+     "wilderwood",
+     "moorland"
+    ],
+    [
+     "woodland",
+     "bramble-farm"
+    ],
+    [
+     "woodland",
+     "hog-hospital"
+    ],
+    [
+     "woodland",
+     "moorland"
+    ]
+   ],
+   "longestExtraM": [
+    [
+     1788,
+     [
+      "sea-cliffs",
+      "cove-harbour"
+     ]
+    ],
+    [
+     1788,
+     [
+      "sea-cliffs",
+      "wilderwood"
+     ]
+    ],
+    [
+     1788,
+     [
+      "cove-harbour",
+      "sea-cliffs"
+     ]
+    ],
+    [
+     1788,
+     [
+      "sea-cliffs",
+      "goose-end-farm"
+     ]
+    ],
+    [
+     1788,
+     [
+      "vet",
+      "sea-cliffs"
+     ]
+    ],
+    [
+     1788,
+     [
+      "wilderwood",
+      "sea-cliffs"
+     ]
+    ],
+    [
+     1788,
+     [
+      "village-hall",
+      "sea-cliffs"
+     ]
+    ],
+    [
+     1788,
+     [
+      "goose-end-farm",
+      "sea-cliffs"
+     ]
+    ],
+    [
+     1788,
+     [
+      "sea-cliffs",
+      "village-hall"
+     ]
+    ],
+    [
+     1788,
+     [
+      "sea-cliffs",
+      "vet"
+     ]
+    ]
+   ]
+  }
+ }
+}

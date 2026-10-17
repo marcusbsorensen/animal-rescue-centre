@@ -82,14 +82,71 @@ export const VEHICLE_SPRITE: Record<VehicleType, string> = {
  *               headboard (0.59); walls 0.08..0.92
  *   Spark       the minibus cabin, rear (0.02) to windscreen (0.72);
  *               sides 0.14..0.87
+ *
+ * **Re-measured 2026-10-11, when Henry, Bea and Spark were shortened to
+ * their portraits' proportions** (`tools/shorten-topdown.py`: Henry
+ * 1309 to 1136, Bea 1418 to 1289, Spark 1870 to 1207; Big Tilly's front
+ * was not touched, so her entry and source stand). **This time it is
+ * arithmetic on the old numbers, and that is right here**, because
+ * nothing was redrawn: the rows above the cut are the same rows and the
+ * rows below it are the same rows moved up by what came out. Each bed
+ * keeps its place between its cabin's two landmarks, the same share of
+ * the way from the rear to the windscreen, and so the margin of paint
+ * round it shrinks with the cabin: 28-36 rows at the rear and 37-62 at
+ * the windscreen end, against 27-32px at its sides. Keeping the old
+ * margins in pixels instead would have taken the removed length out of
+ * the bed alone and left Spark's 2x3 in 515 rows, which at the phone's
+ * 132px of vehicle is a bay 35px deep: under the tap floor, and a
+ * column 15px wider on every short viewport to buy it back. Landmarks
+ * and beds now:
+ *
+ *   Henry       rear doors (0.023) to bulkhead (0.620); bed 0.050..0.564
+ *   Bea         0.022 to 0.604; bed 0.050..0.557
+ *   Spark       rear (0.031) to windscreen (0.566); bed 0.054..0.536
+ *
+ * The beds got shorter with the vehicles, so their shape changed and
+ * their width did not: Henry's 2x2 grid now lies in a bed 1.49:1 rather
+ * than 1.87:1, Bea's 2x3 in 1.95:1 rather than 2.28:1, and Spark's 2x3
+ * in 1.47:1 rather than 2.97:1, which is the 1.5:1 that square crates
+ * want in two across and three down. Big Tilly's 2x4 is the one that
+ * could not be allowed to shrink: her bed is 2.03:1 and the crates are
+ * painted square, so her front sprite was left alone.
+ *
+ * **Re-measured 2026-10-11 again, when the fronts of Bea, Spark and Big
+ * Tilly were redrawn to the camera of their rears**
+ * (`tools/redraw-fronts.py`, `docs/fleet-canon.md` section 3).
+ *
+ * Bea and Spark keep their canvases (579x1289 and 640x1207) and lose the
+ * taper their old fronts carried, so each body is now as wide as her
+ * rear's along the whole roof. Measured as the Spark note below says, the
+ * median opaque extent over the bed's own rows, Bea's body is 0.0794 to
+ * 0.9240 of her width where it was 0.1623 to 0.8411, and Spark's 0.1078
+ * to 0.8953 where it was 0.1266 to 0.8812. Their beds had been held at
+ * the fleet's 0.855 of the body and were now 0.69 and 0.79 of it, with
+ * more paint round the cutaway than any other vehicle, so the ratio is
+ * applied to the new body, centred: Bea x 0.21 w 0.58 becomes x 0.141
+ * w 0.719, Spark x 0.19 w 0.62 becomes x 0.165 w 0.670. Their rows are
+ * what they were. Looked at in the loading screen at 874x402 and
+ * 1024x700: the cutaway sits on the paint with an even margin, nothing
+ * spills, and the bays are larger on the phone. Bea needs 237px to stand
+ * whole where she needed 294.
+ *
+ * Big Tilly's front was redrawn the other way: the same 738px wide and
+ * 222 rows shorter (738x2071 to 738x1849, 2.81 to 2.505 against her
+ * rear's 2.516), by cutting the roof and the bonnet and leaving every row
+ * of the bed alone. The 2x4 rectangle is still 531x1077 on rows 83 to
+ * 1160 (2.03:1), which is y 0.04 h 0.52 of the old height and y 0.045
+ * h 0.582 of the new. She needs 275px to stand whole where she needed
+ * 308, and "her front sprite was left alone" above is the day it was
+ * written.
  */
 export interface LoadBed { x: number; y: number; w: number; h: number }
 
 export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
   'pedal-trike':      { x: 0.11, y: 0.04, w: 0.78, h: 0.28 },
-  'small-van':        { x: 0.15, y: 0.05, w: 0.70, h: 0.56 },
-  'long-van':         { x: 0.21, y: 0.05, w: 0.58, h: 0.54 },
-  'animal-lorry':     { x: 0.14, y: 0.04, w: 0.72, h: 0.52 },
+  'small-van':        { x: 0.15, y: 0.050, w: 0.70, h: 0.514 },
+  'long-van':         { x: 0.141, y: 0.050, w: 0.719, h: 0.507 },
+  'animal-lorry':     { x: 0.14, y: 0.045, w: 0.72, h: 0.582 },
   // Reverted from a "correction" to x 0.181 w 0.644 on 2026-10-09. That came
   // from measuring her painted body as the median opaque extent across the
   // bed's rows — which on Spark runs through her WING MIRRORS, so it measured
@@ -97,7 +154,11 @@ export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
   // 0.753 that gave, and at the fleet's bed-to-body ratio of 0.855 that is
   // 0.617. The original 0.62 was right. The narrow-viewport test caught it by
   // spotting the grid spilling off the paint, so leave that test alone.
-  'electric-minibus': { x: 0.19, y: 0.05, w: 0.62, h: 0.63 },
+  // **That was her old front.** Redrawn on 2026-10-11 her body is 0.7875 of
+  // the sprite at these rows, so 0.855 of it is 0.670, centred at 0.165. The
+  // bed rows are clear of her wing mirrors, which sit lower (about 0.58 to
+  // 0.68 of her length against a bed that ends at 0.536).
+  'electric-minibus': { x: 0.165, y: 0.054, w: 0.670, h: 0.482 },
 };
 
 /**
@@ -127,6 +188,12 @@ export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
  * height-limited band scales everything on it down. That is what a
  * long minibus is, not a number to be corrected; the honest fix would
  * be a taller band.
+ *
+ * **Overtaken 2026-10-11.** Spark was shortened to her portrait's 1.88:1
+ * (Henry and Bea to 2.02 and 2.23), and the figures above become Henry
+ * 0.346, Spark 0.329, Bea 0.261, Big Tilly 0.257. She is no longer the
+ * longest vehicle in the fleet or the one with the least bed per unit of
+ * band; the paragraph describes the sprite she had.
  */
 
 /**
@@ -139,10 +206,10 @@ export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
  */
 export const VEHICLE_BED_SOURCE: Record<VehicleType, { w: number; h: number }> = {
   'pedal-trike': { w: 364, h: 851 },
-  'small-van': { w: 561, h: 1309 },
-  'long-van': { w: 579, h: 1418 },
-  'animal-lorry': { w: 738, h: 2071 },
-  'electric-minibus': { w: 640, h: 1870 },
+  'small-van': { w: 561, h: 1136 },
+  'long-van': { w: 579, h: 1289 },
+  'animal-lorry': { w: 738, h: 1849 },
+  'electric-minibus': { w: 640, h: 1207 },
 };
 
 /**
@@ -482,9 +549,16 @@ export function fitLoadBed(
  * about right.
  *
  * Length comes free from the sprite's own aspect and is not recorded
- * here: every file now carries its vehicle's true proportion, so
- * `width_m * spriteH / spriteW` is the length, within 3% of the
- * handover's table for all four.
+ * here: `width_m * spriteH / spriteW` is the length. **Since 2026-10-11
+ * that is no longer the real vehicle's length for three of the four.**
+ * Marcus chose each portrait's own proportions for Henry, Bea and
+ * Spark, so they are drawn 2.02, 2.23 and 1.88 long for their width:
+ * 3.5m, 4.0m and 3.8m against the handover's 4.2, 4.5 and 5.9. Spark is
+ * now the shorter of her and Bea, which is the one thing that moved in
+ * the fleet's order. Big Tilly's front was redrawn the same day to her
+ * rear's 2.505, so she is 5.8m against the handover's 6.5: the rows of
+ * her bed could not go any shorter and the cab and the roof gave up the
+ * length (see `VEHICLE_BED`).
  */
 export const VEHICLE_WIDTH_M: Record<VehicleType, number> = {
   'pedal-trike': 0.75,
@@ -705,23 +779,34 @@ export function vehicleLengthM(id: VehicleType): number {
  * down. The eye reads a row of vehicles as a sequence, so the sequence has
  * to be the thing being compared.
  *
- * **Sorted, not listed**, so it cannot drift from `VEHICLE_DEFS` the day a
- * sixth vehicle is painted: length first, then width, then the id, which
- * only ever settles a tie that does not currently exist.
+ * **Size is footprint**, width times length, the ground a vehicle covers.
+ * Sorted, not listed, so it cannot drift from `VEHICLE_DEFS` the day a sixth
+ * vehicle is painted; length, width and the id settle ties that do not
+ * currently exist.
  *
  * **It is the same order as the vehicle-change arrows**, which Marcus
  * ordered by capacity with unlock level breaking Bea and Spark's tie
- * (`VEHICLES_BY_ROOM` in `@arc/game-logic`). Drawn size: 43, 100, 103, 115,
- * 132 at 820x620; capacity: 2, 4, 6, 6, 8. A bigger vehicle holds more,
+ * (`VEHICLES_BY_ROOM` in `@arc/game-logic`). A bigger vehicle holds more,
  * so the two agree, and a child who learns the fleet's order on one screen
  * keeps it on the other. They are derived separately — this one from the
  * art, that one from the rules — and a test holds them to each other, so
  * if a capacity ever stops matching a size the test says so rather than
  * the screens quietly disagreeing.
+ *
+ * **Why footprint and not length.** On 2026-10-11 Marcus chose each
+ * portrait's own proportions for Henry, Bea and Spark's top-downs, which
+ * draws Spark (3.8m) shorter than Bea (4.0m) though he is the wider. Sorted
+ * by length the picker stood Spark first while the arrows walked Bea then
+ * Spark. Marcus chose the same day that the picker gives way: by footprint
+ * Bea is 7.2 m² and Spark 7.6 m², so the row is Trikey, Henry, Bea, Spark,
+ * Big Tilly, the arrows' order. The cost is that one step in the row,
+ * Bea to Spark, gets wider but not longer.
  */
 export function fleetBySize(ids: VehicleType[]): VehicleType[] {
+  const footprint = (id: VehicleType) => VEHICLE_WIDTH_M[id] * vehicleLengthM(id);
   return ids.slice().sort((a, b) => (
-    vehicleLengthM(a) - vehicleLengthM(b)
+    footprint(a) - footprint(b)
+    || vehicleLengthM(a) - vehicleLengthM(b)
     || VEHICLE_WIDTH_M[a] - VEHICLE_WIDTH_M[b]
     || a.localeCompare(b)
   ));

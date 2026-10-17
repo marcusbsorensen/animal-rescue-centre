@@ -118,6 +118,28 @@ export function calculateCurrentDate(
   return { year, month, day, dayOfYear };
 }
 
+/**
+ * Whole in-game days between two real timestamps, at the calendar's rate
+ * (one real week is one 30-day in-game month).
+ *
+ * This is the one place "how many game days have passed since X" is
+ * answered for things that were stamped with an epoch-ms `date` and need
+ * no calendar state of their own — the adoption cooldown reads it against
+ * `RehomedEntry.date`. It uses the calendar's rate rather than keeping a
+ * second clock; `timeProgress` cannot answer the question because it is
+ * task-driven and holds only the phase of the current day, not a count.
+ *
+ * Integer arithmetic on purpose: 21 days is 423_360_000 ms, and going
+ * through a fractional "days per real day" lands on 20.999… and floors
+ * to 20. A span that is negative (an entry stamped by a device whose
+ * clock ran ahead) counts as no days at all.
+ */
+export function inGameDaysBetween(fromMs: number, toMs: number): number {
+  const elapsed = toMs - fromMs;
+  if (!Number.isFinite(elapsed) || elapsed <= 0) return 0;
+  return Math.floor((elapsed * DAYS_PER_MONTH) / (REAL_DAYS_PER_MONTH * MS_PER_REAL_DAY));
+}
+
 /** Get the season for a given in-game month (1-12). */
 export function getSeasonForMonth(month: number): Season {
   if (month >= 1 && month <= 3) return 'spring_bloom';
@@ -201,7 +223,18 @@ export function createCalendarState(gameStartedAt: string): CalendarState {
   };
 }
 
-/** Advance calendar state to the current real-world time. */
+/**
+ * Advance calendar state to the current real-world time.
+ *
+ * Moves the in-game date, the season and the events. It does **not** touch
+ * `lastRealDayChecked`: that field is the real day the player was last
+ * here, and it only means something while it still holds that day when
+ * `isDailyReset` is asked about today. This function used to stamp it with
+ * today, which made the next `isDailyReset` call compare today with today
+ * and answer false on every launch, so the depot's daily sessions were
+ * never refilled. Stamp the day with `markRealDayChecked`, after acting on
+ * `isDailyReset`; `startRealDay` does the two in order.
+ */
 export function advanceCalendar(
   state: CalendarState,
   gameStartedAt: string,
@@ -210,7 +243,6 @@ export function advanceCalendar(
   const date = calculateCurrentDate(gameStartedAt, now);
   const season = getSeasonForMonth(date.month);
   const activeEvents = getActiveEvents(date);
-  const nowDate = now ? new Date(now) : new Date();
 
   return {
     ...state,
@@ -218,8 +250,26 @@ export function advanceCalendar(
     currentSeason: season,
     activeEvents,
     dayOfYear: date.dayOfYear,
-    lastRealDayChecked: formatDateYMD(nowDate),
   };
+}
+
+/**
+ * Record that the player has been seen on this real day. Call it after
+ * `isDailyReset` has been asked and acted on, never before: stamping first
+ * is how the daily reset came to be unreachable.
+ */
+export function markRealDayChecked(state: CalendarState, now: Date): CalendarState {
+  return { ...state, lastRealDayChecked: formatDateYMD(now) };
+}
+
+/**
+ * The real day as the calendar writes it: YYYY-MM-DD in the device's local
+ * time. The one spelling of "which day is it" for everything that counts
+ * real days, so the daily reset and the days a child has played cannot
+ * disagree about where a day starts.
+ */
+export function realDayKey(now: Date): string {
+  return formatDateYMD(now);
 }
 
 // ── Additional helpers (Phase 1: Depot & Supply Run) ─────────

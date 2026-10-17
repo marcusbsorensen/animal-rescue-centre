@@ -1,0 +1,573 @@
+// safety.check.mjs — proof that no vehicle, the van or any other, either way,
+// ever touches a crossing animal, and that nothing waits for ever.
+//
+//   node apps/game/public/admin/drive-spike/safety.check.mjs [seeds] [minutes]
+//
+// crossings.check.mjs proves the van stops for the animals, traffic.check.mjs
+// that the traffic never touches the van. This drives both together, as
+// drive-spike.html's step() does, on real routes of the Birchie graph with the
+// A28's carriageways as the page reads them (dual, divided, single), so the
+// lanes, the main roads and every kind of A28 all carry traffic, and a third of
+// the routes are started just before an A28 stretch. Every frame it measures,
+// in world space, the gap from each animal's drawn body (crossings.animals())
+// to the van's rectangle and to every vehicle's footprint
+// (traffic.footprint()). It also watches that the giving way ends: every
+// closed stretch opens again and no vehicle stands for an animal for long.
+//
+// A sixth of the routes are ones that fold back on themselves (the A28
+// bending on a point of the Westgate house street the route drove earlier),
+// started short of the fold, so traffic on the far part meets the van there.
+//
+// Asserts: no contact between any vehicle and any animal; no vehicle overlaps
+// the van, wherever it is along the route, measured where both are drawn; no
+// vehicle slows for an animal harder than a careful driver; no vehicle stands
+// for an animal, nor the van or a vehicle for the other at a fold, longer than
+// STAND_MAX_S. Prints the counts and the closest approaches.
+
+import * as traffic from './traffic.js';
+import * as crossings from './crossings.js';
+import * as trikeyRoads from './trikey-roads.js';
+import { readFileSync } from 'node:fs';
+
+const SEEDS = Number(process.argv[2] ?? 40);
+const MINUTES = Number(process.argv[3] ?? 30);
+const STAND_MAX_S = 60;
+const GENTLE = 4;     // m/s²: the hardest any vehicle may slow for an animal
+
+// ----------------------------------------------------- the page's constants
+
+const ASPECT = 1800 / 1121, METRES_PER_UNIT = 3900;
+const ROAD_M = { secondary: 10, tertiary: 10, unclassified: 9, residential: 8, track: 5, path: 3, crossing: 3 };
+const LANE_M = 5, TRUNK_LANE_M = 5, RESERVATION_M = 1.6, TRUNK_M = 4 * TRUNK_LANE_M + RESERVATION_M, ISLAND_M = 1.2;
+const GEARS = { 1: 7, 2: 13, 3: 20 };
+const ACCEL = 9, BRAKE = 14, HANDBRAKE = 34, EMERGENCY = 26, ENGINE_EASE = 4, TOP_OUT = 3.5, TOP_PULL = 0.18;
+const PULL_UP = 2.5, STOP_SHORT_M = 6, ARRIVED_WAIT_S = 3.5;
+// The page's van: henry by default (?van=), its length from its top-down
+// sprite's aspect as drive-spike.html's step() sets car.length. VAN=spark,
+// bea, big-tilly ... to drive another.
+const VAN_SPRITES = { henry: [561, 1131], spark: [641, 1205], bea: [578, 1288], 'big-tilly': [735, 1849], trikey: [454, 869] };
+const VAN_ID = process.env.VAN ?? 'henry';
+// The van's own speed in each gear, as drive-spike.html's VAN_GEARS: Trikey is
+// pedalled, half of every gear (the game's VEHICLE_SPEED).
+const VAN_GEARS = Object.fromEntries(Object.entries(GEARS).map(([g, v]) => [g, v * (VAN_ID === 'trikey' ? 0.5 : 1)]));
+if (!VAN_SPRITES[VAN_ID]) throw new Error(`no sprite size for van ${VAN_ID}`);
+const VAN_W = 2.4, VAN_L = VAN_W * VAN_SPRITES[VAN_ID][1] / VAN_SPRITES[VAN_ID][0];
+const METRES_PER_MAP_PX = METRES_PER_UNIT / 1121;
+const mapToWorld = (px, py) => ({ x: px * METRES_PER_MAP_PX, y: py * METRES_PER_MAP_PX });
+const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
+
+function rng(seed) {
+  let s = (seed * 2654435761) >>> 0 || 1;
+  return () => { s = (s + 0x6d2b79f5) >>> 0; let t = Math.imul(s ^ (s >>> 15), s | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+
+// ------------------------------------------------- the graph and the A28
+
+const graph = JSON.parse(readFileSync(new URL('../../assets/driving/birchie-graph.json', import.meta.url)));
+const cwJson = JSON.parse(readFileSync(new URL('../../assets/driving/trunk-carriageways.json', import.meta.url)));
+const key = (i, j) => i * 4096 + j;
+const edgeCls = new Map(), edgeCw = new Map();
+for (const [i, j, c] of graph.edges) { edgeCls.set(key(i, j), c); edgeCls.set(key(j, i), c); }
+for (const c of cwJson.edges) {
+  const e = graph.edges[c.edge];
+  if (!e || e[2] !== 'trunk' || e[0] !== c.nodes[0] || e[1] !== c.nodes[1]) continue;
+  const rec = { kind: c.kind, maxspeedMph: c.maxspeedMph, lanes: c.lanes };
+  edgeCw.set(key(e[0], e[1]), rec); edgeCw.set(key(e[1], e[0]), rec);
+}
+// VAN=trikey: her own roads, as the page routes and draws them (never along
+// the A28, over it only at the lights; trikey-roads.js).
+const trike = VAN_ID === 'trikey'
+  ? trikeyRoads.create(graph, JSON.parse(readFileSync(new URL('../../assets/driving/trikey-links.json', import.meta.url))))
+  : null;
+const trikeShown = trike && (() => {
+  const rec = new Map();
+  for (const c of cwJson.edges) {
+    const e = graph.edges[c.edge];
+    if (e && e[2] === 'trunk' && e[0] === c.nodes[0] && e[1] === c.nodes[1]) rec.set(c.edge, c);
+  }
+  const half = k => { const c = rec.get(k); return !c || c.kind === 'dual' ? TRUNK_M / 2 : c.kind === 'divided' ? (2 * Math.max(1, c.lanes) * LANE_M + ISLAND_M) / 2 : ROAD_M.secondary / 2; };
+  return trikeyRoads.clearOfA28(trike, half, (fx, fy) => ({ x: fx * ASPECT * METRES_PER_UNIT, y: fy * METRES_PER_UNIT }));
+})();
+const adj = graph.nodes.map(() => []);
+for (const [i, j] of graph.edges) {
+  if (!graph.nodes[i] || !graph.nodes[j]) continue;
+  const w = Math.hypot((graph.nodes[i][0] - graph.nodes[j][0]) * ASPECT, graph.nodes[i][1] - graph.nodes[j][1]);
+  adj[i].push([j, w]); adj[j].push([i, w]);
+}
+function shortestPath(s, t) {
+  const n = adj.length, dist = new Float64Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1), done = new Uint8Array(n);
+  dist[s] = 0;
+  for (;;) {
+    let u = -1, best = Infinity;
+    for (let i = 0; i < n; i++) if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
+    if (u < 0 || u === t) break;
+    done[u] = 1;
+    for (const [v, w] of adj[u]) if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; prev[v] = u; }
+  }
+  if (dist[t] === Infinity) return null;
+  const p = []; for (let v = t; v >= 0; v = prev[v]) p.push(v);
+  return p.reverse();
+}
+
+/** The page's route: toPolyline, classAtS, cwAtS, laneOffset, trafficClassAt
+ *  and canOvertakeAt, line for line. */
+export function makeRoute(path) {
+  const pts = trike
+    ? trikeyRoads.routePoints(trike, trikeShown, path).map(p => ({ x: p.x, y: p.y, s: 0, cls: p.cls }))
+    : path.map(i => ({ x: graph.nodes[i][0] * ASPECT * METRES_PER_UNIT, y: graph.nodes[i][1] * METRES_PER_UNIT, s: 0 }));
+  for (let i = 1; i < pts.length; i++) {
+    pts[i].s = pts[i - 1].s + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    if (!trike) pts[i].cls = edgeCls.get(key(path[i - 1], path[i])) ?? 'tertiary';
+    pts[i].cw = pts[i].cls === 'trunk' ? edgeCw.get(key(path[i - 1], path[i])) ?? null : null;
+  }
+  pts[0].cls = pts[1].cls; pts[0].cw = pts[1].cw;
+  const seg = s => { let i = 1; while (i < pts.length - 1 && pts[i].s < s) i++; return Math.min(i, pts.length - 1); };
+  const classAtS = s => pts[seg(s)].cls;
+  const cwAtS = s => pts[seg(s)].cw ?? null;
+  const atDistance = s => {
+    if (s <= 0) return { x: pts[0].x, y: pts[0].y, h: Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) };
+    const i = seg(s), a = pts[i - 1], b = pts[i], t = (s - a.s) / Math.max(1e-6, b.s - a.s);
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, h: Math.atan2(b.y - a.y, b.x - a.x) };
+  };
+  const roadWidth = (cls, cw) => {
+    if (cls !== 'trunk') return ROAD_M[cls] ?? 8;
+    if (!cw || cw.kind === 'dual') return TRUNK_M;
+    if (cw.kind === 'divided') return 2 * Math.max(1, cw.lanes) * LANE_M + ISLAND_M;
+    return ROAD_M.secondary;
+  };
+  const laneOffset = (lane, s) => {
+    const cls = s == null ? null : classAtS(s);
+    const cw = cls === 'trunk' ? cwAtS(s) : null;
+    if (cls === 'trunk' && (!cw || cw.kind === 'dual')) return -(RESERVATION_M / 2 + (lane === 0 ? 1.5 : 0.5) * TRUNK_LANE_M);
+    if (cw && cw.kind === 'divided') return -(ISLAND_M / 2 + (cw.lanes >= 2 && lane === 0 ? 1.5 : 0.5) * LANE_M);
+    if (cls === 'track' || cls === 'path' || cls === 'crossing') return 0;
+    const q = (cls ? roadWidth(cls, cw) : 2 * LANE_M) / 4;
+    return lane === 0 ? -q : q;
+  };
+  const bigRoadAt = s => { if (classAtS(s) !== 'trunk') return false; const c = cwAtS(s); return !c || c.kind === 'dual'; };
+  const trafficClassAt = s => { const c = classAtS(s); if (c === 'crossing') return 'path'; return c === 'trunk' && !bigRoadAt(s) ? 'secondary' : c; };
+  const canOvertakeAt = s => { const c = classAtS(s) === 'trunk' ? cwAtS(s) : null; return !(c && c.kind === 'divided' && c.lanes < 2); };
+  const kindAt = s => { const c = classAtS(s); if (c !== 'trunk') return ({ residential: 'lane', unclassified: 'lane', track: 'track', path: 'path', crossing: 'crossing' })[c] ?? 'main'; return 'A28 ' + (cwAtS(s)?.kind ?? 'dual'); };
+  return { pts, length: pts[pts.length - 1].s, atDistance, laneOffset, classAtS, cwAtS, trafficClassAt, canOvertakeAt, kindAt, laneWidth: LANE_M };
+}
+
+const ids = Object.keys(graph.anchors);
+/** Where a route folds back on itself: the first s from which a part of it
+ *  more than 40 m further along comes within 12 m, or -1. */
+function foldStart(route) {
+  const pts = [];
+  for (let s = 0; s <= route.length; s += 5) pts.push(route.atDistance(s));
+  for (let i = 0; i < pts.length; i++) for (let j = i + 9; j < pts.length; j++) {
+    const d = Math.hypot(pts[j].x - pts[i].x, pts[j].y - pts[i].y);
+    if (d < 12) return i * 5;
+    j += Math.max(0, Math.floor((d - 12) / 10));   // a sample moves at most 5 m
+  }
+  return -1;
+}
+
+/** A route like pickRoute(), and a third of the time one that uses the A28,
+ *  started just before it, as the page's "to big road" / "to A28 town"; and
+ *  a sixth of the time one that folds back on itself, started short of the
+ *  fold, so traffic on its far part meets the van. */
+function pickRoute(r) {
+  // A pair of places and the route between: for Trikey, only places she can
+  // reach on her own roads (trikeyRoads.pickTrip, as the page picks).
+  const pair = () => {
+    if (trike) return trikeyRoads.pickTrip(trike, r, null)?.path ?? null;
+    const a = ids[(r() * ids.length) | 0], b = ids[(r() * ids.length) | 0];
+    return a === b ? null : shortestPath(graph.anchors[a], graph.anchors[b]);
+  };
+  if (r() < 0.17) {
+    for (let tries = 0; tries < 200; tries++) {
+      const p = pair();
+      if (!p || p.length < 12) continue;
+      const route = makeRoute(p), f = foldStart(route);
+      if (f >= 0) return { route, start: Math.max(0, f - 120), fold: true };
+    }
+  }
+  const wantA28 = r() < 0.34 ? ['dual', 'divided', 'single'][(r() * 3) | 0] : null;
+  for (let tries = 0; tries < 400; tries++) {
+    const p = pair();
+    if (!p || p.length < 12) continue;
+    const route = makeRoute(p);
+    if (!wantA28) return { route, start: 0 };
+    // Trikey never rides the A28: started instead just before she crosses it.
+    const k = trike ? route.pts.findIndex(q => q.cls === 'crossing')
+      : route.pts.findIndex(q => q.cls === 'trunk' && (q.cw?.kind ?? 'dual') === wantA28);
+    if (k > 0 || tries > 300) return { route, start: k > 0 ? Math.max(0, route.pts[k - 1].s - 60) : 0 };
+  }
+  throw new Error('no route');
+}
+
+// ---------------------------------------------------------------- geometry
+
+function corners(x, y, h, len, wid) {
+  const c = Math.cos(h), s = Math.sin(h), l = len / 2, w = wid / 2;
+  return [[l, w], [-l, w], [-l, -w], [l, -w]].map(([u, v]) => [x + u * c - v * s, y + u * s + v * c]);
+}
+function segDist([px, py], [ax, ay], [bx, by]) {
+  const dx = bx - ax, dy = by - ay, t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(px - ax - t * dx, py - ay - t * dy);
+}
+function overlap(A, B) {
+  for (const Q of [A, B]) for (let i = 0; i < 4; i++) {
+    const [ax, ay] = Q[i], [bx, by] = Q[(i + 1) % 4], nx = ay - by, ny = bx - ax;
+    let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+    for (const [x, y] of A) { const d = x * nx + y * ny; a0 = Math.min(a0, d); a1 = Math.max(a1, d); }
+    for (const [x, y] of B) { const d = x * nx + y * ny; b0 = Math.min(b0, d); b1 = Math.max(b1, d); }
+    if (a1 < b0 || b1 < a0) return false;
+  }
+  return true;
+}
+/** Gap between two boxes {x, y, h, len, wid}, metres; 0 is contact. */
+function clearance(P, Q) {
+  const far = Math.hypot(P.x - Q.x, P.y - Q.y) - Math.hypot(P.len, P.wid) / 2 - Math.hypot(Q.len, Q.wid) / 2;
+  if (far > 3) return far;
+  const A = corners(P.x, P.y, P.h, P.len, P.wid), B = corners(Q.x, Q.y, Q.h, Q.len, Q.wid);
+  if (overlap(A, B)) return 0;
+  let best = Infinity;
+  for (const [U, V] of [[A, B], [B, A]]) for (const p of U) for (let i = 0; i < 4; i++) best = Math.min(best, segDist(p, V[i], V[(i + 1) % 4]));
+  return best;
+}
+
+// ------------------------------------------------------- the page's camera
+
+/** drive-spike.html's camera, as crossings.check.mjs models it (measured on
+ *  the page at 390x844 upright and 844x390 sideways): the road shown ahead
+ *  of the van is vanY / ppm, the van 75% down the road view above the
+ *  152 px dashboard (86% above 72 px sideways, raised to keep its tail and
+ *  16 px behind it in view), the chips end 66 px down, sideways every zoom
+ *  0.75 of upright; the page's zoomTarget, its town pull-back (scenery.js's
+ *  townAt from buildings.json) and its eased aim 20-28 m up the route. */
+const SCREEN = {
+  upright: { roadH: 844 - 152, pin: 0.75, zoomX: 1 },
+  sideways: { roadH: 390 - 72, pin: 0.86, zoomX: 0.75 },
+};
+const ZOOM_LANES = new Set(['residential', 'unclassified', 'track', 'path', 'crossing']);
+const TOWN = (() => {
+  const B = JSON.parse(readFileSync(new URL('../../assets/driving/buildings.json', import.meta.url)));
+  const ring = a => {
+    const r = []; let x = a[1], y = a[2];
+    r.push([x * B.q, y * B.q]);
+    for (let k = 3; k + 1 < a.length; k += 2) { x += a[k]; y += a[k + 1]; r.push([x * B.q, y * B.q]); }
+    return r;
+  };
+  const KINDS = new Set(['house', 'flats', 'retail', 'church', 'school', 'station', 'hall']);
+  const put = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+  const blds = new Map(), housing = new Map();
+  for (const a of B.b) {
+    if (!KINDS.has(B.kinds[a[0]])) continue;
+    const r = ring(a), cx = r.reduce((n, p) => n + p[0], 0) / r.length, cy = r.reduce((n, p) => n + p[1], 0) / r.length;
+    put(blds, Math.floor(cx / 50) + ',' + Math.floor(cy / 50), [cx, cy]);
+  }
+  for (const a of B.a) {
+    if (B.areas[a[0]] !== 'housing') continue;
+    const r = ring(a), xs = r.map(p => p[0]), ys = r.map(p => p[1]);
+    for (let i = Math.floor(Math.min(...xs) / 50); i <= Math.floor(Math.max(...xs) / 50); i++) {
+      for (let j = Math.floor(Math.min(...ys) / 50); j <= Math.floor(Math.max(...ys) / 50); j++) put(housing, i + ',' + j, r);
+    }
+  }
+  return { blds, housing };
+})();
+function inRing(r, x, y) {
+  let c = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const [ax, ay] = r[i], [bx, by] = r[j];
+    if ((ay > y) !== (by > y) && x < (bx - ax) * (y - ay) / (by - ay) + ax) c = !c;
+  }
+  return c;
+}
+function townAt(x, y) {
+  if ((TOWN.housing.get(Math.floor(x / 50) + ',' + Math.floor(y / 50)) ?? []).some(r => inRing(r, x, y))) return 1;
+  let n = 0;
+  for (let i = Math.floor((x - 45) / 50); i <= Math.floor((x + 45) / 50); i++) {
+    for (let j = Math.floor((y - 45) / 50); j <= Math.floor((y + 45) / 50); j++) {
+      for (const [bx, by] of TOWN.blds.get(i + ',' + j) ?? []) if ((bx - x) ** 2 + (by - y) ** 2 < 45 * 45 && ++n >= 8) return 1;
+    }
+  }
+  return Math.max(0, n - 1) / 7;
+}
+function pageCamera(car, R, X, dt, toGo) {
+  const S = car.sideways ? SCREEN.sideways : SCREEN.upright;
+  const big = s => { s = Math.min(R.length, s); if (R.classAtS(s) !== 'trunk') return false; const c = R.cwAtS(s); return !c || c.kind === 'dual'; };
+  let townNow = 0;
+  if (!car.sideways && R.classAtS(car.s) !== 'track'
+    && !X.crossings.some(c => c.state !== 'none' && c.state !== 'gone' && c.s > car.s - 5 && c.s - car.s < 60)) {
+    const a = R.atDistance(car.s), b = R.atDistance(Math.min(R.length, car.s + 30));
+    townNow = Math.max(townAt(a.x, a.y), townAt(b.x, b.y));
+  }
+  car.town = (car.town ?? townNow) + (townNow - (car.town ?? townNow)) * (1 - Math.exp(-1.5 * dt));
+  const still = ZOOM_LANES.has(R.classAtS(car.s)) ? 1.35 : 1.15;
+  let zt = still + (0.66 - still) * Math.min(1, car.v / GEARS[3]);
+  if (car.town > 0) zt += (Math.min(zt, 0.72) - zt) * car.town;
+  if (toGo < 120) zt += (1.6 - zt) * (1 - toGo / 120);
+  if (big(car.s) || big(car.s + 40)) zt = Math.min(zt, 0.62);
+  car.zoom = car.zoom == null ? zt : car.zoom * Math.exp(Math.log(zt / car.zoom) * (1 - Math.exp(-(zt < car.zoom ? 1.5 : 0.7) * dt)));
+  const pos = R.atDistance(car.s);
+  const aimM = Math.min(28, Math.max(20, 0.7 * (car.view?.ahead ?? 0)));
+  const aheadP = R.atDistance(Math.min(R.length - 1, car.s + aimM));
+  const aim = Math.atan2(aheadP.y - pos.y, aheadP.x - pos.x);
+  if (car.camH == null) car.camH = aim;
+  else { const d = aim - car.camH; car.camH += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, 3.4 * dt); }
+  const ppm = 22 * car.zoom * S.zoomX;
+  const vanY = Math.min(S.roadH * S.pin, S.roadH - car.length * ppm / 2 - 16);
+  car.view = { ahead: vanY / ppm, ppm, chipsPx: 66 };
+}
+
+// ---------------------------------------------------------------- the van
+
+function newCar() {
+  return { s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, length: VAN_L, width: VAN_W, camH: null, jostle: 0, gears: VAN_GEARS };
+}
+
+/** drive-spike.html's step(), less the drawing: the same order, the same caps. */
+function stepCar(car, R, T, X, dt, input, stats) {
+  const t = traffic.step(T, dt, car, { closed: crossings.closed(X) });
+  const x = crossings.step(X, dt, car, T.vehicles);
+  t.speedCap = Math.min(t.speedCap, x.speedCap);
+  if (t.laneBlocked || !R.canOvertakeAt(car.s)) car.laneWant = 0;
+  if (t.laneHold) car.laneWant = 1;
+  // The page's peekStep (37A): looking out, and past halfway an overtake if
+  // the road allows it.
+  const mayOvertake = !t.laneBlocked && R.canOvertakeAt(car.s);
+  if (car.laneWant === 1) car.returning = false;
+  else if (car.prevWant === 1) car.returning = true;
+  if (car.returning && car.laneT <= 0.001) car.returning = false;
+  car.ask = car.laneWant === 0 && !car.returning ? input.ask : 0;
+  if (car.laneWant === 0 && !car.returning && car.ask >= 0.5 && mayOvertake) { car.laneWant = 1; car.ask = 0; }
+  car.prevWant = car.laneWant;
+  car.peek = car.laneWant === 0 && !car.returning;
+  car.peekT = car.peek && R.canOvertakeAt(car.s) ? Math.min(1, car.ask / 0.5) * Math.min(0.38, t.peekMax ?? 0) : 0;
+  stats.praised += x.events.length;
+  const toGo = R.length - car.s;
+  const arriveCap = Math.sqrt(2 * PULL_UP * Math.max(0, toGo - STOP_SHORT_M));
+  const gearV = VAN_GEARS[car.gear];
+  const target = Math.min(input.throttle ? gearV : 0, arriveCap);
+  let emergency = 0, capped = 0;
+  if (car.v > t.speedCap) { const v0 = car.v; car.v = Math.max(t.speedCap, car.v - EMERGENCY * dt); capped = (v0 - car.v) / dt; }
+  else if (input.handbrake) car.v = Math.max(0, car.v - HANDBRAKE * dt);
+  else if (car.v < target) {
+    const pull = Math.max(TOP_PULL, Math.min(1, (gearV - car.v) / TOP_OUT));
+    car.v = Math.min(target, t.speedCap, car.v + ACCEL * pull * dt);
+  } else if (input.throttle && target === gearV) car.v = Math.max(target, car.v - ENGINE_EASE * dt);
+  else car.v = Math.max(target, car.v - BRAKE * dt);
+  car.felt = (car.felt ?? 0) + (capped - (car.felt ?? 0)) * (1 - Math.exp(-dt / 0.1));
+  if (capped > 0 && car.felt > BRAKE + 0.5) emergency = car.felt;
+  if (emergency) stats.emergencyFrames++;
+  car.s = Math.min(R.length - STOP_SHORT_M, car.s + car.v * dt);
+
+  const off0 = R.laneOffset(0, car.s), off1 = R.laneOffset(1, car.s);
+  const span = Math.abs(off1 - off0) || LANE_M;
+  const stepT = 7 * dt / span;
+  const goal = car.laneWant === 1 ? 1 : car.peek ? car.peekT : 0;
+  car.laneT += Math.max(-stepT, Math.min(stepT, goal - car.laneT));
+  if (car.base == null) car.base = off0;
+  car.base += Math.max(-4 * dt, Math.min(4 * dt, off0 - car.base));
+  car.lane = car.base + car.laneT * (off1 - off0);
+
+  pageCamera(car, R, X, dt, toGo);
+  const pos = R.atDistance(car.s);
+  car.x = pos.x + Math.cos(pos.h + Math.PI / 2) * car.lane;
+  car.y = pos.y + Math.sin(pos.h + Math.PI / 2) * car.lane;
+  car.h = pos.h;
+  return toGo <= STOP_SHORT_M + 0.5 && car.v < 0.2;
+}
+
+// --------------------------------------------------------------- the driving
+
+const totals = {
+  minutes: 0, routes: 0, crossed: 0, familes: 0, contacts: 0, vanOverlaps: 0,
+  minVan: Infinity, foldFrames: 0, minFold: Infinity, foldRoutes: 0, foldHad: 0, foldShared: 0, foldHolds: 0, foldCaps: 0, foldHard: 0, vanFoldStood: 0, foldLongest: 0, minSame: Infinity, minOnc: Infinity, minVanTraffic: Infinity,
+  stoppedForAnimal: { same: 0, onc: 0 }, waitedForTraffic: 0, hardest: 0, longestStand: 0, longestClosed: 0,
+  byKind: {}, emergencyFrames: 0, praised: 0,
+};
+const fail = [];
+
+/** traffic.js's own counts at the folds, for one route's traffic. */
+function tallyFolds(T) {
+  totals.foldHolds += T.foldHolds ?? 0;
+  totals.foldHad += T.foldHad ?? 0; totals.foldShared += T.foldShared ?? 0;
+  totals.foldLongest = Math.max(totals.foldLongest, T.foldLongest ?? 0);
+}
+
+function drive(seed) {
+  const r = rng(seed * 977 + 3);
+  const season = SEASONS[seed % 4];
+  const watchful = r();
+  const stats = { praised: 0, emergencyFrames: 0 };
+  let R, T, X;
+  const car = newCar();
+  car.sideways = seed % 3 === 0;
+  // In spring a third of the routes are ones past a duck family, started
+  // short of it: water sites are few, and left to chance a whole run can
+  // go by without one crossing (the henry van's run did).
+  const wantDucks = () => season === 'spring' && r() < 0.34;
+  const fresh = () => {
+    const ducks = wantDucks();
+    let p;
+    for (let k = 0; k < (ducks ? 80 : 1); k++) {
+      p = pickRoute(r);
+      R = p.route;
+      X = crossings.create({ length: R.length, atDistance: R.atDistance, laneOffset: R.laneOffset, roadClassAt: R.classAtS, laneWidth: LANE_M },
+        { graph, mapToWorld, season });
+      if (!ducks) break;
+      const c = X.crossings.find(c => c.s > 200 && c.party.some(a => a.kind === 'duckling'));
+      if (c) { p.start = c.s - 160; break; }
+    }
+    if (T) tallyFolds(T);
+    T = traffic.create({ length: R.length, atDistance: R.atDistance, laneOffset: R.laneOffset,
+      roadClassAt: R.trafficClassAt, laneWidth: LANE_M }, { random: r });
+    Object.assign(car, newCar(), { gear: car.gear, sideways: car.sideways });
+    car.s = p.start;
+    totals.routes++;
+    if (p.fold) totals.foldRoutes++;
+  };
+  fresh();
+  const input = { throttle: false, handbrake: false, ask: 0, askFor: 0 };
+  let tInput = 0, arrivedFor = 0, t = 0;
+  const prevV = new Map(), stand = new Map(), closedSince = new Map(), counted = new Set(), waited = new Set();
+  const end = MINUTES * 60;
+  while (t < end) {
+    const dt = 1 / 120 + r() * (0.05 - 1 / 120);
+    t += dt;
+    tInput -= dt;
+    if (tInput <= 0) {
+      input.throttle = r() < 0.8;
+      input.handbrake = !input.throttle && r() < 0.12;
+      tInput = input.throttle ? 0.5 + r() * 10 : 0.2 + r() * 3;
+      if (r() < 0.3) car.gear = 1 + ((r() * 3) | 0);
+      if (r() < 0.3) {
+        if (r() < 0.5) { car.laneWant = 0; input.ask = 0; }
+        else { input.ask = r() < 0.5 ? 1 : 0.1 + r() * 0.55; input.askFor = 0.2 + r() * 3; }
+      }
+    }
+    let held = input.throttle, hb = input.handbrake;
+    if (r() < watchful) {
+      for (const c of X.crossings) {
+        const gap = c.s - (car.s + car.length / 2);
+        if (c.state === 'go' && c.blocking && gap > 0 && gap < 30) { held = false; hb = gap < 6; }
+      }
+    }
+    const kind = R.kindAt(car.s);
+    totals.byKind[kind] = (totals.byKind[kind] ?? 0) + dt / 60;
+    if (input.ask > 0 && (input.askFor -= dt) <= 0) input.ask = 0;   // let go
+    const arrived = stepCar(car, R, T, X, dt, { throttle: held, handbrake: hb, ask: input.ask }, stats);
+    if (car.laneWant === 1) input.ask = 0;   // the swipe is spent on the overtake
+    if (T.last?.capBy === 'fold') {
+      totals.foldCaps++;
+      car.foldStood = car.v < 0.2 ? (car.foldStood ?? 0) + dt : 0;
+      totals.vanFoldStood = Math.max(totals.vanFoldStood, car.foldStood);
+      if (process.env.FOLD_DEBUG && car.foldStood > 20 && !car.foldLogged) {
+        car.foldLogged = true;
+        const near = T.vehicles.filter(w => Math.abs(w.s - car.s) > 40).map(w => { const f = traffic.footprint(T, w); return { kind: w.kind, s: +w.s.toFixed(1), dir: w.dir, v: +w.v.toFixed(2), d: +w.d.toFixed(2), x: +f.x.toFixed(1), y: +f.y.toFixed(1), h: +(f.h * 180 / Math.PI).toFixed(0), stood: +(w.foldStood ?? 0).toFixed(1) }; }).filter(o => Math.hypot(o.x - car.x, o.y - car.y) < 40);
+        const pts = R.pts.filter(q => near.some(o => Math.abs(q.s - o.s) < 40) || Math.abs(q.s - car.s) < 40).map(q => `${q.s.toFixed(0)}:${q.cls}${q.cw ? '/' + q.cw.kind : ''}@${q.x.toFixed(1)},${q.y.toFixed(1)}`);
+        console.log('DEADLOCK', JSON.stringify({ seed, t: +t.toFixed(1), van: { s: +car.s.toFixed(1), x: +car.x.toFixed(1), y: +car.y.toFixed(1), h: +(car.h * 180 / Math.PI).toFixed(0), lane: +car.lane.toFixed(2) }, near, pts }));
+      }
+      if (car.felt > BRAKE + 0.5) totals.foldHard++;
+    } else car.foldStood = 0;
+
+    // Which way each vehicle is giving way: the closed stretches now.
+    const closed = crossings.closed(X);
+    for (const c of X.crossings) {
+      const open = c.state === 'go' && closed.some(z => Math.abs(z.s0 - (c.s - c.near)) < 1e-6);
+      if (open && !closedSince.has(c)) closedSince.set(c, t);
+      if (!open && closedSince.has(c)) { totals.longestClosed = Math.max(totals.longestClosed, t - closedSince.get(c)); closedSince.delete(c); }
+      if (c.state === 'wait' && c.s - (car.s + car.length / 2) < 8 + 0.6 * car.v && !waited.has(c)) {
+        // Close enough that only traffic can be keeping it on the verge.
+        if (T.vehicles.some(w => Math.abs(w.s - c.s) < 60)) { waited.add(c); }
+      }
+      if ((c.state === 'go' || c.state === 'gone') && !counted.has(c)) {
+        counted.add(c); totals.crossed++;
+        if (c.party.some(a => a.kind === 'duckling')) totals.familes++;
+        if (waited.has(c)) totals.waitedForTraffic++;
+      }
+    }
+    for (const w of T.vehicles) {
+      const pv = prevV.get(w);
+      const near = closed.find(z => w.dir > 0 ? z.s0 - (w.s + w.L / 2) > -1 && z.s0 - (w.s + w.L / 2) < 40
+        : (w.s - w.L / 2) - z.s1 > -1 && (w.s - w.L / 2) - z.s1 < 40);
+      // Slowing for the animal itself, not for the van or a vehicle in
+      // between that is stopping for it.
+      const lo = w.dir > 0 ? w.s : near?.s1, hi = w.dir > 0 ? near?.s0 : w.s;
+      const between = near && (T.vehicles.some(u => u !== w && u.dir === w.dir && u.s > lo && u.s < hi)
+        || (car.s + car.length / 2 > lo && car.s - car.length / 2 < hi));
+      if (near && !between && pv != null && pv > 1) {
+        const decel = (pv - w.v) / dt;
+        if (decel > totals.hardest) totals.hardest = decel;
+        if (decel > GENTLE) fail.push(`seed ${seed}: a ${w.kind} (${w.dir > 0 ? 'same way' : 'oncoming'}) slowed for an animal at ${decel.toFixed(1)} m/s² t=${t.toFixed(1)} from ${pv.toFixed(2)} to ${w.v.toFixed(2)}, ${(w.dir > 0 ? near.s0 - w.s - w.L / 2 : w.s - w.L / 2 - near.s1).toFixed(2)} m short; van s=${car.s.toFixed(1)} it s=${w.s.toFixed(1)}; others ${T.vehicles.filter(u => u !== w && Math.abs(u.s - w.s) < 20).map(u => u.dir + '@' + u.s.toFixed(1) + ' v' + u.v.toFixed(1)).join(' ')}`);
+      }
+      if (near && w.v < 0.2) {
+        if (!stand.has(w)) { stand.set(w, t); totals.stoppedForAnimal[w.dir > 0 ? 'same' : 'onc']++; }
+        const st = t - stand.get(w);
+        totals.longestStand = Math.max(totals.longestStand, st);
+        if (st > STAND_MAX_S) { fail.push(`seed ${seed}: a ${w.kind} stood for an animal ${st.toFixed(0)} s`); stand.set(w, t); }
+      } else if (w.v > 0.5) stand.delete(w);
+      prevV.set(w, w.v);
+    }
+
+    // Contacts: every animal against the van and against every vehicle.
+    const vanBox = { x: car.x, y: car.y, h: car.h, len: car.length, wid: car.width };
+    const boxes = T.vehicles.map(w => { const f = traffic.footprint(T, w); return { w, b: { x: f.x, y: f.y, h: f.h, len: f.L, wid: f.W } }; });
+    for (const { w, b } of boxes) {
+      if (Math.abs(b.x - car.x) > 30 || Math.abs(b.y - car.y) > 30) continue;
+      const g = clearance(vanBox, b);
+      // Every vehicle counts, wherever it is along the route: one on a part
+      // of the route that folds back past the van (a hairpin, the A28
+      // bending on a point of the Westgate house street the route drove
+      // earlier) is drawn where it is, on the screen beside the van.
+      const foldedHere = Math.abs(w.s - car.s) > 40 && Math.hypot(b.x - car.x, b.y - car.y) < 0.5 * Math.abs(w.s - car.s);
+      if (foldedHere) { totals.foldFrames++; totals.minFold = Math.min(totals.minFold, g); }
+      totals.minVanTraffic = Math.min(totals.minVanTraffic, g);
+      if (g <= 0 && process.env.DEBUG && totals.vanOverlaps === 0) {
+        const pts = R.pts.filter(q => q.s > car.s - 60 && q.s < w.s + 60).map(q => `${q.s.toFixed(0)}:${q.cls}/${q.cw?.kind ?? ''}${q.cw?.lanes ?? ''}`);
+        const hs = []; for (let s = car.s - 10; s < w.s + 20; s += 4) hs.push((R.atDistance(s).h * 180 / Math.PI).toFixed(0));
+        console.log('DEBUG', JSON.stringify({ van: vanBox, it: b, pts, hs, off0van: R.laneOffset(0, car.s), off0it: R.laneOffset(0, w.s), L: w.L }));
+      }
+      if (g <= 0) { totals.vanOverlaps++; fail.push(`seed ${seed}: a ${w.kind} touched the van at t=${t.toFixed(1)} (${w.dir > 0 ? 'same way' : 'oncoming'}, ${kind}, van s=${car.s.toFixed(1)} v=${car.v.toFixed(1)} laneT=${car.laneT.toFixed(2)} lane=${car.lane.toFixed(2)}; it s=${w.s.toFixed(1)} v=${w.v.toFixed(1)} d=${w.d.toFixed(2)}; cap by ${T.last?.capBy} unsafe '${T.last?.unsafe}' hold ${T.last?.hold})`); }
+    }
+    for (const a of crossings.animals(X, car.camH)) {
+      const A = { x: a.x, y: a.y, h: a.h, len: a.len, wid: a.wid };
+      const live = a.crossing.state === 'go';
+      const gv = clearance(vanBox, A);
+      if (live) totals.minVan = Math.min(totals.minVan, gv);
+      if (gv <= 0) { totals.contacts++; fail.push(`seed ${seed}: the van touched a ${a.kind} at t=${t.toFixed(1)} (${kind})`); }
+      for (const { w, b } of boxes) {
+        if (Math.abs(b.x - a.x) > 25 || Math.abs(b.y - a.y) > 25) continue;
+        const g = clearance(b, A);
+        if (live) { if (w.dir > 0) totals.minSame = Math.min(totals.minSame, g); else totals.minOnc = Math.min(totals.minOnc, g); }
+        if (g <= 0) {
+          totals.contacts++;
+          fail.push(`seed ${seed}: a ${w.dir > 0 ? 'same-way' : 'oncoming'} ${w.kind} touched a ${a.kind} (${a.crossing.state}) at t=${t.toFixed(1)}, v=${w.v.toFixed(1)}`);
+        }
+      }
+    }
+
+    if (arrived) arrivedFor += dt;
+    const jump = r() < 1 / (60 * 60 * 3);
+    if (arrivedFor > ARRIVED_WAIT_S || jump) { fresh(); arrivedFor = 0; prevV.clear(); stand.clear(); closedSince.clear(); }
+  }
+  totals.minutes += end / 60;
+  tallyFolds(T);
+  totals.praised += stats.praised;
+  totals.emergencyFrames += stats.emergencyFrames;
+}
+
+const t0 = Date.now();
+for (let seed = Number(process.env.FIRST ?? 1); seed < Number(process.env.FIRST ?? 1) + SEEDS; seed++) drive(seed);
+const f2 = x => isFinite(x) ? x.toFixed(2) : 'n/a';
+console.log(`safety.check: ${SEEDS} seeds x ${MINUTES} simulated minutes on the Birchie graph, ${totals.routes} routes, the ${VAN_ID} van (${VAN_L.toFixed(2)} m), ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+console.log(`  minutes driven by road: ${Object.entries(totals.byKind).map(([k, v]) => `${k} ${v.toFixed(0)}`).join(', ')}`);
+console.log(`  animals crossed ${totals.crossed} (families of ducklings ${totals.familes}), waited on the verge with traffic near ${totals.waitedForTraffic}`);
+console.log(`  vehicles that stopped for an animal: same way ${totals.stoppedForAnimal.same}, oncoming ${totals.stoppedForAnimal.onc}`);
+console.log(`  hardest any vehicle slowed for an animal ${totals.hardest.toFixed(2)} m/s² (allowed ${GENTLE}), longest stand ${totals.longestStand.toFixed(1)} s, longest a crossing was closed ${totals.longestClosed.toFixed(1)} s`);
+console.log(`  contacts with animals ${totals.contacts}; closest to a crossing animal: the van ${f2(totals.minVan)} m, traffic going the same way ${f2(totals.minSame)} m, oncoming traffic ${f2(totals.minOnc)} m`);
+console.log(`  vehicles touching the van ${totals.vanOverlaps} (closest ${f2(totals.minVanTraffic)} m), every vehicle on any part of the route, measured where it is drawn`);
+console.log(`  where the route folds back (${totals.foldRoutes} routes chosen to): frames the van had a fold zone ${totals.foldHad}, with a vehicle on its other part ${totals.foldShared}; frames with a vehicle from the far part beside the van ${totals.foldFrames}, closest ${f2(totals.minFold)} m; frames such a vehicle was held for the van ${totals.foldHolds} (longest stand ${totals.foldLongest.toFixed(1)} s), the van held for it ${totals.foldCaps} (longest stand ${totals.vanFoldStood.toFixed(1)} s, hard-braking frames ${totals.foldHard})`);
+if (totals.foldLongest > STAND_MAX_S || totals.vanFoldStood > STAND_MAX_S) fail.push('a vehicle or the van stood for the other at a fold longer than STAND_MAX_S');
+console.log(`  she stopped by herself ${totals.praised}, hard-braking frames ${totals.emergencyFrames}`);
+if (!totals.stoppedForAnimal.same || !totals.stoppedForAnimal.onc) fail.push('no vehicle ever stopped for an animal both ways: the check did not exercise it');
+if (SEEDS * MINUTES >= 300 && !totals.familes) fail.push('no duck family crossed: the check did not exercise one');
+if (!totals.foldFrames) fail.push('no vehicle on a folded part of a route came near the van: the check did not exercise it');
+if (fail.length) { console.error('FAIL\n' + fail.slice(0, 25).join('\n')); process.exit(1); }
+console.log(`PASS: ${totals.vanOverlaps} real overlaps between the van and any vehicle, ${totals.contacts} contacts with an animal.`);

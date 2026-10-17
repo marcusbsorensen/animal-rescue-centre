@@ -54,9 +54,9 @@ put it on the fix list — it is offered as optional below.
 
 The badge treatment to match, in order of how well each shows it:
 
-- https://animal-rescue-centre.vercel.app/assets/signs/nav-home.png
-- https://animal-rescue-centre.vercel.app/assets/signs/nav-social.png
-- https://animal-rescue-centre.vercel.app/assets/signs/nav-care.png
+- https://play.arcgame.app/assets/signs/nav-home.png
+- https://play.arcgame.app/assets/signs/nav-social.png
+- https://play.arcgame.app/assets/signs/nav-care.png
 
 If you cannot fetch these URLs, STOP and report back — do not generate from
 description alone.

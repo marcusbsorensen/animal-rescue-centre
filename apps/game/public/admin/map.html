@@ -36,7 +36,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body {
-    font-family: 'Quicksand', system-ui, sans-serif;
+    font-family: var(--body-font);
     background: #2a2622;
     color: var(--cream-wash);
     overflow: hidden;
@@ -84,7 +84,7 @@
     box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.18);
     padding: 6px 18px;
     cursor: pointer; user-select: none;
-    font-family: 'Fredoka', sans-serif; font-weight: 500; font-size: var(--fs-floor);
+    font-family: var(--body-font); font-weight: 600; font-size: var(--fs-floor);
     color: var(--ink-soft);
   }
   .tab.active {
@@ -114,17 +114,13 @@
   html.overlay-mode body { background: transparent; }
   html.overlay-mode .stage { background: transparent; }
   html.overlay-mode #arc-stage .arc-frame {
-    /* Calm cream gravel base across the WHOLE frame so the area
-       behind the ARC building + the south parking strip don't show
-       through to the bare soil. Painted regions sit on top at full
-       opacity (per the dimmer rule below) (Marcus 2026-05-06). */
-    background-color: #d8c89a;
-    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/texture-gravel-fine.png');
-    background-size: 60px 60px;
-    background-repeat: repeat;
-    /* Half-strength so the gravel reads as 'aboveground reference'
-       without dominating the puzzle layer beneath. */
-    opacity: 0.55;
+    /* Transparent, and NOT dimmed. The frame carries no opacity of its own:
+       an opacity here multiplies everything inside it, and 0.55 on the whole
+       frame (181652e) took the building to half strength and the patches and
+       paths to a quarter. Each part dims itself below: the building 1.0, the
+       patches 0.45, the gravel paths 0.5. */
+    background-color: transparent;
+    background-image: none;
   }
   /* Slide the building down so it sits flush at the BOTTOM of the
      frame (since parking is hidden). Default bottom:11% is the
@@ -300,13 +296,15 @@
   }
   .stage:not(.active) { display: none; }
 
-  /* Town stage: the SVG now uses preserveAspectRatio="slice" so it
-     always fills the viewport completely (cropping a little of the
-     opposite axis as needed). That means there are no letterbox
-     bars to fill — the stage background is only visible momentarily
-     during SVG load. Keep a neutral sea blue as the load colour. */
+  /* Town stage: the SVG is `meet`, the whole map inside the stage, so a
+     stage that is not the map's shape shows spare room either side (or above
+     and below). That room is sea: placePins() paints it the colour the SVG's
+     own sea is in the current season, and clips the SVG to its map so nothing
+     the drawing keeps beyond its edge shows in it. This is the load colour,
+     and the one used if the SVG's document cannot be read. */
   #world-stage {
-    background: #bfdde3;
+    background-color: #bfdde3;
+    transition: background-color 1.1s ease;
   }
 
   /* World view */
@@ -342,7 +340,7 @@
     border: 2px solid var(--honey-shadow);
     border-radius: 14px;
     padding: 3px 12px;
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700; font-size: var(--fs-floor);
     color: var(--ink);
     transform: translate(-50%, 0);
@@ -436,7 +434,7 @@
   #world-stage .dest-call {
     grid-area: call;
     justify-self: start;
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     color: var(--ink);
     background: #f3e7cf;
@@ -446,7 +444,7 @@
   }
   #world-stage .pin-place:hover .pin-disc { transform: scale(1.08); }
   #world-stage .pin-name {
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: var(--fs-floor);
     color: var(--ink);
@@ -455,6 +453,34 @@
     padding: 1px 8px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.22);
     white-space: nowrap;
+    /* placePinNames() steps a name clear of what it would sit under by a
+       transform on the name alone, so the disc and its tap target stay put. */
+    transform: translate(var(--nx, 0px), var(--ny, 0px));
+  }
+  /* The same name on two lines, for a place with no room to stand wide. The
+     words are the card's words, wrapped and never shortened. */
+  #world-stage .pin-name.two {
+    white-space: normal;
+    max-width: 6.4em;
+    text-align: center;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+  /* **A long name takes two lines; it is never shortened.** The hog
+     hospital's name is 29 characters, a label 218px wide, and at phone
+     width the pin beside it is 85px away: the end of its name went under
+     its neighbour's. Two lines make it 144px, split at the middle. The
+     words are the card's words: a child who has read the name on the card
+     must find the same name on the map, so the fix is in the layout and not
+     the text (the names are placeholders, spelt in destinations.ts only).
+     Only names over LONG_NAME characters wrap; every other name stays on one
+     line, as it was. */
+  #world-stage .pin-name.long {
+    white-space: normal;
+    max-width: 9em;
+    text-align: center;
+    line-height: 1.1;
+    text-wrap: balance;
   }
   #world-stage .pin-place.locked { cursor: pointer; }
   #world-stage .pin-place.locked .pin-disc {
@@ -516,7 +542,7 @@
   }
   #world-stage .dest-title {
     grid-area: title;
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(var(--fs-floor), 4.6cqh, 21px);
     color: var(--ink);
@@ -536,7 +562,7 @@
     justify-content: flex-end;
   }
   #world-stage .dest-btn {
-    font-family: 'Quicksand', system-ui, sans-serif;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: var(--fs-floor);
     min-height: 44px;
@@ -558,7 +584,7 @@
   #world-stage .dest-locked {
     grid-area: action;
     margin-top: 10px;
-    font-family: 'Quicksand', system-ui, sans-serif;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: var(--fs-floor);
     color: var(--trellis-brown);
@@ -622,7 +648,7 @@
     content: attr(data-future);
     position: absolute;
     bottom: 4px; right: 6px;
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-size: var(--fs-floor);
     color: rgba(58,58,58,0.55);
     background: rgba(255,249,239,0.7);
@@ -847,7 +873,7 @@
     bottom: 8%;
     writing-mode: sideways-lr;
     transform: translateX(-50%);
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: var(--fs-floor);                     /* bumped from 11px for readability */
     color: var(--bay-line);
@@ -868,7 +894,7 @@
     bottom: 4%;
     writing-mode: sideways-lr;
     transform: translateX(-50%);
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: var(--fs-floor);
     color: var(--bay-line);
@@ -917,21 +943,40 @@
     transform: translate(-50%, -50%);
   }
 
-  /* Garden-tunnel mouth — small painted hatch on the central path. */
+  /* Garden-tunnel mouth — the hatch set in the gravel at the foot of the
+     central path, where the building's south-east corner meets the parking
+     strip. It was 4% of the 600px frame, 24px, with a 🐾 drawn as text in an
+     SVG that came out about 4px high.
+     The BOX is the tap target and is 48px at every size (the hand sets it, not
+     the map; the frame is 600px wide whatever the screen is). The DRAWING in it
+     is the hatch at about 38px with a paw of about 19px, drawn as shapes so it
+     is crisp at any pixel density. It sits 18px up, in the gravel, instead of
+     astride the strip's edge. A <button>, so it can be reached and pressed
+     from a keyboard as well. */
   #arc-stage .tunnel-mouth {
     position: absolute;
-    width: 4%; aspect-ratio: 1 / 1;
+    width: 48px; height: 48px;
+    margin-top: -18px;
+    padding: 0; border: 0; background: none;
+    font: inherit; color: inherit;
+    border-radius: 50%;
     transform: translate(-50%, -50%);
     cursor: pointer;
     z-index: 3;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
     transition: transform 0.15s ease, filter 0.15s ease;
-    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+    filter: drop-shadow(0 2px 2px rgba(42,26,8,0.45));
   }
   #arc-stage .tunnel-mouth:hover {
-    transform: translate(-50%, -50%) scale(1.15);
-    filter: drop-shadow(0 3px 5px rgba(0,0,0,0.5));
+    transform: translate(-50%, -50%) scale(1.1);
+    filter: drop-shadow(0 3px 4px rgba(42,26,8,0.5));
   }
+  #arc-stage .tunnel-mouth:active { transform: translate(-50%, -50%) scale(0.95); }
+  #arc-stage .tunnel-mouth:focus-visible { outline: 3px solid #ffd36b; outline-offset: 1px; }
   #arc-stage .tunnel-mouth svg { width: 100%; height: 100%; display: block; }
+  /* Not part of the overlay the tunnel mini-game lays over its own board. */
+  html.overlay-mode #arc-stage .tunnel-mouth { display: none; }
 
   #arc-stage .region-label {
     position: absolute;
@@ -939,7 +984,7 @@
     border: 1px solid rgba(123,92,58,0.4);
     border-radius: 10px;
     padding: 2px 8px;
-    font-family: 'Kalam', cursive; font-weight: 700; font-size: var(--fs-floor);
+    font-family: var(--body-font); font-weight: 700; font-size: var(--fs-floor);
     color: var(--ink);
     pointer-events: none;
     transform: translate(-50%, -50%);
@@ -959,7 +1004,7 @@
     border: 2px solid var(--honey-shadow);
     border-radius: 18px;
     padding: 4px 16px;
-    font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 16px;
+    font-family: var(--headline-font); font-weight: 700; font-size: 16px;
     color: var(--ink);
     box-shadow: 2px 3px 0 rgba(0,0,0,0.15);
     z-index: 10;
@@ -973,7 +1018,7 @@
     border-radius: 22px;
     padding: 6px 14px 6px 8px;
     cursor: pointer; user-select: none;
-    font-family: 'Kalam', cursive; font-weight: 700; font-size: var(--fs-floor);
+    font-family: var(--body-font); font-weight: 700; font-size: var(--fs-floor);
     color: var(--ink);
     box-shadow: 2px 3px 0 rgba(0,0,0,0.12);
     transform: rotate(-3deg);
@@ -994,7 +1039,7 @@
     border: 2px solid var(--honey-shadow);
     border-radius: 18px;
     padding: 3px;
-    font-family: 'Quicksand', sans-serif;
+    font-family: var(--body-font);
     font-size: var(--fs-floor);
   }
   #arc-stage .season-strip button {
@@ -1150,22 +1195,44 @@
          Coordinates per docs/garden-tunnel-tile-inventory-2026-05-03.md
          §0 (entry hatch ~63.67%, ~95% — placed slightly above at 87%
          so it sits visibly above the parking strip). -->
-    <div class="tunnel-mouth" id="tunnel-mouth" role="button"
+    <button type="button" class="tunnel-mouth" id="tunnel-mouth"
          aria-label="Garden tunnel entrance"
          style="left: 63.67%; top: 87%;">
       <svg viewBox="0 0 100 100" aria-hidden="true">
-        <!-- Soil ring -->
-        <ellipse cx="50" cy="55" rx="42" ry="38" fill="#5a3a1c" stroke="#2a1a08" stroke-width="3"/>
-        <!-- Dark hole -->
-        <ellipse cx="50" cy="58" rx="32" ry="26" fill="#1a0d04"/>
-        <!-- Highlight -->
-        <ellipse cx="42" cy="44" rx="10" ry="5" fill="rgba(255,255,255,0.18)"/>
-        <!-- Paw print walking in -->
-        <text x="50" y="62" text-anchor="middle"
-              font-family="Fredoka, sans-serif" font-size="18"
-              fill="#d8b87a">🐾</text>
+        <!-- Packed earth the hatch is set into, with a ring of gravel stones -->
+        <circle cx="50" cy="52" r="43" fill="#7d5c37" stroke="#3a2410" stroke-width="3.2"/>
+        <g fill="#cdbb95" stroke="#6b5338" stroke-width="1.4">
+          <ellipse cx="50" cy="14" rx="6" ry="4"/>
+          <ellipse cx="78" cy="25" rx="5.4" ry="4.2" transform="rotate(40 78 25)"/>
+          <ellipse cx="87" cy="53" rx="4" ry="6"/>
+          <ellipse cx="76" cy="80" rx="5.4" ry="4.2" transform="rotate(-40 76 80)"/>
+          <ellipse cx="50" cy="91" rx="6" ry="4"/>
+          <ellipse cx="24" cy="80" rx="5.4" ry="4.2" transform="rotate(40 24 80)"/>
+          <ellipse cx="13" cy="53" rx="4" ry="6"/>
+          <ellipse cx="22" cy="25" rx="5.4" ry="4.2" transform="rotate(-40 22 25)"/>
+        </g>
+        <!-- The dark of the tunnel, showing as a crescent under the lid -->
+        <circle cx="50" cy="57" r="35" fill="#1a0d04"/>
+        <!-- The lid: wooden planks, bound -->
+        <clipPath id="hatch-lid"><circle cx="50" cy="50" r="34"/></clipPath>
+        <circle cx="50" cy="50" r="34" fill="#b9843f"/>
+        <g clip-path="url(#hatch-lid)" stroke="#7a5025" stroke-width="2.2" fill="none">
+          <line x1="33" y1="14" x2="33" y2="86"/>
+          <line x1="67" y1="14" x2="67" y2="86"/>
+          <rect x="12" y="20" width="76" height="6" fill="#4a3320" stroke="none"/>
+          <rect x="12" y="74" width="76" height="6" fill="#4a3320" stroke="none"/>
+        </g>
+        <circle cx="50" cy="50" r="34" fill="none" stroke="#3a2410" stroke-width="3.4"/>
+        <!-- The paw that walks in: pad and four toes, in shapes -->
+        <g transform="translate(50 52) scale(1.12) translate(-50 -50)" fill="#fff3d0" stroke="#3a2410" stroke-width="1.9" stroke-linejoin="round">
+          <path d="M50 68 C41 68 36 63 38 57 C40 51.500 45 50 50 50 C55 50 60 51.500 62 57 C64 63 59 68 50 68 Z"/>
+          <ellipse cx="35.500" cy="46" rx="4.300" ry="5.600" transform="rotate(-24 35.500 46)"/>
+          <ellipse cx="44.500" cy="38.500" rx="4.300" ry="5.800"/>
+          <ellipse cx="55.500" cy="38.500" rx="4.300" ry="5.800"/>
+          <ellipse cx="64.500" cy="46" rx="4.300" ry="5.600" transform="rotate(24 64.500 46)"/>
+        </g>
       </svg>
-    </div>
+    </button>
 
     <!-- Long-bay deep extension — placed AFTER the building stamp
          so the painted-canopy tarmac visibly extends UPWARD past
@@ -1182,6 +1249,9 @@
   </div>
 </div>
 
+<!-- Where the SVG puts the map inside its box, per its own viewBox and
+     preserveAspectRatio. Classic script so it has run before the module below. -->
+<script src="map-fit.js"></script>
 <script type="module">
   // Tab switching
   const tabs = document.querySelectorAll('.tab');
@@ -1308,6 +1378,27 @@
     const obj = document.getElementById('osm-svg');
     const svg = obj && obj.contentDocument && obj.contentDocument.querySelector('svg');
     if (svg) svg.setAttribute('data-season', season);
+    // Santa's grotto is winter's: its label comes and goes with the season.
+    if (svg) { try { syncSeasonLabels(); } catch (_) { /* the labels are not placed yet */ } }
+    // The SVG fades its sea to the new season's blue over 1.1s; the room round
+    // the map follows it once that has finished, so the two end the same colour.
+    setTimeout(syncStageSea, 1250);
+  }
+
+  /**
+   * Paint the stage the colour the SVG's sea is right now. Spare room round
+   * the map (a stage not the map's shape) reads as more sea only if it is the
+   * same sea: the SVG's sea changes with the season, so no fixed colour is.
+   */
+  function syncStageSea() {
+    const obj = document.getElementById('osm-svg');
+    let sea = null;
+    try {
+      const doc = obj && obj.contentDocument;
+      const el = doc && doc.getElementById('sea-bg');
+      if (el) sea = doc.defaultView.getComputedStyle(el).fill;
+    } catch (_) { /* cross-origin: keep the load colour */ }
+    if (sea && sea !== 'none') document.getElementById('world-stage').style.backgroundColor = sea;
   }
 
   // Initial season: URL param > inferred from real-world month
@@ -1351,12 +1442,15 @@
     }
   });
 
-  // World-view: position pins relative to OSM SVG canvas.
-  // 2026-05-03: bounds widened to (51.355..51.390, 1.270..1.360) so
-  // the canvas now covers Birchington + Westgate + Quex Park + south
-  // countryside. Aspect is ~1.6:1 (1800×1121) — much more square.
-  const SVG_VIEW_W = 1800;
-  const SVG_VIEW_H = 1121;
+  // World-view: position pins relative to the OSM SVG canvas.
+  //
+  // **The map's size and fit are the SVG's, read off its root.** This page
+  // used to hold the viewBox (1800x1121) and assume `meet`, and the SVG root
+  // said `slice` from 2026-05-18, so the pins were laid out for a map the
+  // drawing was not: 73px right and 20px below at iPhone landscape. Now
+  // svgFit() reads viewBox and preserveAspectRatio from the loaded document
+  // and MapFit.place() (map-fit.js) does what the SVG does with them, so a
+  // change to either is followed rather than contradicted.
 
   // ── What the host tells us ────────────────────────────────
   //
@@ -1397,20 +1491,43 @@
     while (node.firstChild) node.removeChild(node.firstChild);
   }
 
+  // ── begin screen geometry ──
+  // svgFit .. svgToScreen below are run AS WRITTEN by road-graph-reach.test.ts
+  // (in a vm, against a stubbed document and the SVG's real root attributes),
+  // which holds them to what the SVG itself draws. Keep them to the DOM reads
+  // they make now (the stage rect, the object's offsetWidth/Height and the
+  // loaded root's attributes) and the globals `MapFit` and `extent`.
+  /** viewBox and preserveAspectRatio of the loaded SVG, or null until it is. */
+  function svgFit() {
+    const obj = document.getElementById('osm-svg');
+    let root = null;
+    try { root = obj && obj.contentDocument && obj.contentDocument.documentElement; } catch (_) { /* cross-origin */ }
+    return MapFit.readRoot(root);
+  }
+
+  /**
+   * Where the map sits in the stage before the frame's zoom: the rectangle
+   * the SVG's viewBox occupies, as the SVG itself places it in its box.
+   *
+   * The box is the `<object>`'s LAYOUT box (offsetWidth/Height), and the
+   * object is at the stage's origin, because `.map-canvas` is inset 0. Not
+   * getBoundingClientRect: placePins() puts a CSS transform on the object, so
+   * its rect carries the last call's zoom, and reading it back made every
+   * second call (a resize, a rotation, the 200 and 600ms retries after an
+   * init) undo the frame the one before had set.
+   */
   function computeSvgRect() {
     const obj = document.getElementById('osm-svg');
-    const r = obj.getBoundingClientRect();
-    if (r.width === 0 || r.height === 0) return null;
-    // Match the SVG's preserveAspectRatio="xMidYMid meet" — contain,
-    // not cover. Use min so pins follow the letterboxed rendering and
-    // the A.R.C. plot stays in-view regardless of viewport aspect.
-    const scale = Math.min(r.width / SVG_VIEW_W, r.height / SVG_VIEW_H);
-    const renderedW = SVG_VIEW_W * scale;
-    const renderedH = SVG_VIEW_H * scale;
-    const stageRect = document.getElementById('world-stage').getBoundingClientRect();
-    const offsetX = (r.left - stageRect.left) + (r.width - renderedW) / 2;
-    const offsetY = (r.top - stageRect.top) + (r.height - renderedH) / 2;
-    return { offsetX, offsetY, scale };
+    const fit = svgFit();
+    if (!obj || !fit) return null;
+    const box = { w: obj.offsetWidth, h: obj.offsetHeight };
+    if (box.w === 0 || box.h === 0) return null;
+    const placed = MapFit.place(box, fit.view, fit.par);
+    return {
+      offsetX: placed.x, offsetY: placed.y,
+      renderedW: placed.w, renderedH: placed.h,
+      box, view: fit.view,
+    };
   }
 
   /**
@@ -1441,8 +1558,8 @@
     const rect = computeSvgRect();
     if (!rect) return null;
     const stage = document.getElementById('world-stage').getBoundingClientRect();
-    const renderedW = SVG_VIEW_W * rect.scale;
-    const renderedH = SVG_VIEW_H * rect.scale;
+    const renderedW = rect.renderedW;
+    const renderedH = rect.renderedH;
     const span = Math.max(extent.half, 0.02) * 2;
     const k = Math.min(stage.width / (span * renderedW), stage.height / (span * renderedH));
     // Put the extent's centre on the stage's centre.
@@ -1468,8 +1585,10 @@
   function svgToScreen(svgX, svgY) {
     const t = mapTransform();
     if (!t) return null;
-    return fracToScreen(svgX / SVG_VIEW_W, svgY / SVG_VIEW_H, t);
+    const v = t.rect.view;
+    return fracToScreen((svgX - v.x) / v.w, (svgY - v.y) / v.h, t);
   }
+  // ── end screen geometry ──
 
   // ── The destination card ──────────────────────────────────
 
@@ -1611,7 +1730,24 @@
     if (svg) {
       svg.style.transformOrigin = '0 0';
       svg.style.transform = 'translate(' + t.tx + 'px,' + t.ty + 'px) scale(' + t.k + ')';
+      // **Only the map is drawn.** The SVG keeps geometry past its viewBox (the
+      // land runs on for thousands of units, the fields past the coast) and
+      // an SVG that does not fill its box shows all of it in the spare room:
+      // fields floating in the sea beyond the east coast. Clipped to the
+      // viewBox's own rectangle, in the object's pixels (the clip moves and
+      // scales with the transform above), the spare room is the stage's, and
+      // the stage is sea. Under `slice` the rectangle is past the box, so
+      // every inset is 0 and nothing is clipped.
+      const r = t.rect;
+      const inset = [
+        Math.max(0, r.offsetY),
+        Math.max(0, r.box.w - (r.offsetX + r.renderedW)),
+        Math.max(0, r.box.h - (r.offsetY + r.renderedH)),
+        Math.max(0, r.offsetX),
+      ];
+      svg.style.clipPath = 'inset(' + inset.map((v) => v.toFixed(2) + 'px').join(' ') + ')';
     }
+    syncStageSea();
 
     const stage = document.getElementById('world-stage').getBoundingClientRect();
     const onStage = (p) => p && p.x >= -4 && p.y >= -4
@@ -1644,6 +1780,7 @@
       : null;
     const PIN_R = 22;    // the disc's half-height plus its border
     const LABEL_H = 22;  // the name that hangs under the disc
+    const LONG_NAME = 20; // characters; a longer name takes two lines (CSS .pin-name.long)
     const CLEAR = 8;
     function clearOfChrome(p) {
       if (!tabsBox) return p;
@@ -1694,6 +1831,8 @@
         // keeps its footprint on the ground.
         img.style.width = (0.06 * stage.width * (t.k / kAtFullMap)) + 'px';
         img.addEventListener('click', () => showStage('arc'));
+        // Its height is the picture's, so the text lays out again once it has one.
+        img.addEventListener('load', () => layText(layer));
         layer.appendChild(img);
 
         const label = document.createElement('div');
@@ -1737,7 +1876,7 @@
       }
 
       const name = document.createElement('div');
-      name.className = 'pin-name';
+      name.className = 'pin-name' + (dest.label.length > LONG_NAME ? ' long' : '');
       name.textContent = dest.label;
       pin.appendChild(name);
 
@@ -1759,6 +1898,497 @@
       const clamped = Math.max(halfW + 4, Math.min(stage.width - halfW - 4, x));
       if (clamped !== x) pin.style.left = clamped + 'px';
     }
+
+    layText(layer);
+  }
+
+  // ── Names and labels: nothing stands under anything else ───────────────
+  //
+  // Two kinds of text sit on this map and they follow one rule.
+  //
+  //   * A pin's NAME (HTML, in the pin layer) hangs under its disc.
+  //   * A map LABEL (SVG text in birchie-roads.svg: the places that have a
+  //     painted icon but no pin, and the bays) stands beside its icon.
+  //
+  // **A pin is a tap target and does not move; every piece of text gives way
+  // to it.** A name steps to another side of its own disc, or wraps onto two
+  // lines. A label tries every side of its icon, in one line and in two. The
+  // discs, and so the places the road test holds, stay where the data puts
+  // them. If no clear place is left for a label it is not drawn for that frame
+  // (data-placed="hidden"): a label a child cannot read is clutter, and the
+  // painted icon still says what the place is. A place's name may come down to
+  // the type floor before that; nothing is ever drawn below it.
+  //
+  // **A label is a readable size on the screen, not on the map.** The SVG
+  // draws its text in map units, so it was as small as the map is: 8px for a
+  // place and 5px for the petrol station at the iPhone's full-map frame, and
+  // the game's own type floor is 16px (--fs-floor). Here each label is set at a
+  // screen size whatever the frame's zoom: 18px for a place, 16px for the rest.
+  // It carries its own outline (cream with a dark halo, 0.1em wide) rather than
+  // a plate: a plate means "tap me" on this map, and a label is only a name.
+  // The sizes in the SVG itself stay as they were, for the pages that draw it
+  // at their own scale (intro.html zooms it up to 5x).
+  //
+  // Names and labels are placed together, as one problem: a cost for every
+  // overlap and every step away from the usual place, found by annealing from a
+  // fixed seed, so a frame lays out the same way each time it is drawn. Text
+  // keeps its pixel size while the distances between things grow with the zoom,
+  // so collisions only get easier as the map zooms in; the full-map frame is the
+  // one that has to work. A label that belongs to one season (Santa's grotto) keeps
+  // its place all year, so a change of season moves nothing.
+
+  /** Area of the overlap of two {l,t,r,b} rectangles; `b` is shrunk by `slack` so a shared edge is not a collision. */
+  function overlapArea(a, b, slack) {
+    const s = slack || 0;
+    const w = Math.min(a.r, b.r - s) - Math.max(a.l, b.l + s);
+    const h = Math.min(a.b, b.b - s) - Math.max(a.t, b.t + s);
+    return w > 0 && h > 0 ? w * h : 0;
+  }
+
+  /** `el`'s rectangle in stage pixels. */
+  function stageRect(el, stage) {
+    const r = el.getBoundingClientRect();
+    return { l: r.left - stage.left, t: r.top - stage.top, r: r.right - stage.left, b: r.bottom - stage.top };
+  }
+
+  /** The distance between two {l,t,r,b} rectangles: 0 when they touch or overlap. */
+  function rectGap(a, b) {
+    return Math.hypot(Math.max(0, a.l - b.r, b.l - a.r), Math.max(0, a.t - b.b, b.t - a.b));
+  }
+
+  /** A disc is round: the square inside it is what a name can really cover, and the box's corners are air. */
+  function discCore(d) {
+    const inset = (d.r - d.l) * 0.15;
+    return { l: d.l + inset, t: d.t + inset, r: d.r - inset, b: d.b - inset };
+  }
+
+  /** What nothing may be drawn under, besides the discs: the A.R.C. stamp and its pill, the tabs, and the species badge on a pin with a call waiting. */
+  function chromeRects(layer, stage) {
+    const out = [];
+    for (const badge of layer.querySelectorAll('.pin-call')) out.push(stageRect(badge, stage));
+    for (const sel of ['.pin-arc-building', '.pin-arc-label']) {
+      const el = layer.querySelector(sel);
+      if (el) out.push(stageRect(el, stage));
+    }
+    const tabs = document.querySelector('.tabs');
+    if (tabs && tabs.offsetParent !== null) out.push(stageRect(tabs, stage));
+    return out;
+  }
+
+  /** The loaded SVG's document, or null before it is there. */
+  function mapDoc() {
+    const obj = document.getElementById('osm-svg');
+    try { return (obj && obj.contentDocument) || null; } catch (_) { return null; }
+  }
+
+  /**
+   * Every painted icon on the map (`.poi-icon` in the SVG), by id, in stage
+   * pixels. Reading an element inside the object gives the object's own
+   * pixels, before the frame's zoom, so the zoom is applied here.
+   */
+  function mapIcons(doc, t) {
+    const out = new Map();
+    for (const el of doc.querySelectorAll('.poi-icon')) {
+      const r = el.getBoundingClientRect();
+      if (!r.width) continue;
+      out.set(el.id, { l: t.tx + t.k * r.left, t: t.ty + t.k * r.top, r: t.tx + t.k * r.right, b: t.ty + t.k * r.bottom });
+    }
+    return out;
+  }
+
+  /** A seeded generator (mulberry32): the same frame lays out the same way every time. */
+  function seeded(seed) {
+    let a = seed | 0;
+    return () => {
+      a = (a + 0x6D2B79F5) | 0;
+      let x = Math.imul(a ^ (a >>> 15), 1 | a);
+      x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /** The two lines of a name, split at the space that leaves the shorter longest line, or null for one word. */
+  function balancedSplit(text) {
+    const words = text.split(' ');
+    if (words.length < 2) return null;
+    let best = null;
+    for (let i = 1; i < words.length; i++) {
+      const a = words.slice(0, i).join(' '), b = words.slice(i).join(' ');
+      const longest = Math.max(a.length, b.length);
+      if (!best || longest < best.longest) best = { longest, lines: [a, b] };
+    }
+    return best.lines;
+  }
+
+  function setLines(label, lines, x) {
+    while (label.firstChild) label.removeChild(label.firstChild);
+    if (lines.length === 1) { label.textContent = lines[0]; return; }
+    lines.forEach((line, i) => {
+      const span = label.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      span.setAttribute('x', x);
+      span.setAttribute('dy', i ? '1.1em' : '0');
+      span.textContent = line;
+      label.appendChild(span);
+    });
+  }
+
+  /**
+   * The roads, as a coarse mask of the SVG's own viewBox (4 units a cell), so a
+   * label can prefer ground a road does not cross. A label may still cross one
+   * (the outline keeps it legible) when that is the only clear place.
+   */
+  function roadMaskFor(doc, view) {
+    if (doc.arcRoadMask) return doc.arcRoadMask;
+    const S = 0.25, w = Math.ceil(view.w * S), h = Math.ceil(view.h * S);
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const g = cv.getContext('2d');
+    g.scale(S, S); g.translate(-view.x, -view.y);
+    g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#000';
+    for (const group of doc.querySelectorAll('[id^="roads-"]')) {
+      g.lineWidth = parseFloat(group.getAttribute('stroke-width')) || 8;
+      for (const p of group.querySelectorAll('path')) g.stroke(new Path2D(p.getAttribute('d')));
+    }
+    const px = g.getImageData(0, 0, w, h).data;
+    const cells = new Uint8Array(w * h);
+    for (let i = 0; i < cells.length; i++) cells[i] = px[i * 4 + 3] > 40 ? 1 : 0;
+    doc.arcRoadMask = { cells, w, h, S, view };
+    return doc.arcRoadMask;
+  }
+
+  /** The share (0..1) of a stage-pixel rectangle that is road. */
+  function roadShare(mask, t, r) {
+    const v = mask.view;
+    const toUnits = (sx, sy) => ({
+      x: v.x + (((sx - t.tx) / t.k - t.rect.offsetX) / t.renderedW) * v.w,
+      y: v.y + (((sy - t.ty) / t.k - t.rect.offsetY) / t.renderedH) * v.h,
+    });
+    const a = toUnits(r.l, r.t), b = toUnits(r.r, r.b);
+    const x0 = Math.max(0, Math.floor((a.x - v.x) * mask.S)), x1 = Math.min(mask.w, Math.ceil((b.x - v.x) * mask.S));
+    const y0 = Math.max(0, Math.floor((a.y - v.y) * mask.S)), y1 = Math.min(mask.h, Math.ceil((b.y - v.y) * mask.S));
+    let hit = 0, all = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { all++; hit += mask.cells[y * mask.w + x]; }
+    return all ? hit / all : 0;
+  }
+
+  // What each kind of overlap costs, per square pixel, and what it costs to give a label up.
+  // A label is dropped rather than drawn over a pin by more than a few pixels.
+  const TEXT_COST = { nameName: 8, nameDisc: 10, label: 20, nameIcon: 1, labelIcon: 12, labelRun: 12, road: 800, nameNear: 50, labelNear: 70 };
+  const LABEL_PX = { major: 18, service: 16, bay: 16 };    // screen px; the type floor is 16
+  const LABEL_HIDE = { major: 500, service: 340, bay: 180 };
+
+  /** What the stage holds that text must stay clear of, in stage pixels. */
+  function textContext(layer) {
+    const stage = document.getElementById('world-stage').getBoundingClientRect();
+    const t = mapTransform(), doc = mapDoc();
+    const ctx = { stage, t, doc, EDGE: 4, discs: [], chrome: chromeRects(layer, stage) };
+    for (const pin of layer.querySelectorAll('.pin-place')) ctx.discs.push(discCore(stageRect(pin.querySelector('.pin-disc'), stage)));
+    ctx.discOf = new Map();   // pin -> its own disc's index
+    [...layer.querySelectorAll('.pin-place')].forEach((pin, i) => ctx.discOf.set(pin, i));
+    ctx.icons = doc && t ? mapIcons(doc, t) : new Map();
+    // The strips the tractors work (data-run), whatever the season: the layout must not move when winter takes them off.
+    ctx.runs = doc && t ? [...doc.querySelectorAll('[data-run]')].map((el) => {
+      const [x0, y0, x1, y1] = el.getAttribute('data-run').split(/\s+/).map(Number);
+      const a = svgToScreen(x0, y0), b = svgToScreen(x1, y1);
+      return { l: a.x, t: a.y, r: b.x, b: b.y };
+    }) : [];
+    return ctx;
+  }
+
+  /**
+   * The candidate places for every pin's name: under its disc (where the layout
+   * puts it), shifted along that side, above, to either side, and the same
+   * again on two lines. Moving is a transform on the name alone (--nx, --ny), and
+   * a wrap leaves the pin's box the height it was, so the disc does not rise.
+   */
+  function nameItems(layer, ctx) {
+    const { stage, EDGE } = ctx, GAP = 3;   // GAP is the pin's own flex gap, disc to name
+    const items = [];
+    for (const pin of layer.querySelectorAll('.pin-place')) {
+      const own = ctx.discs[ctx.discOf.get(pin)];
+      const name = pin.querySelector('.pin-name');
+      name.classList.remove('two');
+      name.style.cssText = '';
+      const d = stageRect(pin.querySelector('.pin-disc'), stage);
+      const one = name.getBoundingClientRect();
+      let two = null;
+      if (!name.classList.contains('long') && /\s/.test(name.textContent)) {
+        name.classList.add('two');
+        const wrapped = name.getBoundingClientRect();
+        name.classList.remove('two');
+        if (wrapped.height > one.height + 4) two = { w: wrapped.width, h: wrapped.height };   // it really did wrap
+      }
+      const cx = (d.l + d.r) / 2, cy = (d.t + d.b) / 2;
+      const cands = [];
+      for (const v of [{ w: one.width, h: one.height, two: false }].concat(two ? [{ w: two.w, h: two.h, two: true }] : [])) {
+        const base = { l: cx - v.w / 2, t: d.b + GAP };   // where the layout puts it
+        const place = (l, top, pref) => {
+          const L = Math.max(EDGE, Math.min(stage.width - EDGE - v.w, l));
+          const rect = { l: L, t: top, r: L + v.w, b: top + v.h };
+          let u = pref + (v.two ? 24 : 0);
+          if (rect.t < EDGE || rect.b > stage.height - EDGE) u += 400 + 40 * (Math.max(0, EDGE - rect.t) + Math.max(0, rect.b - (stage.height - EDGE)));
+          const mine = rectGap(rect, own);
+          for (const f of ctx.discs) {
+            u += TEXT_COST.nameDisc * overlapArea(rect, f, 0);
+            if (f !== own && rectGap(rect, f) < mine + 10) u += TEXT_COST.nameNear;   // it must not read as another pin's name
+          }
+          for (const f of ctx.chrome) u += TEXT_COST.nameDisc * overlapArea(rect, f, 1);
+          for (const f of ctx.icons.values()) u += TEXT_COST.nameIcon * overlapArea(rect, f, 1);
+          for (const f of ctx.runs) u += TEXT_COST.nameIcon * overlapArea(rect, f, 0);
+          cands.push({ rect, unary: u, dx: L - base.l, dy: top - base.t, two: v.two, h1: one.height });
+        };
+        const third = v.w / 3, half = v.h / 2, above = d.t - GAP - v.h;
+        place(base.l, base.t, 0);
+        place(base.l - third, base.t, 14); place(base.l + third, base.t, 14);
+        place(base.l - 2 * third, base.t, 24); place(base.l + 2 * third, base.t, 24);
+        place(base.l, above, 28);
+        place(base.l - third, above, 34); place(base.l + third, above, 34);
+        place(base.l - 2 * third, above, 44); place(base.l + 2 * third, above, 44);
+        place(d.r + GAP, cy - half, 30); place(d.l - GAP - v.w, cy - half, 30);
+        place(d.r + GAP, cy - v.h, 40); place(d.r + GAP, cy, 40);
+        place(d.l - GAP - v.w, cy - v.h, 40); place(d.l - GAP - v.w, cy, 40);
+      }
+      items.push({ kind: 'name', el: name, cands, start: 0 });
+    }
+    return items;
+  }
+
+  /**
+   * The candidate places for one SVG label, at its screen size: every side of its
+   * icon (below first: that is the map's convention), one line and two, shifted
+   * along the side, off the roads where it can be, plus giving it up. A bay has no
+   * icon, so its own point stands for it and it tries to sit on that point.
+   */
+  function labelItem(label, ctx, drawn, mask) {
+    const { stage, t } = ctx, GAP = 2, HALO = 0.1;
+    const m = label.parentNode.getCTM();
+    if (!m || Math.abs(m.b) + Math.abs(m.c) > 1e-6) return null;   // plain scale and shift only
+    const tier = label.getAttribute('data-tier') || 'service';
+    const unit = m.a * t.k;                                         // stage px per unit of the label's own space
+    label.style.strokeLinejoin = 'round';
+
+    let text = label.getAttribute('data-text');
+    if (!text) { text = label.textContent.trim(); label.setAttribute('data-text', text); }
+    const ax = parseFloat(label.getAttribute('x')) || 0, ay = parseFloat(label.getAttribute('y')) || 0;
+    const ownId = label.getAttribute('data-for');
+    let anchor = ctx.icons.get(ownId);
+    if (!anchor) {   // a bay: its own point stands for it
+      const sx = t.tx + t.k * (m.a * ax + m.e), sy = t.ty + t.k * (m.d * ay + m.f);
+      anchor = { l: sx, r: sx, t: sy, b: sy };
+    }
+    const cands = [{ rect: null, unary: LABEL_HIDE[tier], hidden: true }];
+    if (anchor.r < 0 || anchor.l > stage.width || anchor.b < 0 || anchor.t > stage.height) return { kind: 'label', el: label, cands, start: 0, offStage: true };
+
+    // A place's name may come down to the type floor before it is given up; nothing goes below the floor.
+    const sizes = tier === 'major' ? [LABEL_PX.major, LABEL_PX.service] : [LABEL_PX[tier]];
+    const lineSets = [[text]];
+    const split = text.length > 9 ? balancedSplit(text) : null;
+    if (split) lineSets.push(split);
+    sizes.forEach((px, si) => {
+      const fs = px / unit;
+      label.style.fontSize = fs + 'px';
+      const halo = fs * HALO * unit;
+      lineSets.forEach((lines, vi) => {
+        setLines(label, lines, ax);
+        const bb = label.getBBox();
+        const w = bb.width * unit + 2 * halo, h = bb.height * unit + 2 * halo;
+        const cx = (anchor.l + anchor.r) / 2, cy = (anchor.t + anchor.b) / 2;
+        const push = (l, top, pref, side) => {
+          const rect = { l, t: top, r: l + w, b: top + h };
+          if (rect.l < drawn.l || rect.r > drawn.r || rect.t < drawn.t || rect.b > drawn.b) return;
+          let u = pref + vi * 24 + si * 30;
+          for (const f of ctx.discs) u += TEXT_COST.label * overlapArea(rect, f, 0);
+          for (const f of ctx.chrome) u += TEXT_COST.label * overlapArea(rect, f, 1);
+          const mine = ctx.icons.has(ownId) ? rectGap(rect, anchor) : 0;
+          for (const [id, f] of ctx.icons) {
+            if (id === ownId) continue;
+            u += TEXT_COST.labelIcon * overlapArea(rect, f, 1);
+            if (rectGap(rect, f) < mine + 10) u += TEXT_COST.labelNear;   // it must not read as another place's name
+          }
+          if (ctx.icons.has(ownId)) for (const f of ctx.discs) if (rectGap(rect, f) < mine + 4) u += TEXT_COST.labelNear / 2;
+          for (const f of ctx.runs) u += TEXT_COST.labelRun * overlapArea(rect, f, 0);
+          u += TEXT_COST.road * roadShare(mask, t, rect);
+          cands.push({ rect, unary: u, lines, side, fs, halo });
+        };
+        const third = w / 3, half = h / 2;
+        if (ctx.icons.has(ownId)) {
+          push(cx - w / 2, anchor.b + GAP, 0, 'below');
+          push(cx - w / 2 - third, anchor.b + GAP, 14, 'below'); push(cx - w / 2 + third, anchor.b + GAP, 14, 'below');
+          push(cx - w / 2 - 2 * third, anchor.b + GAP, 22, 'below'); push(cx - w / 2 + 2 * third, anchor.b + GAP, 22, 'below');
+          push(cx - w / 2, anchor.t - GAP - h, 24, 'above');
+          push(cx - w / 2 - third, anchor.t - GAP - h, 34, 'above'); push(cx - w / 2 + third, anchor.t - GAP - h, 34, 'above');
+          push(cx - w / 2 - 2 * third, anchor.t - GAP - h, 42, 'above'); push(cx - w / 2 + 2 * third, anchor.t - GAP - h, 42, 'above');
+          push(anchor.r + GAP, cy - half, 30, 'right'); push(anchor.r + GAP, cy - h, 40, 'right'); push(anchor.r + GAP, cy, 40, 'right');
+          push(anchor.l - GAP - w, cy - half, 30, 'left'); push(anchor.l - GAP - w, cy - h, 40, 'left'); push(anchor.l - GAP - w, cy, 40, 'left');
+        } else {
+          push(cx - w / 2, cy - h * 0.7, 0, 'centre');
+          push(cx - w / 2 - third, cy - h * 0.7, 14, 'centre'); push(cx - w / 2 + third, cy - h * 0.7, 14, 'centre');
+          push(cx - w / 2, cy - h - 4, 24, 'above'); push(cx - w / 2, cy + 4, 30, 'below');
+        }
+      });
+    });
+    return { kind: 'label', el: label, cands, start: 0 };
+  }
+
+  /**
+   * Choose a candidate for every item: annealing from a fixed seed over the sum of
+   * every item's own cost and every overlap between two of them, then a greedy
+   * sweep to settle.
+   */
+  function solveText(items) {
+    const n = items.length;
+    // A place that costs more by itself than giving the label up (or than the best place by a wide margin for a name) cannot be the answer.
+    for (const item of items) {
+      const best = Math.min(...item.cands.map((c) => c.unary));
+      const hidden = item.cands.find((c) => c.hidden);
+      item.cands = item.cands.filter((c) => c.hidden || c.unary < (hidden ? hidden.unary : best + 600));
+      item.start = hidden ? item.cands.indexOf(hidden) : item.cands.reduce((a, c, i) => (c.unary < item.cands[a].unary ? i : a), 0);
+    }
+    // Every candidate gets one index, and every overlap between two candidates of different items is worked out once.
+    const at = [], unary = [], owner = [];
+    items.forEach((item, i) => {
+      at.push(unary.length);
+      item.cands.forEach((cand) => {
+        unary.push(cand.unary); owner.push(i);
+      });
+    });
+    const G = unary.length;
+    const flat = items.flatMap((item) => item.cands);
+    const table = new Float32Array(G * G);
+    for (let a = 0; a < G; a++) {
+      if (!flat[a].rect) continue;
+      for (let b = a + 1; b < G; b++) {
+        if (owner[a] === owner[b] || !flat[b].rect) continue;
+        const w = items[owner[a]].kind === 'name' && items[owner[b]].kind === 'name' ? TEXT_COST.nameName : TEXT_COST.label;
+        const v = w * overlapArea(flat[a].rect, flat[b].rect, 1);
+        table[a * G + b] = v; table[b * G + a] = v;
+      }
+    }
+    const total = (cur) => {
+      let s = 0;
+      for (let i = 0; i < n; i++) {
+        const g = at[i] + cur[i];
+        s += unary[g];
+        for (let j = i + 1; j < n; j++) s += table[g * G + at[j] + cur[j]];
+      }
+      return s;
+    };
+    let best = null, bestCost = Infinity;
+    for (let restart = 0; restart < 6; restart++) {
+      const cur = items.map((it) => it.start);
+      const against = (i, c) => {
+        const g = at[i] + c, row = g * G;
+        let s = unary[g];
+        for (let j = 0; j < n; j++) if (j !== i) s += table[row + at[j] + cur[j]];
+        return s;
+      };
+      const rand = seeded(20261011 + restart);
+      const steps = 8000;
+      for (let step = 0; step < steps; step++) {
+        const T = 150 * Math.pow(1 - step / steps, 2) + 0.3;
+        const i = Math.floor(rand() * n), k = Math.floor(rand() * items[i].cands.length);
+        if (k === cur[i]) continue;
+        const d = against(i, k) - against(i, cur[i]);
+        if (d <= 0 || rand() < Math.exp(-d / T)) cur[i] = k;
+      }
+      for (let sweep = 0; sweep < 8; sweep++) {
+        let moved = false;
+        for (let i = 0; i < n; i++) {
+          let pick = cur[i], pickCost = against(i, pick);
+          for (let k = 0; k < items[i].cands.length; k++) {
+            const v = against(i, k);
+            if (v < pickCost - 0.5) { pick = k; pickCost = v; }
+          }
+          if (pick !== cur[i]) { cur[i] = pick; moved = true; }
+        }
+        if (!moved) break;
+      }
+      const c = total(cur);
+      if (c < bestCost) { bestCost = c; best = cur.slice(); }
+    }
+    return best;
+  }
+
+  /** Put a chosen candidate on the page. */
+  function applyText(item, c, ctx) {
+    if (item.kind === 'name') {
+      if (c.two) {
+        item.el.classList.add('two');
+        item.el.style.marginBottom = -((c.rect.b - c.rect.t) - c.h1) + 'px';   // the pin keeps its height
+      }
+      if (c.dx) item.el.style.setProperty('--nx', c.dx + 'px');
+      if (c.dy) item.el.style.setProperty('--ny', c.dy + 'px');
+      return;
+    }
+    const label = item.el;
+    if (c.hidden) { label.style.display = 'none'; label.setAttribute('data-placed', item.offStage ? 'off-stage' : 'hidden'); label.removeAttribute('transform'); return; }
+    label.style.display = '';
+    const { t } = ctx, ax = parseFloat(label.getAttribute('x')) || 0;
+    label.style.fontSize = c.fs + 'px';
+    label.style.strokeWidth = (c.halo * 2 / (label.parentNode.getCTM().a * t.k)) + 'px';   // the halo, 0.1em either side
+    setLines(label, c.lines, ax);
+    const bb = label.getBBox(), m = label.parentNode.getCTM(), r = c.rect;
+    const ix = ((r.l + r.r) / 2 - t.tx) / t.k, iy = ((r.t + r.b) / 2 - t.ty) / t.k;   // the object's pixels
+    const lx = (ix - m.e) / m.a, ly = (iy - m.f) / m.d;                                // the label's own units
+    label.setAttribute('transform', 'translate(' + (lx - (bb.x + bb.width / 2)) + ',' + (ly - (bb.y + bb.height / 2)) + ')');
+    label.setAttribute('data-placed', c.side + (c.lines.length > 1 ? '/2' : ''));
+  }
+
+  /** The road mask, and the map as drawn, for one layout of labels. */
+  function labelGround(ctx) {
+    const { t, doc, stage, EDGE } = ctx;
+    return {
+      mask: roadMaskFor(doc, t.rect.view),
+      // the SVG is clipped to its viewBox, so text past the map's edge is cut
+      drawn: {
+        l: Math.max(EDGE, t.tx + t.k * t.rect.offsetX), t: Math.max(EDGE, t.ty + t.k * t.rect.offsetY),
+        r: Math.min(stage.width - EDGE, t.tx + t.k * (t.rect.offsetX + t.renderedW)),
+        b: Math.min(stage.height - EDGE, t.ty + t.k * (t.rect.offsetY + t.renderedH)),
+      },
+    };
+  }
+
+  /** Lay the text out; a failure in it (a browser that cannot measure an SVG label) must not take the pins with it. */
+  function layText(layer) {
+    try { placeText(layer); } catch (err) { console.warn('map text layout skipped:', err); }
+  }
+
+  /** Every name and every label together, seasonal ones included, so a change of season moves nothing. */
+  function placeText(layer) {
+    const ctx = textContext(layer);
+    if (!ctx.stage.width) return;
+    const items = nameItems(layer, ctx);
+    const doc = ctx.doc;
+    if (doc && ctx.t && doc.querySelector('text.poi-label')) {
+      if (!doc.arcLabelFonts) {
+        doc.arcLabelFonts = true;
+        try { doc.fonts.addEventListener('loadingdone', () => { layText(document.getElementById('pin-layer')); }); } catch (_) { /* no font events: the first layout stands */ }
+      }
+      const ground = labelGround(ctx);
+      for (const label of doc.querySelectorAll('text.poi-label')) {
+        label.style.display = '';
+        const item = labelItem(label, ctx, ground.drawn, ground.mask);
+        if (item) items.push(item);
+      }
+    }
+    const choice = solveText(items);
+    items.forEach((item, i) => applyText(item, item.cands[choice[i]], ctx));
+    syncSeasonLabels();
+  }
+
+  /**
+   * Labels that belong to one season (Santa's grotto) have their place all year,
+   * laid out with the rest, so a change of season moves nothing: out of season
+   * they are simply not drawn.
+   */
+  function syncSeasonLabels() {
+    const doc = mapDoc();
+    if (!doc) return;
+    const season = doc.documentElement.getAttribute('data-season');
+    for (const label of doc.querySelectorAll('text.poi-label[data-season]')) {
+      const placed = label.getAttribute('data-placed');
+      label.style.display = label.getAttribute('data-season') === season && placed && placed !== 'hidden' && placed !== 'off-stage' ? '' : 'none';
+    }
   }
 
   document.getElementById('osm-svg').addEventListener('load', placePins);
@@ -1769,6 +2399,14 @@
     if (_lastSeason) applySeasonToWorldSvg(_lastSeason);
   });
   window.addEventListener('resize', placePins);
+  // The pin names are set in the body face (Nunito), which may arrive after the pins are drawn and
+  // changes how wide every name is: lay the text out again when it does.
+  if (document.fonts) {
+    document.fonts.addEventListener('loadingdone', () => {
+      const pins = document.getElementById('pin-layer');
+      if (pins && pins.children.length) layText(pins);
+    });
+  }
   setTimeout(placePins, 200);
   setTimeout(placePins, 600);
   // Belt-and-braces: also retry the season a couple of times in case

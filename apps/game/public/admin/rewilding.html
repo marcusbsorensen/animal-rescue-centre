@@ -90,7 +90,8 @@
     background-image: url('/assets/bg/garden-lawn-summer-evening.png');
     background-size: cover; background-position: center;
     filter: saturate(1.25) brightness(1.05) contrast(1.03);
-    transform: scale(1.04);
+    /* not scaled up: a scaled box counts as scrollable overflow (9-21px of scroll), and
+       this backdrop is not blurred, so it has no edge to hide. */
     z-index: 0;
   }
   /* Soft golden-hour haze — adds depth without dimming. */
@@ -143,7 +144,7 @@
     position: absolute;
     top: 18%;
     color: rgba(40, 28, 18, 0.55);
-    font-family: var(--headline-font);
+    font-family: var(--body-font);
     font-size: clamp(var(--fs-floor), 1.4cqh, 16px);
     letter-spacing: -2px;
     z-index: 2;
@@ -205,24 +206,11 @@
   .farewell-plaque::before { left: 12px; }
   .farewell-plaque::after  { right: 12px; }
 
-  .farewell-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(26px, 4.4cqh, 38px);
-    letter-spacing: 0.02em;
-    text-align: center;
-    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
-    -webkit-background-clip: text; background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
-    line-height: 1.1;
-    margin-bottom: clamp(4px, 0.8cqh, 8px);
-  }
+  /* The title's style (white on a darker plank, larger) is shared by every story board
+     and lives in _story-title.css; only the space under it is set here. */
+  .farewell-title { margin-bottom: clamp(4px, 0.8cqh, 8px); }
   .farewell-subtitle {
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-style: italic;
+    font-family: var(--body-font);
     font-weight: 700;
     color: #fffbe8;
     font-size: clamp(18px, 2.6cqh, 24px);
@@ -285,7 +273,7 @@
     50%      { transform: translateY(-3px) rotate(1deg); }
   }
 
-  /* Scroll card — cream paper, rotated, handwritten Caveat text */
+  /* Scroll card — cream paper, rotated, body-face text */
   .scroll-card {
     position: relative;
     margin-top: clamp(8px, 1.4cqh, 14px);
@@ -301,8 +289,8 @@
       0 4px 10px rgba(0,0,0,0.35),
       inset 0 0 20px rgba(160,110,60,0.12);
     transform: rotate(-2.2deg);
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-weight: 500;
+    font-family: var(--body-font);
+    font-weight: 600;
     font-size: clamp(var(--fs-floor), 2.1cqh, 19px);
     line-height: 1.35;
     color: #4a2e14;
@@ -311,9 +299,8 @@
   .scroll-card .scroll-sign {
     display: block;
     margin-top: clamp(4px, 0.8cqh, 8px);
-    font-family: 'Caveat', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
-    font-style: italic;
     color: #6b3a18;
     font-size: clamp(16px, 2.3cqh, 21px);
   }
@@ -357,7 +344,7 @@
     filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.3));
   }
   .bond-label {
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(18px, 2.6cqh, 22px);
     color: #3a2618;
@@ -372,8 +359,7 @@
     text-shadow: 1px 1px 0 rgba(255,240,210,0.6);
   }
   .bond-visit {
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-style: italic;
+    font-family: var(--body-font);
     font-size: clamp(var(--fs-floor), 1.8cqh, 16px);
     color: #6b4820;
     opacity: 0.92;
@@ -389,7 +375,7 @@
   .btn-primary {
     width: 100%;
     padding: clamp(14px, 2.6cqh, 22px) clamp(20px, 3.4cqw, 30px);
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-size: clamp(18px, 3cqh, 26px); font-weight: 700;
     color: #fffbe8;
     text-shadow: 2px 3px 0 rgba(0,0,0,0.5);
@@ -519,7 +505,6 @@
   /* Narrow layout — iPhone */
   @container rewild (max-width: 420px) {
     .rewild-inner { gap: clamp(6px, 1.2cqh, 10px); padding: 10px; }
-    .farewell-title { font-size: clamp(22px, 3.8cqh, 28px); }
     .portrait-frame { max-width: clamp(180px, 56cqw, 240px); }
   }  /* Vertical scroll on desktop + iPad L — content stack is taller than
      the device's viewport on these landscape sizes; allow the user to
@@ -572,6 +557,13 @@
     overflow: visible !important;
   }
 
+  /* The two pinned buttons (_short-landscape.css parks "WAVE THEM OFF!" at 66px
+     and "Not yet" at 18px, flush) are 12px apart, as two touch targets should
+     be: flush, the release plank's slight tilt put its corners 3-7px into the
+     other button's box. The end of the scroll leaves room for the 12px. */
+  .rewild-inner > .release-wrap { bottom: 78px; }
+  .rewild .rewild-inner:has(> .release-wrap) { padding-bottom: 132px; }
+
   /* Touch targets: 36x36 audio buttons and 32px-tall text links are below
      the 48px floor the rest of the game uses. Children aim less precisely
      than adults, and a control that needs three attempts teaches them the
@@ -584,6 +576,7 @@
   }
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 
@@ -623,8 +616,8 @@
                every release in the game read "Farewell, Luna" over a red-fox
                sprite at "Bond: Champion", whichever animal the child had
                actually raised and released. -->
-          <div class="farewell-title" id="farewell-title">Farewell, friend</div>
-          <div class="farewell-subtitle">A wild heart ready for wild skies</div>
+          <div class="farewell-title" id="farewell-title">A wild home for your friend</div>
+          <div class="farewell-subtitle" id="farewell-subtitle">Going home to the wild</div>
 
           <div class="portrait-wrap">
             <div class="portrait-frame">
@@ -652,13 +645,13 @@
             <span id="bond-remember-text">Your friend will remember you</span>
             <span aria-hidden="true">💚</span>
           </div>
-          <div class="bond-visit">Visit their wild home any time</div>
+          <div class="bond-visit" id="bond-visit-text">Visit their wild home any time</div>
         </div>
 
         <div class="release-wrap">
           <button class="btn-primary" id="release-btn" type="button">
             <span class="leaf-flank leaf-left" aria-hidden="true">🌿</span>
-            <span>Release her to the wild</span>
+            <span id="release-label">WAVE THEM OFF!</span>
             <span class="leaf-flank leaf-right" aria-hidden="true">🌿</span>
           </button>
         </div>
@@ -678,13 +671,33 @@
   // Driven by the 'init' payload. Before it lands the copy stays generic;
   // it previously hardcoded "Dear Lily … — Luna" at parse time with no
   // listener to correct it.
+  //
+  // **The words arrive finished.** The host sends `copy` — title, subtitle,
+  // the animal's letter, its sign-off, the button, the "will remember you"
+  // line — built by game-logic/exits.ts, which knows the habitat and who
+  // (Simeon & Karo for a bat, Benji for a fox) takes the animal home. This
+  // page holds no table of either. It also serves an animal going to keepers
+  // (placementCopy), which sends a `visitLine` of its own. The sentences below are only what shows
+  // if the host never sends them, and they say nothing a particular animal
+  // could contradict. They used to be "Farewell, Luna", "A wild heart ready
+  // for wild skies" and "Release her to the wild", the same for a hedgehog.
+  function text(v) {
+    return typeof v === 'string' && v.trim() ? v.trim() : null;
+  }
   function renderFarewell(p) {
     const animal = (p && typeof p.animalName === 'string' && p.animalName.trim())
       ? p.animalName.trim() : null;
     const shown = animal || 'your friend';
+    const copy = (p && p.copy && typeof p.copy === 'object') ? p.copy : {};
 
     const titleEl = document.getElementById('farewell-title');
-    if (titleEl) titleEl.textContent = animal ? `Farewell, ${animal}` : 'Farewell, friend';
+    if (titleEl) titleEl.textContent = text(copy.title) || `A wild home for ${shown}`;
+
+    const subtitleEl = document.getElementById('farewell-subtitle');
+    if (subtitleEl) subtitleEl.textContent = text(copy.subtitle) || 'Going home to the wild';
+
+    const labelEl = document.getElementById('release-label');
+    if (labelEl) labelEl.textContent = text(copy.button) || 'WAVE THEM OFF!';
 
     const img = document.getElementById('animal-portrait');
     if (img) {
@@ -692,8 +705,16 @@
       if (p && typeof p.animalSpriteSrc === 'string') img.src = p.animalSpriteSrc;
     }
 
+    // The default is about a wild home. A ceremony that is not a release
+    // (an animal going to keepers) sends its own line.
+    const visitEl = document.getElementById('bond-visit-text');
+    if (visitEl) visitEl.textContent = text(copy.visitLine) || 'Visit their wild home any time';
+
     const rememberEl = document.getElementById('bond-remember-text');
-    if (rememberEl) rememberEl.textContent = `${shown.charAt(0).toUpperCase()}${shown.slice(1)} will remember you`;
+    if (rememberEl) {
+      rememberEl.textContent = text(copy.rememberLine)
+        || `${shown.charAt(0).toUpperCase()}${shown.slice(1)} will remember you`;
+    }
 
     // Bond is 0-100. Show it only when a real number arrives.
     const bondRow = document.getElementById('bond-row');
@@ -710,13 +731,14 @@
 
     const body = document.getElementById('scroll-body');
     if (body) {
-      body.textContent =
-        "Thank you for teaching me to trust people again. " +
-        "I'll come running if you visit my meadow.";
+      body.textContent = text(copy.letter)
+        || "Thank you for taking such good care of me. I'm going home, where I belong. " +
+           "I'll be so happy there! I might pop back to say hello.";
     }
 
     const sign = document.getElementById('scroll-sign');
-    if (sign) sign.textContent = animal ? `Your friend always — ${animal}` : 'Your friend always';
+    if (sign) sign.textContent = text(copy.sign)
+      || (animal ? `Your friend always — ${animal}` : 'Your friend always');
   }
 
   renderFarewell(null);

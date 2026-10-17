@@ -4,6 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>A.R.C. — Garden Tunnels</title>
+<link rel="icon" href="data:,"/>
 <script>
   // Iframe-context detection — flips html.iframed before first paint
   // so the design-preview chrome (vp-bar) is hidden in-game even if
@@ -69,6 +70,12 @@
     position: relative;
     transition: width 0.3s, height 0.3s;
     flex-shrink: 0;
+    /* A container query cannot restyle the container it asks about, and the
+       short-landscape layout below has to restyle .tunnel-scene itself. So the
+       frame around it is the thing asked. Same size as the scene (both are
+       100% of it in the game), so the numbers are the scene's. */
+    container-type: size;
+    container-name: tunnelframe;
   }
   .device[data-size="iphone"]    { width: 390px;  height: 844px; }
   .device[data-size="ipad-p"]    { width: 768px;  height: 1024px; }
@@ -116,8 +123,7 @@
     line-height: 1.1;
   }
   .tunnel-subtitle {
-    font-family: 'Caveat', cursive;
-    font-style: italic;
+    font-family: var(--body-font);
     color: var(--earth-mid);
     font-size: clamp(var(--fs-floor), 1.9cqh, 17px);
   }
@@ -125,7 +131,7 @@
      sit shoulder to shoulder at the top right. The group is right-anchored, so
      the extra width grows leftward into the header rather than pushing
      "Close ×" toward the edge. */
-  .header-buttons { display: flex; gap: 12px; }
+  .header-buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
   .icon-btn {
     background: linear-gradient(180deg, #fff8e3 0%, #f4dba0 100%);
     border: 2px solid #8a5a2a; border-radius: 10px;
@@ -133,6 +139,7 @@
     font-family: var(--sign-font); font-weight: 700;
     font-size: clamp(var(--fs-floor), 1.6cqh, 16px);
     padding: clamp(4px, 0.6cqh, 6px) clamp(8px, 1.4cqw, 12px);
+    white-space: nowrap;  /* "Close ×" was breaking onto two lines on a phone */
     cursor: pointer;
     box-shadow: 0 2px 0 rgba(120, 80, 30, 0.4);
     transition: transform 0.08s;
@@ -191,7 +198,7 @@
   }
   .og-label {
     fill: rgba(58, 58, 58, 0.85);
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: var(--fs-floor);
     paint-order: stroke;
@@ -262,74 +269,102 @@
     50%      { box-shadow: 0 0 0 4px rgba(255, 138, 61, 0.85),
                           inset 0 0 14px 4px rgba(255, 220, 140, 0.6); }
   }
+  /* scale(var(--inv-zoom)) keeps the label its own size when the board is
+     zoomed in (the stage sets --inv-zoom to 1 / the zoom): 16px stays 16px. */
   @keyframes gate-tap-bob {
-    0%, 100% { transform: translate(-50%, 0); opacity: 1; }
-    50%      { transform: translate(-50%, -3px); opacity: 0.85; }
+    0%, 100% { transform: translate(-50%, -100%) scale(var(--inv-zoom, 1)); }
+    50%      { transform: translate(-50%, calc(-100% - 3px)) scale(var(--inv-zoom, 1)); }
   }
   .tile.tile-gate.shut {
     animation: gate-pulse-ring 1200ms ease-in-out infinite;
     z-index: 4; /* lift the ring above neighbouring tile edges */
   }
-  /* Tap-me label above each closed gate. Painted-feel sticker
-     style. Disappears once the gate is open or the board is locked. */
-  .tile.tile-gate.shut::before {
-    content: '👆 tap';
+  /* Tap-me label above each closed gate. It was a ::before on the tile, and
+     .tile is overflow:hidden, so a label sitting 22px ABOVE the tile was cut
+     off and never showed. It is now its own element on a layer over the grid
+     (built in renderGrid), so nothing clips it. 16px type, painted-sticker
+     style, a little pointer toward the gate. Gone once the gate is open or the
+     board is locked. */
+  .gate-label-layer {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 9;
+  }
+  .gate-label {
     position: absolute;
-    left: 50%; top: -22px;
-    transform: translate(-50%, 0);
+    transform: translate(-50%, -100%) scale(var(--inv-zoom, 1));
+    transform-origin: 50% 100%;
     background: #ff8a3d;
     color: #fffbe8;
-    font-family: 'Fredoka', sans-serif;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: var(--fs-floor);
-    padding: 2px 8px;
+    line-height: 1.2;
+    padding: 2px 10px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    pointer-events: none;
     white-space: nowrap;
     animation: gate-tap-bob 900ms ease-in-out infinite;
-    z-index: 5;
+  }
+  .gate-label::after {
+    content: '';
+    position: absolute; left: 50%; bottom: -6px;
+    margin-left: -6px;
+    border: 6px solid transparent;
+    border-bottom: 0;
+    border-top-color: #ff8a3d;
   }
   body.locked .tile.tile-gate { animation: none; }
-  body.locked .tile.tile-gate.shut::before { display: none; }
+  body.locked .gate-label-layer { display: none; }
 
-  /* QUICK! pause-time bonus button — bright orange, only one use
-     per game. Disabled by default; enabled while an animal is mid-
-     animation (body.locked.animating). */
+  /* QUICK! pause-time bonus button — bright orange, one use per run. It is
+     enabled by script (setQuick) from the moment the animals are sent until it
+     is pressed. Before this it carried a `disabled` attribute that nothing
+     removed, so it showed faded all run and, enabled by hand, looked like it
+     could not be pressed. Now it pulses while it is on offer, and while the
+     board is open for fixing it says so and the board wears an orange edge. */
   .btn-big.quick-fix {
     background: linear-gradient(180deg, #ff8a3d, #d84d10);
     color: #fffbe8;
     box-shadow: 0 3px 0 #8b3408, 0 6px 12px rgba(216, 77, 16, 0.35);
-    display: none;
+    /* Hidden, not display:none. When it appeared on the first hop it added a
+       line to the footer, the board's box shrank by up to 28px mid-run, and
+       .grid-wrap clipped the top and bottom rows. Keeping its place in the
+       layout means the footer is the same height before, during and after. */
+    visibility: hidden;
   }
-  body.locked.animating .btn-big.quick-fix:not(.used) { display: inline-block; }
+  @keyframes quick-ready {
+    0%, 100% { box-shadow: 0 3px 0 #8b3408, 0 6px 12px rgba(216, 77, 16, 0.35), 0 0 0 0 rgba(255, 138, 61, 0); }
+    50%      { box-shadow: 0 3px 0 #8b3408, 0 6px 12px rgba(216, 77, 16, 0.35), 0 0 0 6px rgba(255, 138, 61, 0.55); }
+  }
+  body.locked.animating .btn-big.quick-fix:not(.used):not(:disabled) {
+    visibility: visible;
+    animation: quick-ready 1100ms ease-in-out infinite;
+  }
   .btn-big.quick-fix:disabled, .btn-big.quick-fix.used {
     opacity: 0.45;
     cursor: not-allowed;
     box-shadow: none;
   }
-  /* During a QUICK pause, the board is unlocked for tile rotation
-     and a banner pulses across the top of the grid. */
+  /* While the board is open for fixing the button stays at full strength (it
+     is pressed, not faded), and the board has an orange edge. */
+  body.quick-paused .btn-big.quick-fix {
+    visibility: visible; opacity: 1; animation: none; cursor: default;
+    box-shadow: 0 3px 0 #8b3408, 0 0 0 4px rgba(255, 200, 100, 0.95);
+  }
+  body.quick-paused .tunnel-grid {
+    box-shadow:
+      0 0 0 4px #ff8a3d,
+      inset 0 4px 12px rgba(0,0,0,0.4),
+      0 4px 12px rgba(0,0,0,0.3);
+  }
+  /* During a QUICK pause, the board is unlocked for tile rotation: the tiles
+     that can turn take touches again and lose the "locked" tint. */
   body.quick-paused .tile:not(.empty):not(.fixed) {
     pointer-events: auto;
     cursor: pointer;
   }
-  .quick-banner {
-    position: absolute;
-    top: 8px; left: 50%;
-    transform: translateX(-50%);
-    background: rgba(216, 77, 16, 0.92);
-    color: #fffbe8;
-    padding: 8px 16px;
-    border-radius: 12px;
-    font-family: 'Fredoka', sans-serif;
-    font-weight: 700;
-    font-size: var(--fs-floor);
-    z-index: 30;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    display: none;
-  }
-  body.quick-paused .quick-banner { display: block; }
+  body.quick-paused .tile:not(.empty):not(.fixed)::after { background: transparent; }
 
   /* Music toggle — same icon-btn style as overlay toggle. Off
      state grays out. */
@@ -354,7 +389,7 @@
     text-align: center;
     max-width: 90%;
     padding: 24px;
-    font-family: 'Fredoka', sans-serif;
+    font-family: var(--body-font);
   }
   .ready-art {
     position: relative;
@@ -520,7 +555,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: 'Fredoka', sans-serif;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: 18px;
     background: rgba(255, 255, 255, 0.18);
@@ -566,10 +601,20 @@
       rotate(var(--sprite-rotate, 0deg))
       scaleX(var(--sprite-flip, 1));
     transition: left 220ms cubic-bezier(0.45, 0, 0.55, 1),
-                top  220ms cubic-bezier(0.45, 0, 0.55, 1);
+                top  220ms cubic-bezier(0.45, 0, 0.55, 1),
+                opacity 70ms linear 80ms;
     z-index: 6;
     animation: sprite-hop 240ms ease-out;
     filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.45));
+  }
+  /* Passing under a bridge (the crossing of two runs): gone from the moment it
+     reaches the planks until it comes out the far side. The delays are the
+     time the 220ms hop takes to reach the planks / leave them. */
+  .animal-sprite.dive {
+    opacity: 0;
+    transition: left 220ms cubic-bezier(0.45, 0, 0.55, 1),
+                top  220ms cubic-bezier(0.45, 0, 0.55, 1),
+                opacity 70ms linear 140ms;
   }
   @keyframes sprite-hop {
     /* Vertical bounce IN ADDITION to the linear translate that's
@@ -631,6 +676,65 @@
   }
   .btn-big.tertiary:active { box-shadow: 0 1px 0 #5c4a38, 0 3px 6px rgba(0,0,0,0.25); }
 
+  /* Taps, not browser gestures: no double-tap-to-zoom stealing a quick second
+     tap on a tile or a button (a child turns a tile by tapping it twice). */
+  .btn-big, .icon-btn, .tile, .grid-wrap { touch-action: manipulation; }
+
+  /* ── The shared slot: the magnifier before the run, QUICK during it ───────
+     Two buttons in one grid cell. Only one is ever visible; both always take
+     the room, so the footer is the same height either way. */
+  .aux-slot { display: grid; flex: 1 1 120px; max-width: 220px; }
+  .aux-slot > .btn-big { grid-area: 1 / 1; width: 100%; max-width: none; flex: none; }
+
+  /* ── Zoom ─────────────────────────────────────────────────────────────────
+     Where the whole board makes tiles smaller than ~40px (a phone on its
+     side: 25-29px), the board can be zoomed so a tile is 48px. Everything on
+     the board sits in .zoom-stage and zoom and pan are one transform on it. */
+  .zoom-stage {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 4px;
+    transform-origin: 0 0;
+    transition: transform 280ms ease;
+    --inv-zoom: 1;
+  }
+  .zoom-stage.panning { transition: none; }
+  @media (prefers-reduced-motion: reduce) { .zoom-stage { transition: none; } }
+  body.zoomed .grid-wrap { touch-action: none; cursor: grab; }
+  .btn-big.zoom-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: linear-gradient(180deg, #4f9bb0 0%, #2d6c80 100%);
+    border-color: #1d4a59;
+    box-shadow: 0 3px 0 #1d4a59, 0 5px 10px rgba(0,0,0,0.25);
+    visibility: hidden;
+  }
+  .btn-big.zoom-btn:active { box-shadow: 0 1px 0 #1d4a59, 0 3px 6px rgba(0,0,0,0.25); }
+  body.can-zoom:not(.locked) .btn-big.zoom-btn { visibility: visible; }
+  body.zoomed .btn-big.zoom-btn {
+    background: linear-gradient(180deg, #d8a04a 0%, #a87028 100%);
+    border-color: #6b4a18;
+    box-shadow: 0 3px 0 #6b4a18, 0 5px 10px rgba(0,0,0,0.25);
+  }
+  .zoom-ico { width: 1.5em; height: 1.5em; flex: none; }
+  body.zoomed .zoom-ico .plus-v { display: none; }
+  .zoom-hint {
+    position: absolute; left: 50%; bottom: 10px;
+    transform: translateX(-50%);
+    max-width: 92%;
+    background: rgba(74, 46, 20, 0.94);
+    color: #fffbe8;
+    font-family: var(--body-font); font-weight: 600;
+    font-size: var(--fs-floor); line-height: 1.3;
+    text-align: center;
+    padding: 8px 14px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 35;
+    pointer-events: none;
+    opacity: 0; transition: opacity 250ms ease;
+  }
+  .zoom-hint.show { opacity: 1; }
+
   .result-overlay {
     position: absolute; inset: 0;
     background: radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.7) 100%);
@@ -656,18 +760,112 @@
     margin-bottom: 8px;
   }
   .result-msg {
-    font-family: 'Caveat', cursive;
+    font-family: var(--body-font);
     color: var(--earth-mid);
     font-size: clamp(16px, 2.4cqh, 20px);
     margin-bottom: 14px;
   }
-  .result-buttons { display: flex; gap: 8px; justify-content: center; }
+  /* 12px between adjacent tap targets, as .header-buttons and .tunnel-footer
+     already have (it was 8). Wraps rather than squeezing on a narrow card. */
+  .result-buttons { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .result-buttons .btn-big { flex: 1 1 140px; }
+
+  /* The win card's tick-stamp: the design doc's "tick-stamp + a satisfying
+     chime". It thuds onto the card a moment after the card appears. */
+  .result-stamp {
+    width: clamp(56px, 11cqh, 84px); height: clamp(56px, 11cqh, 84px);
+    margin: 0 auto 6px;
+    display: none;
+    transform: rotate(-8deg);
+  }
+  .result-card.win .result-stamp { display: block; animation: stamp-thud 520ms cubic-bezier(.2,.9,.3,1.2) 120ms both; }
+  .result-stamp svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.25)); }
+  @keyframes stamp-thud {
+    0%   { transform: scale(2.6) rotate(-24deg); opacity: 0; }
+    60%  { transform: scale(0.92) rotate(-6deg); opacity: 1; }
+    100% { transform: scale(1) rotate(-8deg); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .result-card.win .result-stamp { animation: none; }
+  }
+  .result-msg { white-space: pre-line; }
+
+  /* A short word from the page about what a re-dig paid. Shown for a few
+     seconds over the top of the board; the host's own toast is drawn on the
+     game canvas, which this page covers. */
+  .dig-toast {
+    position: absolute; left: 50%; top: 0;
+    transform: translateX(-50%);
+    max-width: min(92%, 420px);
+    background: rgba(74, 46, 20, 0.94);
+    color: #fffbe8;
+    font-family: var(--body-font); font-weight: 600;
+    font-size: var(--fs-floor); line-height: 1.3;
+    text-align: center;
+    padding: 8px 14px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 40;
+    pointer-events: none;
+    opacity: 0; transition: opacity 250ms ease;
+  }
+  .dig-toast.show { opacity: 1; }
+
+
+  /* ── Narrow (a phone upright): title row, then the buttons row ─────────────
+     Beside three buttons (~240px) the title got a ~100px column, and the
+     subtitle wrapped to six or more lines, taking the height the board needed. */
+  @container tunnelframe (max-width: 520px) {
+    .tunnel-header { flex-wrap: wrap; row-gap: 6px; }
+    .tunnel-header > div:first-child { flex: 1 1 100%; }
+    .header-buttons { margin-left: auto; }
+  }
+
+  /* ── Short landscape (a phone on its side) ────────────────────────────────
+     The board is 13 rows. Stacked under a header and over a footer, a 360-390px
+     tall screen left it ~180px: the tile floor (28px) then made the grid taller
+     than its box and .grid-wrap (overflow:hidden) cut rows off both ends, so
+     starts and exits were out of reach. Here the header and buttons move to a
+     panel beside the board and the board takes the full height. The subtitle
+     is dropped (the Ready card says it); the buttons keep a 48px floor.
+     Keyed on the scene's own size, and kept to this file: the shared
+     _short-landscape.css has its own rules for the other screens. */
+  @container tunnelframe (max-height: 520px) and (min-width: 560px) {
+    .tunnel-scene {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(236px, 36%);
+      grid-template-rows: auto auto 1fr;
+      grid-template-areas: "board head" "board foot" "board .";
+      column-gap: 16px;
+      align-content: start;
+    }
+    .grid-wrap { grid-area: board; padding: 0; }
+    .tunnel-header {
+      grid-area: head;
+      flex-direction: column; align-items: stretch; justify-content: flex-start;
+      gap: 8px; padding: 0 0 8px;
+    }
+    .tunnel-subtitle { display: none; }
+    .tunnel-title { font-size: 20px; }
+    .header-buttons { flex-wrap: wrap; }
+    .tunnel-footer {
+      grid-area: foot;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      padding: 0;
+      align-self: start;
+    }
+    .tunnel-footer .btn-big {
+      max-width: none; min-height: 48px; flex: none;
+      padding-left: 8px; padding-right: 8px;   /* "Re-dig tunnels" fits one line in half the panel */
+    }
+    #btn-submit, .aux-slot { grid-column: 1 / -1; }
+  }
 
   .placeholder {
     flex: 1;
     display: flex; align-items: center; justify-content: center;
     color: var(--earth-mid);
-    font-family: 'Caveat', cursive;
+    font-family: var(--body-font);
     font-size: clamp(var(--fs-floor), 2cqh, 18px);
   }
 
@@ -711,7 +909,11 @@
       </div>
 
       <div class="grid-wrap" id="grid-wrap">
-        <div class="quick-banner">⏸ QUICK! Tap a tile to fix…</div>
+        <!-- Said for a few seconds when the board is zoomed in. -->
+        <div class="zoom-hint" id="zoom-hint" role="status" aria-live="polite">Drag to look around. Tap a tile to turn it.</div>
+        <!-- Everything on the board lives in this stage, so zooming and
+             panning are one transform on one element. -->
+        <div class="zoom-stage" id="zoom-stage">
         <div class="placeholder">Building the tunnels…</div>
         <!-- Aboveground overlay — embeds the LIVE arc-frame from
              map.html (with overlay-mode chrome stripped). Same
@@ -727,13 +929,29 @@
                   frameborder="0"
                   scrolling="no"></iframe>
         </div>
+        </div>
       </div>
 
       <div class="tunnel-footer">
         <button class="btn-big" id="btn-submit">Send the animals!</button>
         <button class="btn-big secondary" id="btn-reset">Reset</button>
         <button class="btn-big tertiary" id="btn-reroll">Re-dig tunnels</button>
-        <button class="btn-big quick-fix" id="btn-quick" disabled>QUICK! ⏸ fix the tunnel</button>
+        <!-- One slot, two buttons that never show together: the magnifier
+             before the animals are sent (only where the tiles are small), QUICK
+             while they run. The slot keeps its place so the board never
+             changes size when one gives way to the other. -->
+        <div class="aux-slot">
+          <button class="btn-big zoom-btn" id="btn-zoom" type="button" aria-pressed="false">
+            <svg class="zoom-ico" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/>
+              <line x1="15.2" y1="15.2" x2="21.5" y2="21.5" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
+              <line x1="6.8" y1="10" x2="13.2" y2="10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <line class="plus-v" x1="10" y1="6.8" x2="10" y2="13.2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>
+            <span id="zoom-label">Zoom in</span>
+          </button>
+          <button class="btn-big quick-fix" id="btn-quick" type="button" disabled>QUICK! ⏸ fix it</button>
+        </div>
       </div>
 
       <!-- Ready? startup overlay — shown on every page load. Music
@@ -753,10 +971,19 @@
         </div>
       </div>
 
+      <div class="dig-toast" id="dig-toast" role="status" aria-live="polite"></div>
+
       <div class="result-overlay" id="result-overlay">
-        <div class="result-card">
-          <div class="result-title" id="result-title">Hooray!</div>
-          <div class="result-msg" id="result-msg">The fox got home!</div>
+        <div class="result-card" id="result-card">
+          <div class="result-stamp" id="result-stamp" aria-hidden="true">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="50" r="44" fill="#3a8528" stroke="#1f4d12" stroke-width="5"/>
+              <circle cx="50" cy="50" r="36" fill="none" stroke="#fffbe8" stroke-width="2.5" stroke-dasharray="3 4"/>
+              <path d="M28 52 L44 68 L73 34" fill="none" stroke="#fffbe8" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="result-title" id="result-title">Tunnels connected!</div>
+          <div class="result-msg" id="result-msg">The animals are out playing in the garden.</div>
           <div class="result-buttons">
             <button class="btn-big" id="result-done">Done — back to centre</button>
             <button class="btn-big secondary" id="result-again">Play again</button>
@@ -814,7 +1041,8 @@
   }
   function rotateTile(tile) {
     if (tile.fixed) return { ...tile };
-    if (tile.type === 'cross' || tile.type === 'empty') return { ...tile };
+    // a bridge (the crossing of two runs) never turns, fixed or not
+    if (tile.type === 'cross' || tile.type === 'empty' || tile.type === 'bridge') return { ...tile };
     return { ...tile, rotation: (tile.rotation + 1) % 4 };
   }
   function toggleGate(tile) {
@@ -898,318 +1126,410 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
-  // MIRROR of game-logic/src/tunnel.ts generateTier1Puzzle.
-  // 9 cols × 13 rows. Bottom 11 rows correspond to the
-  // aboveground site map; top 2 rows are extra soil that wraps
-  // above the site. Tunnel network shifted up 3 rows so 3 rows
-  // of building footprint sit below the start tile.
-  // Mirror of fillWithDecoyTiles in game-logic. Pads empty cells in
-  // a zone with random rotatable pieces (incl. bridges) so the kid
-  // sees more pieces than they strictly need on the path.
-  function fillWithDecoyTiles(tiles, W, zone, rng, density) {
-    const decoyTypes = ['straight','straight','straight','corner','corner','corner','t-junction','t-junction','bridge'];
-    const randR = () => Math.floor(rng() * 4);
-    for (let y = zone.y0; y <= zone.y1; y++) {
-      for (let x = zone.x0; x <= zone.x1; x++) {
-        const i = y * W + x;
-        if (tiles[i].type !== 'empty') continue;
-        if (rng() > density) continue;
-        const type = decoyTypes[Math.floor(rng() * decoyTypes.length)];
-        tiles[i] = { type, rotation: randR() };
+  // ── The garden network: one board that grows tier by tier ──────
+  // MIRROR of game-logic/src/tunnel.ts (read the long comment there). Tier 1
+  // is the fox's run; tier 2 adds the hedgehog (and gates), tier 3 the
+  // raccoon, tier 4 the skunk, tier 5 is the same four with a third gate.
+  // Every run is built from the seed alone, so for one seed tier N is tier
+  // N-1 plus a branch. Where two runs have to cross, the tile is a fixed
+  // bridge (118A): the newer run goes over. Keep this identical to the TS
+  // (tunnel-page-mirror.test.ts and the t0-mirror check enforce it).
+  const NET_W = 9, NET_H = 13;
+  // The glass domes of the site map: col 6, rows 2, 5, 8 (the painted central
+  // path). Drawn from here, not from whichever tiles a run uses.
+  const DOME_CELLS = [{ x: 6, y: 2 }, { x: 6, y: 5 }, { x: 6, y: 8 }];
+  const HABITAT_EXITS = {
+    fox: [
+      { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 },
+      { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 },
+    ],
+    skunk: [{ x: 7, y: 1 }, { x: 7, y: 2 }, { x: 8, y: 1 }, { x: 8, y: 2 }],
+    hedgehog: [
+      { x: 1, y: 4 }, { x: 2, y: 4 }, { x: 3, y: 4 }, { x: 4, y: 4 },
+      { x: 1, y: 5 }, { x: 2, y: 5 }, { x: 3, y: 5 }, { x: 4, y: 5 },
+    ],
+    raccoon: [{ x: 7, y: 4 }, { x: 7, y: 5 }],
+  };
+
+  const key = (c) => c[0] + ',' + c[1];
+  const DOME_KEYS = new Set(DOME_CELLS.map((d) => d.x + ',' + d.y));
+
+  function dirBetween(a, b) {
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    if (dx > 0) return 'e';
+    if (dx < 0) return 'w';
+    return dy > 0 ? 's' : 'n';
+  }
+  // An endpoint opens one side: r0 south, r1 west, r2 north, r3 east.
+  const ENDPOINT_ROTATION = { s: 0, w: 1, n: 2, e: 3 };
+  // A corner's rotation from the two sides it joins: r0 N+W, r1 N+E, r2 S+E, r3 S+W.
+  function cornerRotation(a, b) {
+    const has = (d) => a === d || b === d;
+    if (has('n') && has('w')) return 0;
+    if (has('n') && has('e')) return 1;
+    if (has('s') && has('e')) return 2;
+    return 3;
+  }
+  function colRun(x, y0, y1) {
+    const out = [];
+    const step = y1 >= y0 ? 1 : -1;
+    for (let y = y0; y !== y1 + step; y += step) out.push([x, y]);
+    return out;
+  }
+  function rowRun(y, x0, x1) {
+    const out = [];
+    const step = x1 >= x0 ? 1 : -1;
+    for (let x = x0; x !== x1 + step; x += step) out.push([x, y]);
+    return out;
+  }
+  // The axis a run passes along at cell i, if that cell is a plain straight-through piece.
+  function throughAxis(route, i) {
+    if (i <= 0 || i >= route.path.length - 1) return null;
+    const a = route.path[i - 1], b = route.path[i + 1];
+    if (a[0] === b[0]) return 'ns';
+    if (a[1] === b[1]) return 'ew';
+    return null;
+  }
+
+  // Shapes are dealt by weight (a shape listed twice is dealt twice as often).
+  const FOX_SHAPES = ['straight', 'z-west', 'z-west', 'z-east', 'approach-north', 'approach-north'];
+  const HEDGEHOG_SHAPES = ['straight', 'z-east', 'z-east', 'approach-north', 'approach-north', 'over-the-top', 'over-the-top'];
+  const RACCOON_SHAPES = ['straight', 'z-west', 'z-west', 'approach-north', 'approach-north'];
+  const SKUNK_SHAPES = ['straight', 'z-west', 'z-west', 'z-west-high'];
+
+  function foxRoute(shape, exit, n) {
+    const row = shape === 'approach-north' ? 0 : 1;
+    const path = [[5, 10]];
+    if (shape === 'z-west') {
+      path.push(...colRun(6, 10, 8), [6, 7], [5, 7], [4, 7], ...colRun(4, 6, 4), [5, 4], [6, 4], ...colRun(6, 3, 1));
+    } else if (shape === 'z-east') {
+      path.push(...colRun(6, 10, 8), [6, 7], [7, 7], [8, 7], ...colRun(8, 6, 4), [7, 4], [6, 4], ...colRun(6, 3, 1));
+    } else {
+      path.push(...colRun(6, 10, row));
+    }
+    path.push(...rowRun(row, 5, exit.x));
+    for (let y = row + 1; y <= exit.y; y++) path.push([exit.x, y]);
+    const gates = shape === 'z-west' ? [[[4, 6]], [[6, 9]], [[5, 4]]]
+      : shape === 'z-east' ? [[[8, 6]], [[8, 5]], [[7, 4]]]
+        : [[[6, 7]], [[6, 9]], [[6, 4]]];
+    return { id: 'fox:' + shape + ':' + n, shape, route: { animal: 'fox', shape, path, fixedLead: 0, crosses: true, gates } };
+  }
+
+  function hedgehogRoute(shape, exitY) {
+    const path = [[0, 10]];
+    if (shape === 'straight') {
+      path.push(...colRun(1, 10, exitY));
+    } else if (shape === 'z-east') {
+      path.push(...colRun(1, 10, 7), [2, 7], [3, 7], [3, 6], [3, 5], [2, 5], [1, 5]);
+      if (exitY === 4) path.push([1, 4]);
+    } else if (shape === 'approach-north') {
+      path.push(...colRun(1, 10, 6), [2, 6], [3, 6], [3, 5], [3, 4], [2, 4], [1, 4], [1, 5]);
+    } else {
+      path.push(...colRun(1, 10, 6), [2, 6], [3, 6], ...colRun(3, 5, 1), [2, 1], [1, 1], [1, 2], [1, 3], [1, 4]);
+    }
+    return {
+      id: 'hedgehog:' + shape + ':' + exitY,
+      shape,
+      route: { animal: 'hedgehog', shape, path, fixedLead: 0, crosses: false, gates: [[[1, 7], [1, 8]], [[1, 9]]] },
+    };
+  }
+
+  function raccoonRoute(shape, exitY) {
+    const path = [[5, 11], [6, 11], [7, 11]];
+    let gates;
+    if (shape === 'straight') {
+      path.push(...colRun(7, 10, exitY));
+      gates = [[[7, 7], [7, 8]], [[7, 9]]];
+    } else if (shape === 'z-west') {
+      path.push([7, 10], [7, 9], [6, 9], [5, 9], [5, 8], [5, 7], [5, 6], [6, 6], [7, 6]);
+      if (exitY === 4) path.push([7, 5]);
+      path.push([7, exitY]);
+      gates = [[[5, 7]], [[7, 10]]];
+    } else {
+      path.push(...colRun(7, 10, 7), [7, 6], [6, 6], [5, 6], [5, 5], [5, 4], [6, 4], [7, 4], [7, 5]);
+      gates = [[[7, 7]], [[7, 9]]];
+    }
+    return { id: 'raccoon:' + shape + ':' + exitY, shape, route: { animal: 'raccoon', shape, path, fixedLead: 1, crosses: true, gates } };
+  }
+
+  function skunkRoute(shape, exitY) {
+    const path = [[5, 12], [6, 12], [7, 12], [8, 12]];
+    let gates;
+    if (shape === 'straight') {
+      path.push(...colRun(8, 11, exitY));
+      gates = [[[8, 7], [8, 8]], [[8, 9]], [[8, 4], [8, 5]]];
+    } else if (shape === 'z-west') {
+      path.push([8, 11], [8, 10], [8, 9], [7, 9], [6, 9], [5, 9], [5, 8], [5, 7], [5, 6], [6, 6], [7, 6], [8, 6], ...colRun(8, 5, exitY));
+      gates = [[[5, 7]], [[8, 10]], [[8, 5], [8, 4]]];
+    } else {
+      path.push([8, 11], [8, 10], [8, 9], [7, 9], [6, 9], [5, 9], ...colRun(5, 8, 4), [5, 3], [6, 3], [7, 3], [8, 3], ...colRun(8, 2, exitY));
+      gates = [[[5, 7]], [[8, 10]], [[5, 5]]];
+    }
+    return { id: 'skunk:' + shape + ':' + exitY, shape, route: { animal: 'skunk', shape, path, fixedLead: 2, crosses: true, gates } };
+  }
+
+  // Every shape each animal can be dealt, with each of its exits. Built once.
+  const ORDER = ['fox', 'hedgehog', 'raccoon', 'skunk'];
+  const SHAPES = [FOX_SHAPES, HEDGEHOG_SHAPES, RACCOON_SHAPES, SKUNK_SHAPES];
+  const VARIANTS = (() => {
+    const uniq = (l) => [...new Set(l)];
+    const fox = [];
+    uniq(FOX_SHAPES).forEach((s) => HABITAT_EXITS.fox.forEach((e, n) => fox.push(foxRoute(s, e, n))));
+    const hedgehog = [];
+    uniq(HEDGEHOG_SHAPES).forEach((s) => {
+      const ys = s === 'approach-north' ? [5] : s === 'over-the-top' ? [4] : HABITAT_EXITS.hedgehog.filter((e) => e.x === 1).map((e) => e.y);
+      ys.forEach((y) => hedgehog.push(hedgehogRoute(s, y)));
+    });
+    const raccoon = [];
+    uniq(RACCOON_SHAPES).forEach((s) => (s === 'approach-north' ? [5] : HABITAT_EXITS.raccoon.map((e) => e.y)).forEach((y) => raccoon.push(raccoonRoute(s, y))));
+    const skunk = [];
+    uniq(SKUNK_SHAPES).forEach((s) => HABITAT_EXITS.skunk.filter((e) => e.x === 8).forEach((e) => skunk.push(skunkRoute(s, e.y))));
+    return [fox, hedgehog, raccoon, skunk];
+  })();
+
+  // Every cell two of these runs share, as crossings; null if any shared cell
+  // is not a proper one. The newer run, later in the list, is over.
+  function crossingsOf(routes) {
+    const out = new Map();
+    for (let a = 0; a < routes.length; a++) {
+      const at = new Map();
+      routes[a].path.forEach((c, i) => at.set(key(c), i));
+      for (let b = a + 1; b < routes.length; b++) {
+        for (let j = 0; j < routes[b].path.length; j++) {
+          const c = routes[b].path[j];
+          const i = at.get(key(c));
+          if (i === undefined) continue;
+          const ax = throughAxis(routes[a], i);
+          const bx = throughAxis(routes[b], j);
+          if (!ax || !bx || ax === bx) return null;
+          if (!routes[a].crosses || !routes[b].crosses) return null;
+          if (i <= routes[a].fixedLead || j <= routes[b].fixedLead) return null;
+          if (DOME_KEYS.has(key(c)) || out.has(key(c))) return null;
+          out.set(key(c), { cell: c, under: a, over: b, overAxis: bx });
+        }
       }
     }
+    return out;
   }
 
-  function generateTier1(seed) {
-    const W = 9, H = 13;
-    const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
-    const set = (x, y, t) => { tiles[y * W + x] = t; };
-    const rng = mulberry32(seed);
-    const randR = () => Math.floor(rng() * 4);
-    set(5, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
-    set(6, 10, { type: 'corner', rotation: 0, fixed: true });
-    // Pick trunk topology — straight, z-east, z-west, or approach-north.
-    const TIER1_TEMPLATES = ['straight', 'z-east', 'z-east', 'z-west', 'z-west', 'approach-north', 'approach-north'];
-    const trunkTemplate = TIER1_TEMPLATES[Math.floor(rng() * TIER1_TEMPLATES.length)];
-    // Pick fox exit FIRST so we can place the approach-north corner.
-    const FOX_EXITS = [
-      {x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},
-      {x:1,y:2},{x:2,y:2},{x:3,y:2},{x:4,y:2},
-    ];
-    const exit = FOX_EXITS[Math.floor(rng() * FOX_EXITS.length)];
-    if (trunkTemplate === 'straight') {
-      for (let y = 2; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
-      set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-    } else if (trunkTemplate === 'z-east') {
-      set(6, 9, { type: 'straight', rotation: randR() });
-      set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(6, 7, { type: 'corner', rotation: 2, fixed: true });
-      set(7, 7, { type: 'straight', rotation: randR() });
-      set(8, 7, { type: 'corner', rotation: 0, fixed: true });
-      set(8, 6, { type: 'straight', rotation: randR() });
-      set(8, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(8, 4, { type: 'corner', rotation: 3, fixed: true });
-      set(7, 4, { type: 'straight', rotation: randR() });
-      set(6, 4, { type: 'corner', rotation: 1, fixed: true });
-      set(6, 3, { type: 'straight', rotation: randR() });
-      set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-    } else if (trunkTemplate === 'z-west') {
-      set(6, 9, { type: 'straight', rotation: randR() });
-      set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(6, 7, { type: 'corner', rotation: 3, fixed: true });
-      set(5, 7, { type: 'straight', rotation: randR() });
-      set(4, 7, { type: 'corner', rotation: 1, fixed: true });
-      set(4, 6, { type: 'straight', rotation: randR() });
-      set(4, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(4, 4, { type: 'corner', rotation: 2, fixed: true });
-      set(5, 4, { type: 'straight', rotation: randR() });
-      set(6, 4, { type: 'corner', rotation: 0, fixed: true });
-      set(6, 3, { type: 'straight', rotation: randR() });
-      set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-    } else {
-      // approach-north — trunk runs all the way up col 6, west on row 0.
-      for (let y = 1; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
-      set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
+  // The straights of a run the child can turn: not the ends, corners, fixed
+  // connectors, domes or crossings.
+  function rotatableCells(route, crossings) {
+    const out = [];
+    for (let i = 1; i < route.path.length - 1; i++) {
+      const c = route.path[i];
+      if (!throughAxis(route, i) || i <= route.fixedLead) continue;
+      if (DOME_KEYS.has(key(c)) || crossings.has(key(c))) continue;
+      out.push(c);
     }
-    if (trunkTemplate !== 'approach-north') {
-      set(6, 1, { type: 'corner', rotation: 3, fixed: true });
-      for (let x = exit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
-      if (exit.y === 2) set(exit.x, 1, { type: 'corner', rotation: 2, fixed: true });
-    } else {
-      set(6, 0, { type: 'corner', rotation: 3, fixed: true });
-      for (let x = exit.x + 1; x <= 5; x++) set(x, 0, { type: 'straight', rotation: randR() });
-      set(exit.x, 0, { type: 'corner', rotation: 2, fixed: true });
-      if (exit.y === 2) set(exit.x, 1, { type: 'straight', rotation: randR() });
-    }
-    const fEndR = trunkTemplate === 'approach-north' ? 2 : (exit.y === 1 ? 3 : 2);
-    set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: fEndR, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
-    return { width: W, height: H, tiles, animals: ['fox'] };
+    return out;
   }
 
-  // MIRROR of game-logic generateTier2Puzzle. Adds the hedgehog
-  // network on col 1 + a gate on each trunk (default closed).
-  // Tier 2 — single hedgehog (mirror of game-logic).
-  function generateTier2(seed) {
-    const W = 9, H = 13;
-    const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
-    const set = (x, y, t) => { tiles[y * W + x] = t; };
-    const rng = mulberry32(seed);
-    const randR = () => Math.floor(rng() * 4);
-    set(0, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'hedgehog', endpointRole: 'start' });
-    set(1, 10, { type: 'corner', rotation: 0, fixed: true });
-    const HEDGE_TEMPLATES = ['straight', 'z-east', 'z-east', 'approach-north', 'approach-north', 'over-the-top', 'over-the-top'];
-    const hedgeTemplate = HEDGE_TEMPLATES[Math.floor(rng() * HEDGE_TEMPLATES.length)];
-    const HEDGE_EXITS = [{x:1,y:4},{x:1,y:5}];
-    let hexit;
-    if (hedgeTemplate === 'approach-north') hexit = {x:1, y:5};
-    else if (hedgeTemplate === 'over-the-top') hexit = {x:1, y:4};
-    else hexit = HEDGE_EXITS[Math.floor(rng() * HEDGE_EXITS.length)];
-    let hRot;
-    if (hedgeTemplate === 'straight') {
-      for (let y = hexit.y + 1; y <= 9; y++) set(1, y, { type: 'straight', rotation: randR() });
-      set(1, 7, { type: 'gate', rotation: 0, open: false });
-      hRot = 0;
-    } else if (hedgeTemplate === 'z-east') {
-      set(1, 9, { type: 'straight', rotation: randR() });
-      set(1, 8, { type: 'gate', rotation: 0, open: false });
-      set(1, 7, { type: 'corner', rotation: 2, fixed: true });
-      set(2, 7, { type: 'straight', rotation: randR() });
-      set(3, 7, { type: 'corner', rotation: 0, fixed: true });
-      set(3, 6, { type: 'straight', rotation: randR() });
-      set(3, 5, { type: 'corner', rotation: 3, fixed: true });
-      set(2, 5, { type: 'straight', rotation: randR() });
-      if (hexit.y === 4) {
-        set(1, 5, { type: 'corner', rotation: 1, fixed: true });
-        hRot = 0;
+  // Where each of a run's first `levels` gates sits, or null if it cannot carry them.
+  function placeGates(route, crossings, levels) {
+    const free = rotatableCells(route, crossings);
+    const used = new Set();
+    const out = [];
+    for (let g = 0; g < levels && g < route.gates.length; g++) {
+      const ok = (c) => !used.has(key(c)) && free.some((f) => key(f) === key(c));
+      const pick = route.gates[g].find(ok) ?? free.find((c) => !used.has(key(c)));
+      if (!pick) return null;
+      used.add(key(pick));
+      out.push(pick);
+    }
+    return out;
+  }
+
+  // How many gate levels the board has at a tier: none, one on each run, two, three.
+  function gateLevelsAt(tier) {
+    return tier >= 5 ? 3 : tier >= 4 ? 2 : tier >= 2 ? 1 : 0;
+  }
+  // Gate levels already on the board when each run joins: a crossing must not take one of those gates.
+  const GATES_ALREADY = ORDER.map((_, k) => gateLevelsAt(k));
+
+  const fitMemo = new Map();
+  const dealMemo = new Map();
+
+  // Does this shape of run k fit beside the runs already laid?
+  function fits(k, v, placed) {
+    const memo = k + '|' + placed.map((p) => p.id).join(',') + '|' + v.id;
+    const known = fitMemo.get(memo);
+    if (known !== undefined) return known;
+    const before = placed.map((p) => p.route);
+    const routes = [...before, v.route];
+    let ok = true;
+    const crossings = crossingsOf(routes);
+    if (!crossings) {
+      ok = false;
+    } else {
+      if (GATES_ALREADY[k] > 0 && crossings.size > 0) {
+        const beforeCrossings = crossingsOf(before);
+        for (const r of before) {
+          for (const c of placeGates(r, beforeCrossings, GATES_ALREADY[k]) ?? []) {
+            if (crossings.has(key(c))) ok = false;
+          }
+        }
+      }
+      // and every run, the new one included, still has a cell for each gate it carries
+      if (ok) for (const r of routes) if (!placeGates(r, crossings, r.gates.length)) ok = false;
+    }
+    fitMemo.set(memo, ok);
+    return ok;
+  }
+
+  // The shapes of run k that fit beside what is laid and leave the next run a way through.
+  function dealable(k, placed) {
+    const memo = k + '|' + placed.map((p) => p.id).join(',');
+    const known = dealMemo.get(memo);
+    if (known) return known;
+    const out = VARIANTS[k].filter((v) => fits(k, v, placed)
+      && (k === ORDER.length - 1 || VARIANTS[k + 1].some((n) => fits(k + 1, n, [...placed, v]))));
+    dealMemo.set(memo, out);
+    return out;
+  }
+
+  // Deal run k: a shape by weight from those that fit, then one of that shape's exits.
+  function deal(k, placed, u1, u2) {
+    const fitting = dealable(k, placed);
+    const shapes = SHAPES[k].filter((s) => fitting.some((v) => v.shape === s));
+    if (shapes.length === 0) throw new Error('tunnel: no shape of the ' + ORDER[k] + "'s run fits beside the others");
+    const shape = shapes[Math.floor(u1 * shapes.length)];
+    const exits = fitting.filter((v) => v.shape === shape);
+    return exits[Math.floor(u2 * exits.length)];
+  }
+
+  const SEED_MIX = [
+    (s) => s,
+    (s) => (s * 31 + 17) >>> 0,
+    (s) => (s * 53 + 31) >>> 0,
+    (s) => (s * 97 + 13) >>> 0,
+  ];
+
+  // The first `count` animals' runs for a seed, each with the stream it goes on
+  // drawing its tiles' turns from.
+  function dealNetwork(count, seed) {
+    const out = [];
+    const placed = [];
+    for (let k = 0; k < count; k++) {
+      const rng = mulberry32(SEED_MIX[k](seed));
+      const u1 = rng();
+      const u2 = rng();
+      const variant = deal(k, placed, u1, u2);
+      placed.push(variant);
+      out.push({ variant, rng });
+    }
+    return out;
+  }
+
+  // Lay one run: corners, building connectors and both endpoints fixed; every
+  // other straight starts at a random rotation; a crossing is a fixed bridge;
+  // closed gates replace the rotatable straights each gate level names.
+  function layRoute(set, route, rng, gateLevels, crossings) {
+    const cells = route.path;
+    const last = cells.length - 1;
+    const rotatable = [];
+    for (let i = 0; i <= last; i++) {
+      const [x, y] = cells[i];
+      if (i === 0 || i === last) {
+        const toward = dirBetween(cells[i], cells[i === 0 ? 1 : i - 1]);
+        set(x, y, {
+          type: 'habitat-endpoint', rotation: ENDPOINT_ROTATION[toward], fixed: true,
+          endpointFor: route.animal, endpointRole: i === 0 ? 'start' : 'end',
+        });
+        continue;
+      }
+      const back = dirBetween(cells[i], cells[i - 1]);
+      const fwd = dirBetween(cells[i], cells[i + 1]);
+      if (back !== OPP[fwd]) {
+        set(x, y, { type: 'corner', rotation: cornerRotation(back, fwd), fixed: true });
+        continue;
+      }
+      const horizontal = fwd === 'e' || fwd === 'w';
+      if (i <= route.fixedLead) {
+        set(x, y, { type: 'straight', rotation: horizontal ? 1 : 0, fixed: true });
+        continue;
+      }
+      // Always drawn, so a crossing laid here by a LATER run does not shift the
+      // turns of the straights after it: the run is the same in every tier.
+      const turn = Math.floor(rng() * 4);
+      const crossing = crossings.get(key(cells[i]));
+      if (crossing) {
+        set(x, y, { type: 'bridge', rotation: crossing.overAxis === 'ns' ? 0 : 1, fixed: true });
       } else {
-        hRot = 3;
+        set(x, y, { type: 'straight', rotation: turn });
+        rotatable.push({ i, horizontal });
       }
-    } else if (hedgeTemplate === 'approach-north') {
-      // climbs col 1 to row 6, east jog to col 3, climbs col 3 to row
-      // 4, west jog back to col 1, into endpoint at (1, 5) from N.
-      set(1, 9, { type: 'straight', rotation: randR() });
-      set(1, 8, { type: 'gate', rotation: 0, open: false });
-      set(1, 7, { type: 'straight', rotation: randR() });
-      set(1, 6, { type: 'corner', rotation: 2, fixed: true });
-      set(2, 6, { type: 'straight', rotation: randR() });
-      set(3, 6, { type: 'corner', rotation: 0, fixed: true });
-      set(3, 5, { type: 'straight', rotation: randR() });
-      set(3, 4, { type: 'corner', rotation: 3, fixed: true });
-      set(2, 4, { type: 'straight', rotation: randR() });
-      set(1, 4, { type: 'corner', rotation: 2, fixed: true });
-      hRot = 2;
-    } else {
-      // over-the-top: wide loop through rows 1-3 around to (1, 4) endpoint.
-      set(1, 9, { type: 'straight', rotation: randR() });
-      set(1, 8, { type: 'gate', rotation: 0, open: false });
-      set(1, 7, { type: 'straight', rotation: randR() });
-      set(1, 6, { type: 'corner', rotation: 2, fixed: true });
-      set(2, 6, { type: 'straight', rotation: randR() });
-      set(3, 6, { type: 'corner', rotation: 0, fixed: true });
-      set(3, 5, { type: 'straight', rotation: randR() });
-      set(3, 4, { type: 'straight', rotation: randR() });
-      set(3, 3, { type: 'straight', rotation: randR() });
-      set(3, 2, { type: 'straight', rotation: randR() });
-      set(3, 1, { type: 'corner', rotation: 3, fixed: true });
-      set(2, 1, { type: 'straight', rotation: randR() });
-      set(1, 1, { type: 'corner', rotation: 2, fixed: true });
-      set(1, 2, { type: 'straight', rotation: randR() });
-      set(1, 3, { type: 'straight', rotation: randR() });
-      hRot = 2;
     }
-    set(1, hexit.y, { type: 'habitat-endpoint', rotation: hRot, fixed: false, endpointFor: 'hedgehog', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
-    return { width: W, height: H, tiles, animals: ['hedgehog'] };
+    for (const [gx, gy] of placeGates(route, crossings, gateLevels) ?? []) {
+      const hit = rotatable.find((r) => cells[r.i][0] === gx && cells[r.i][1] === gy);
+      if (!hit) continue;
+      set(gx, gy, { type: 'gate', rotation: hit.horizontal ? 1 : 0, open: false });
+    }
+    return rotatable;
   }
 
-  // Tier 3 — single raccoon.
-  function generateTier3(seed) {
-    const W = 9, H = 13;
-    const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
-    const set = (x, y, t) => { tiles[y * W + x] = t; };
-    const rng = mulberry32(seed);
-    const randR = () => Math.floor(rng() * 4);
-    set(5, 11, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'raccoon', endpointRole: 'start' });
-    set(6, 11, { type: 'straight', rotation: 1, fixed: true });
-    set(7, 11, { type: 'corner', rotation: 0, fixed: true });
-    const RACCOON_EXITS = [{x:7,y:4},{x:7,y:5}];
-    const RACCOON_TEMPLATES = ['straight', 'z-west', 'z-west', 'approach-north', 'approach-north'];
-    const raccoonTemplate = RACCOON_TEMPLATES[Math.floor(rng() * RACCOON_TEMPLATES.length)];
-    let rexit;
-    if (raccoonTemplate === 'approach-north') rexit = {x:7, y:5};
-    else rexit = RACCOON_EXITS[Math.floor(rng() * RACCOON_EXITS.length)];
-    let rEndR = 0;
-    if (raccoonTemplate === 'straight') {
-      for (let y = rexit.y + 1; y <= 10; y++) set(7, y, { type: 'straight', rotation: randR() });
-      set(7, 7, { type: 'gate', rotation: 0, open: false });
-    } else if (raccoonTemplate === 'approach-north') {
-      // climb col 7 to row 6, west jog to col 5, climb to row 4, east
-      // jog back, into endpoint at (7, 5) from N.
-      set(7, 10, { type: 'straight', rotation: randR() });
-      set(7, 9, { type: 'straight', rotation: randR() });
-      set(7, 8, { type: 'straight', rotation: randR() });
-      set(7, 7, { type: 'gate', rotation: 0, open: false });
-      set(7, 6, { type: 'corner', rotation: 3, fixed: true });
-      set(6, 6, { type: 'straight', rotation: randR() });
-      set(5, 6, { type: 'corner', rotation: 1, fixed: true });
-      set(5, 5, { type: 'straight', rotation: randR() });
-      set(5, 4, { type: 'corner', rotation: 2, fixed: true });
-      set(6, 4, { type: 'straight', rotation: randR() });
-      set(7, 4, { type: 'corner', rotation: 3, fixed: true });
-      rEndR = 2;
-    } else {
-      set(7, 10, { type: 'straight', rotation: randR() });
-      set(7, 9, { type: 'straight', rotation: randR() });
-      set(7, 8, { type: 'corner', rotation: 3, fixed: true });
-      set(6, 8, { type: 'straight', rotation: randR() });
-      set(5, 8, { type: 'corner', rotation: 1, fixed: true });
-      set(5, 7, { type: 'gate', rotation: 0, open: false });
-      set(5, 6, { type: 'corner', rotation: 2, fixed: true });
-      set(6, 6, { type: 'straight', rotation: randR() });
-      set(7, 6, { type: 'corner', rotation: 0, fixed: true });
-      if (rexit.y === 4) set(7, 5, { type: 'straight', rotation: randR() });
+  // Decoys: each empty cell decides from the seed and its own index, so the
+  // same cell holds the same decoy in every tier. No bridges: a bridge on the
+  // board is a crossing of two runs.
+  function fillDecoys(tiles, seed, density) {
+    const decoyTypes = ['straight', 'straight', 'straight', 'corner', 'corner', 'corner', 't-junction', 't-junction'];
+    for (let i = 0; i < tiles.length; i++) {
+      if (tiles[i].type !== 'empty') continue;
+      const r = mulberry32((Math.imul(seed >>> 0, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca6b)) >>> 0);
+      if (r() > density) continue;
+      const type = decoyTypes[Math.floor(r() * decoyTypes.length)];
+      tiles[i] = { type, rotation: Math.floor(r() * 4) };
     }
-    set(7, rexit.y, { type: 'habitat-endpoint', rotation: rEndR, fixed: false, endpointFor: 'raccoon', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
-    return { width: W, height: H, tiles, animals: ['raccoon'] };
   }
 
-  // Tier 4 — single skunk.
-  function generateTier4(seed) {
-    const W = 9, H = 13;
-    const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
-    const set = (x, y, t) => { tiles[y * W + x] = t; };
-    const rng = mulberry32(seed);
-    const randR = () => Math.floor(rng() * 4);
-    set(5, 12, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'skunk', endpointRole: 'start' });
-    set(6, 12, { type: 'straight', rotation: 1, fixed: true });
-    set(7, 12, { type: 'straight', rotation: 1, fixed: true });
-    set(8, 12, { type: 'corner', rotation: 0, fixed: true });
-    const SKUNK_EXITS = [{x:8,y:1},{x:8,y:2}];
-    const sexit = SKUNK_EXITS[Math.floor(rng() * SKUNK_EXITS.length)];
-    const SKUNK_TEMPLATES = ['straight', 'z-west', 'z-west'];
-    const skunkTemplate = SKUNK_TEMPLATES[Math.floor(rng() * SKUNK_TEMPLATES.length)];
-    if (skunkTemplate === 'straight') {
-      for (let y = sexit.y + 1; y <= 11; y++) set(8, y, { type: 'straight', rotation: randR() });
-      set(8, 7, { type: 'gate', rotation: 0, open: false });
-      if (tiles[10 * W + 8]?.type === 'straight') {
-        set(8, 10, { type: 'gate', rotation: 0, open: false });
+  function buildNetwork(tier, seed) {
+    const tiles = [];
+    for (let i = 0; i < NET_W * NET_H; i++) tiles.push({ type: 'empty', rotation: 0 });
+    const set = (x, y, t) => { tiles[y * NET_W + x] = t; };
+    const at = (c) => tiles[c[1] * NET_W + c[0]];
+    const gateLevels = gateLevelsAt(tier);
+
+    const dealt = dealNetwork(Math.min(tier, ORDER.length), seed);
+    const routes = dealt.map((d) => d.variant.route);
+    const crossings = crossingsOf(routes);
+    const animals = routes.map((r) => r.animal);
+    let foxTurns = [];
+    dealt.forEach((d, k) => {
+      const turns = layRoute(set, d.variant.route, d.rng, gateLevels, crossings);
+      if (k === 0) foxTurns = turns;
+    });
+    const fox = routes[0];
+
+    // Where the fox's run passes under a glass dome, the tile is the dome.
+    const foxCells = new Set(fox.path.map(key));
+    for (const d of DOME_CELLS) {
+      const t = at([d.x, d.y]);
+      if (foxCells.has(d.x + ',' + d.y) && t.type === 'straight' && !t.fixed) {
+        set(d.x, d.y, { type: 'viewing-dome', rotation: 0, fixed: true });
       }
-    } else {
-      // z-west: trunk col 8 jogs west via col 6 mid-trunk.
-      set(8, 11, { type: 'straight', rotation: randR() });
-      set(8, 10, { type: 'straight', rotation: randR() });
-      set(8, 9, { type: 'corner', rotation: 3, fixed: true });
-      set(7, 9, { type: 'straight', rotation: randR() });
-      set(6, 9, { type: 'corner', rotation: 1, fixed: true });
-      set(6, 8, { type: 'gate', rotation: 0, open: false });
-      set(6, 7, { type: 'straight', rotation: randR() });
-      set(6, 6, { type: 'corner', rotation: 2, fixed: true });
-      set(7, 6, { type: 'straight', rotation: randR() });
-      set(8, 6, { type: 'corner', rotation: 0, fixed: true });
-      for (let y = sexit.y + 1; y <= 5; y++) set(8, y, { type: 'straight', rotation: randR() });
     }
-    set(8, sexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'skunk', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.9);
-    return { width: W, height: H, tiles, animals: ['skunk'] };
-  }
 
-  // Tier 5 — multi-animal (4 species, 4 trunks, 4 gates).
-  function generateTier5(seed) {
-    const W = 9, H = 13;
-    const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
-    const set = (x, y, t) => { tiles[y * W + x] = t; };
-    const rng = mulberry32(seed);
-    const randR = () => Math.floor(rng() * 4);
-    // FOX
-    set(5, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
-    set(6, 10, { type: 'corner', rotation: 0, fixed: true });
-    for (let y = 2; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
-    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 7, { type: 'gate', rotation: 0, open: false });
-    set(6, 1, { type: 'corner', rotation: 3, fixed: true });
-    const FOX_EXITS = [
-      {x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},
-      {x:1,y:2},{x:2,y:2},{x:3,y:2},{x:4,y:2},
-    ];
-    const fexit = FOX_EXITS[Math.floor(rng() * FOX_EXITS.length)];
-    for (let x = fexit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
-    if (fexit.y === 2) set(fexit.x, 1, { type: 'corner', rotation: 2, fixed: true });
-    set(fexit.x, fexit.y, { type: 'habitat-endpoint', rotation: fexit.y === 1 ? 3 : 2, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
-    // HEDGEHOG
-    set(0, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'hedgehog', endpointRole: 'start' });
-    set(1, 10, { type: 'corner', rotation: 0, fixed: true });
-    const hexit = [{x:1,y:4},{x:1,y:5}][Math.floor(rng() * 2)];
-    for (let y = hexit.y + 1; y <= 9; y++) set(1, y, { type: 'straight', rotation: randR() });
-    set(1, 7, { type: 'gate', rotation: 0, open: false });
-    set(1, hexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'hedgehog', endpointRole: 'end' });
-    // RACCOON
-    set(5, 11, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'raccoon', endpointRole: 'start' });
-    set(6, 11, { type: 'straight', rotation: 1, fixed: true });
-    set(7, 11, { type: 'corner', rotation: 0, fixed: true });
-    const rexit = [{x:7,y:4},{x:7,y:5}][Math.floor(rng() * 2)];
-    for (let y = rexit.y + 1; y <= 10; y++) set(7, y, { type: 'straight', rotation: randR() });
-    set(7, 7, { type: 'gate', rotation: 0, open: false });
-    set(7, rexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'raccoon', endpointRole: 'end' });
-    // SKUNK
-    set(5, 12, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'skunk', endpointRole: 'start' });
-    set(6, 12, { type: 'straight', rotation: 1, fixed: true });
-    set(7, 12, { type: 'straight', rotation: 1, fixed: true });
-    set(8, 12, { type: 'corner', rotation: 0, fixed: true });
-    const sexit = [{x:8,y:1},{x:8,y:2}][Math.floor(rng() * 2)];
-    for (let y = sexit.y + 1; y <= 11; y++) set(8, y, { type: 'straight', rotation: randR() });
-    set(8, 7, { type: 'gate', rotation: 0, open: false });
-    set(8, sexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'skunk', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
-    return { width: W, height: H, tiles, animals: ['fox', 'hedgehog', 'raccoon', 'skunk'] };
+    // Never start finished: if luck lined every straight up, turn the first.
+    if (gateLevels === 0) {
+      const turnable = foxTurns.filter((r) => {
+        const t = at(fox.path[r.i]);
+        return t.type === 'straight' && !t.fixed;
+      });
+      const aligned = (r) => (at(fox.path[r.i]).rotation % 2 === 1) === r.horizontal;
+      if (turnable.length > 0 && turnable.every(aligned)) {
+        const [cx, cy] = fox.path[turnable[0].i];
+        set(cx, cy, { ...at([cx, cy]), rotation: (at([cx, cy]).rotation + 1) % 4 });
+      }
+    }
+
+    fillDecoys(tiles, seed, tier >= 4 ? 0.9 : 0.85);
+    return { width: NET_W, height: NET_H, tiles, animals };
   }
+  function generateTier1(seed) { return buildNetwork(1, seed); }
+  function generateTier2(seed) { return buildNetwork(2, seed); }
+  function generateTier3(seed) { return buildNetwork(3, seed); }
+  function generateTier4(seed) { return buildNetwork(4, seed); }
+  function generateTier5(seed) { return buildNetwork(5, seed); }
 
   // Tier picker — read ?tier=N from URL (default 1).
   const urlTier = parseInt(new URLSearchParams(location.search).get('tier') || '1', 10);
@@ -1289,8 +1609,36 @@
     } else if (tile.type === 'cross') {
       drawCorridor('M 35 0 L 65 0 L 65 35 L 100 35 L 100 65 L 65 65 L 65 100 L 35 100 L 35 65 L 0 65 L 0 35 L 35 35 Z');
     } else if (tile.type === 'bridge') {
-      drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');
+      // The crossing of two runs: one tunnel goes OVER the other on a wooden
+      // plank bridge, and the other goes UNDER it, into a dark mouth on one
+      // side and out of another on the other. Drawn at rotation 0 with the
+      // north-south run on top; rotation 1 turns the picture so the east-west
+      // run is on top. Same earth-and-outline style as every other corridor.
+      // 1. the run beneath, whole width of the tile
       drawCorridor('M 0 35 L 100 35 L 100 65 L 0 65 Z');
+      // 2. the run on top, whole height (its ends are the floor of the next tile)
+      drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');
+      // 3. the dark mouths where the run beneath goes in under the planks
+      for (const [a, b, c] of [[30, 12, 20], [70, 88, 80]]) {
+        g.appendChild(svgEl('path', {
+          d: `M ${a} 36 L ${c} 36 Q ${b} 50 ${c} 64 L ${a} 64 Z`,
+          fill: '#2a1808', 'fill-opacity': 0.8,
+        }));
+      }
+      // 4. the bridge: a plank deck with a ramp at each end, and a rail down each side
+      g.appendChild(svgEl('path', {
+        d: 'M 35 8 L 65 8 L 72 20 L 72 80 L 65 92 L 35 92 L 28 80 L 28 20 Z',
+        fill: '#c8914f', stroke: '#3a2410', 'stroke-width': 4, 'stroke-linejoin': 'round',
+      }));
+      for (let y = 22; y <= 78; y += 7) {
+        g.appendChild(svgEl('line', { x1: 31, y1: y, x2: 69, y2: y, stroke: '#8b5a2a', 'stroke-width': 2, 'stroke-linecap': 'round' }));
+      }
+      for (const x of [33, 67]) {
+        g.appendChild(svgEl('line', { x1: x, y1: 22, x2: x, y2: 78, stroke: '#4a2c10', 'stroke-width': 4.5, 'stroke-linecap': 'round' }));
+        for (const y of [22, 50, 78]) {
+          g.appendChild(svgEl('circle', { cx: x, cy: y, r: 3.4, fill: '#2a1808' }));
+        }
+      }
     } else if (tile.type === 'gate') {
       drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');
       g.appendChild(svgEl('rect', {
@@ -1313,14 +1661,13 @@
       // (out from the circle), END arrow points AGAINST it (toward
       // the circle). The arrow needs to be visible UNDER the
       // sticker so it sits low on the stub at y=92 not 86.
-      const arrowGlyph = tile.endpointRole === 'start' ? '↓' : '↑';
-      const arrow = svgEl('text', {
-        x: 50, y: 92, 'text-anchor': 'middle',
-        'font-family': 'Fredoka, sans-serif', 'font-size': 18, 'font-weight': 700,
-        fill: '#3a2410',
-      });
-      arrow.textContent = arrowGlyph;
-      g.appendChild(arrow);
+      // A solid triangle, not text: an 18-unit glyph in a 100-unit tile was
+      // ~7px on screen. This is a shape, so there is no type size to fall
+      // short of 16px, and it reads at any tile size.
+      const arrowPts = tile.endpointRole === 'start' ? '36,74 64,74 50,96' : '36,96 64,96 50,74';
+      g.appendChild(svgEl('polygon', {
+        points: arrowPts, fill: '#3a2410', stroke: '#fff5d8', 'stroke-width': 2, 'stroke-linejoin': 'round',
+      }));
     } else if (tile.type === 'viewing-dome') {
       drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');
       // Wrap the dome glyph in a group with a class so CSS can hide
@@ -1344,9 +1691,14 @@
   function renderGrid() {
     if (!puzzle) return;
     const wrap = document.getElementById('grid-wrap');
+    const stage = document.getElementById('zoom-stage');
     // Preserve the overground overlay across re-renders (wipes destroy it).
     const overlay = document.getElementById('overground-overlay');
-    wrap.replaceChildren();
+    // And the animal, while a run is on: a tap during the QUICK pause redraws
+    // the board, and the sprite standing in the trail must still be standing
+    // there. Outside a run the trail goes with the redraw, as it always did.
+    const oldTrail = document.body.classList.contains('animating') ? stage.querySelector('.pawprint-trail') : null;
+    stage.replaceChildren();
     const grid = document.createElement('div');
     grid.className = 'tunnel-grid';
     const wrapRect = wrap.getBoundingClientRect();
@@ -1355,7 +1707,12 @@
     // the wrap on narrow viewports (overflowing into header + footer).
     const maxByWidth  = Math.floor((wrapRect.width  - 12) / puzzle.width);
     const maxByHeight = Math.floor((wrapRect.height - 12) / puzzle.height);
-    const tileSize = Math.max(28, Math.min(maxByWidth, maxByHeight));
+    // The floor used to be 28. On a short screen the honest size was ~25 (13
+    // rows in ~340px), so the floor made the grid taller than its box and
+    // .grid-wrap clipped whole rows off both ends: starts and exits the child
+    // could not reach. A smaller tile that fits is better than a larger one
+    // that is cut off; 16 only guards against a zero-height box on first paint.
+    const tileSize = Math.max(16, Math.min(maxByWidth, maxByHeight));
     lastTileSize = tileSize;
     grid.style.gridTemplateColumns = `repeat(${puzzle.width}, ${tileSize}px)`;
     grid.style.gridTemplateRows    = `repeat(${puzzle.height}, ${tileSize}px)`;
@@ -1415,7 +1772,8 @@
         // for the soft "click me" hint ring (CSS .rotatable::after).
         const isRotatable =
           !tile.fixed && tile.type !== 'empty' && tile.type !== 'cross' &&
-          tile.type !== 'viewing-dome' && tile.type !== 'habitat-endpoint';
+          tile.type !== 'viewing-dome' && tile.type !== 'habitat-endpoint' &&
+          tile.type !== 'bridge';
         if (isRotatable) cell.classList.add('rotatable');
         cell.dataset.x = String(x);
         cell.dataset.y = String(y);
@@ -1424,7 +1782,8 @@
         grid.appendChild(cell);
       }
     }
-    wrap.appendChild(grid);
+    stage.appendChild(grid);
+    if (oldTrail) grid.appendChild(oldTrail);
 
     // Decoration layer — sparse Manus-painted easter-eggs (bones,
     // worm, rock, boot, treasure) on a few empty tiles. At most ONE
@@ -1485,7 +1844,7 @@
       m.appendChild(img);
       decoLayer.appendChild(m);
     }
-    wrap.appendChild(decoLayer);
+    stage.appendChild(decoLayer);
 
     // Dome layer — separate stacking layer above the overground
     // overlay so glass-dome markers always pop on top of gardens
@@ -1498,27 +1857,30 @@
       domeLayer.className = 'dome-layer';
     }
     domeLayer.replaceChildren();
-    for (let y = 0; y < puzzle.height; y++) {
-      for (let x = 0; x < puzzle.width; x++) {
-        const t = puzzle.tiles[y * puzzle.width + x];
-        if (t.type !== 'viewing-dome') continue;
-        const m = document.createElement('div');
-        m.className = 'dome-marker';
-        const sz = Math.round(tileSize * 0.7);
-        m.style.width  = sz + 'px';
-        m.style.height = sz + 'px';
-        m.style.left = (gridLeft + 6 + x * tileSize + tileSize / 2) + 'px';
-        m.style.top  = (gridTop  + 6 + y * tileSize + tileSize / 2) + 'px';
-        m.innerHTML =
-          '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">' +
-            '<circle cx="50" cy="50" r="42" fill="rgba(180,220,255,0.55)" ' +
-              'stroke="#3a2410" stroke-width="3.5"/>' +
-            '<ellipse cx="38" cy="38" rx="14" ry="9" fill="rgba(255,255,255,0.7)"/>' +
-          '</svg>';
-        domeLayer.appendChild(m);
-      }
+    // The glass domes of the site map stand on the painted central path (col 6,
+    // rows 2, 5, 8), so they are drawn from those cells whatever the tunnel
+    // beneath does: a run that jogs away from col 6 leaves its middle dome over
+    // plain soil, and the dome is still where the map says it is. Where a run
+    // does pass under one it is a fixed dome tile, and the fox is seen through
+    // the glass (this layer is above the animals and the glass is see-through).
+    for (const d of DOME_CELLS) {
+      if (d.x >= puzzle.width || d.y >= puzzle.height) continue;
+      const m = document.createElement('div');
+      m.className = 'dome-marker';
+      const sz = Math.round(tileSize * 0.7);
+      m.style.width  = sz + 'px';
+      m.style.height = sz + 'px';
+      m.style.left = (gridLeft + 6 + d.x * tileSize + tileSize / 2) + 'px';
+      m.style.top  = (gridTop  + 6 + d.y * tileSize + tileSize / 2) + 'px';
+      m.innerHTML =
+        '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">' +
+          '<circle cx="50" cy="50" r="42" fill="rgba(180,220,255,0.55)" ' +
+            'stroke="#3a2410" stroke-width="3.5"/>' +
+          '<ellipse cx="38" cy="38" rx="14" ry="9" fill="rgba(255,255,255,0.7)"/>' +
+        '</svg>';
+      domeLayer.appendChild(m);
     }
-    wrap.appendChild(domeLayer);
+    stage.appendChild(domeLayer);
 
     // Endpoint sticker layer — painted badges per animal type,
     // always upright above the rotated tile + overlay. Sits at
@@ -1550,7 +1912,45 @@
         stickerLayer.appendChild(m);
       }
     }
-    wrap.appendChild(stickerLayer);
+    stage.appendChild(stickerLayer);
+
+    // Gate labels — "Tap!" above every shut gate, on their own layer so the
+    // tile's overflow:hidden cannot clip them (see .gate-label).
+    let gateLayer = document.getElementById('gate-label-layer');
+    if (!gateLayer) {
+      gateLayer = document.createElement('div');
+      gateLayer.id = 'gate-label-layer';
+      gateLayer.className = 'gate-label-layer';
+    }
+    gateLayer.replaceChildren();
+    for (let y = 0; y < puzzle.height; y++) {
+      for (let x = 0; x < puzzle.width; x++) {
+        if (gateOpenedBefore) continue;   // she knows what a gate does: the rings are enough (120A)
+        const t = puzzle.tiles[y * puzzle.width + x];
+        if (t.type !== 'gate' || t.open !== false) continue;
+        const m = document.createElement('div');
+        m.className = 'gate-label';
+        m.textContent = 'Tap!';
+        m.style.left = (gridLeft + 6 + x * tileSize + tileSize / 2) + 'px';
+        m.style.top  = (gridTop  + 6 + y * tileSize - 2) + 'px';
+        gateLayer.appendChild(m);
+      }
+    }
+    stage.appendChild(gateLayer);
+    // Neighbouring gates (tier 5 has three side by side) are narrower than
+    // their labels, so the labels would print over each other. Raise a label
+    // one step whenever it would overlap one already placed, left to right.
+    {
+      const placed = [];
+      [...gateLayer.children].sort((a, b) => parseFloat(a.style.left) - parseFloat(b.style.left)).forEach((m) => {
+        const w = m.offsetWidth, h = m.offsetHeight;
+        const cx = parseFloat(m.style.left), baseTop = parseFloat(m.style.top);
+        let level = 0;
+        while (placed.some((p) => p.level === level && Math.abs(p.cx - cx) < (p.w + w) / 2 + 4)) level++;
+        placed.push({ cx, w, level });
+        m.style.top = (baseTop - level * (h + 8)) + 'px';
+      });
+    }
 
     // Debug exit-point overlay — enable with ?show-exits=1 in the
     // URL. Renders a coloured ring at every HABITAT_EXITS position
@@ -1598,7 +1998,7 @@
           exitLayer.appendChild(m);
         }
       }
-      wrap.appendChild(exitLayer);
+      stage.appendChild(exitLayer);
     }
 
     // Size the overground overlay to MATCH the soil grid exactly.
@@ -1613,7 +2013,7 @@
     // elements (building, fox/skunk regions) are tile-pegged via
     // --site-tile and stay perfectly in sync with puzzle cells.
     if (overlay) {
-      wrap.appendChild(overlay);
+      stage.appendChild(overlay);
       const gridW = tileSize * puzzle.width + 12;
       const gridH = tileSize * puzzle.height + 12;
       // Nudge the entire painted overlay right by 1/12 of a tile
@@ -1639,49 +2039,220 @@
         );
       } catch (_) { /* iframe not loaded yet — fires again on next render */ }
     }
+
+    // Zoom: remember where the board sits (in the stage's own, unzoomed
+    // pixels), decide whether this size needs one, and put it back as it was.
+    layout = {
+      tileSize, boardX: gridLeft, boardY: gridTop,
+      boardW: tileSize * puzzle.width + 12, boardH: tileSize * puzzle.height + 12,
+      wrapW: wrapRect.width, wrapH: wrapRect.height,
+    };
+    canZoom = tileSize < ZOOM_BELOW;
+    if (!canZoom) zoomed = false;
+    zoomScale = canZoom ? Math.ceil((ZOOM_TILE / tileSize) * 100) / 100 : 1;
+    document.body.classList.toggle('can-zoom', canZoom);
+    applyZoom(false);
   }
+
+  // ── "Tap!" labels (120A) ──────────────────────────────────────
+  // The label above a shut gate teaches that a gate is a thing to tap. At tiers
+  // 4 and 5 there are 8 to 10 of them and they crowd the board, and once she
+  // has opened a gate she knows. So they show only until she has opened her
+  // first gate in a SESSION, meaning the app session: the tunnel is a new page
+  // every time it is opened, so this is kept in sessionStorage (it lasts as
+  // long as the tab or the iPad app's web view, and a new launch starts over).
+  // The pulsing ring on every shut gate stays either way.
+  const GATE_SEEN_KEY = 'arc_tunnel_gate_opened';
+  let gateOpenedBefore = false;
+  try { gateOpenedBefore = sessionStorage.getItem(GATE_SEEN_KEY) === '1'; } catch (_) { /* no storage: the labels go on until she opens one here */ }
+  function rememberGateOpened() {
+    gateOpenedBefore = true;
+    try { sessionStorage.setItem(GATE_SEEN_KEY, '1'); } catch (_) { /* kept in memory for this page */ }
+  }
+
+  // ── Zoom ──────────────────────────────────────────────────────
+  // On a phone on its side the whole board makes tiles 25-29px. When they are
+  // under ZOOM_BELOW the page offers a magnifier (the footer slot) and a tap on
+  // a tile that does nothing zooms in there; zoomed, a tile is ZOOM_TILE px.
+  // Dragging pans (more than PAN_SLOP px of movement, so a tap that wobbles is
+  // still a tap), a pan never turns a tile, and "Send the animals!" zooms back
+  // out so the whole run is in view.
+  const ZOOM_BELOW = 40;
+  const ZOOM_TILE = 48;
+  const PAN_SLOP = 10;
+  let zoomed = false, canZoom = false, zoomScale = 1, panX = 0, panY = 0;
+  let layout = null;
+  const stageEl = document.getElementById('zoom-stage');
+  const wrapEl = document.getElementById('grid-wrap');
+
+  // Keep the board covering the view: an edge may come in by at most M px.
+  function clampPan(x, y) {
+    if (!layout) return { x: 0, y: 0 };
+    const M = 8, k = zoomScale;
+    const axis = (p, b, len, view) => {
+      const lo = view - k * (b + len) - M, hi = M - k * b;
+      return lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, p));
+    };
+    return { x: axis(x, layout.boardX, layout.boardW, layout.wrapW), y: axis(y, layout.boardY, layout.boardH, layout.wrapH) };
+  }
+  function applyZoom(animate) {
+    if (!zoomed) { panX = 0; panY = 0; }
+    else { const c = clampPan(panX, panY); panX = c.x; panY = c.y; }
+    if (!animate) stageEl.style.transition = 'none';
+    stageEl.style.transform = zoomed ? 'translate(' + panX + 'px, ' + panY + 'px) scale(' + zoomScale + ')' : 'none';
+    stageEl.style.setProperty('--inv-zoom', zoomed ? String(1 / zoomScale) : '1');
+    if (!animate) { void stageEl.offsetWidth; stageEl.style.transition = ''; }
+    document.body.classList.toggle('zoomed', zoomed);
+    const btn = document.getElementById('btn-zoom');
+    if (btn) btn.setAttribute('aria-pressed', zoomed ? 'true' : 'false');
+    const label = document.getElementById('zoom-label');
+    if (label) label.textContent = zoomed ? 'Whole board' : 'Zoom in';
+  }
+  let _hintTimer = 0;
+  function hideZoomHint() {
+    clearTimeout(_hintTimer);
+    document.getElementById('zoom-hint')?.classList.remove('show');
+  }
+  function setZoom(on, focus) {
+    if (on && (!canZoom || !layout)) return;
+    zoomed = !!on;
+    if (zoomed) {
+      // Centre the view on the spot she tapped, or on the middle of the board.
+      const f = focus || { x: layout.boardX + layout.boardW / 2, y: layout.boardY + layout.boardH / 2 };
+      panX = layout.wrapW / 2 - zoomScale * f.x;
+      panY = layout.wrapH / 2 - zoomScale * f.y;
+      document.getElementById('zoom-hint')?.classList.add('show');
+      clearTimeout(_hintTimer);
+      _hintTimer = setTimeout(hideZoomHint, 4500);
+    } else {
+      hideZoomHint();
+    }
+    applyZoom(true);
+  }
+  document.getElementById('btn-zoom').addEventListener('click', () => setZoom(!zoomed));
+
+  // Drag to pan. A touch that has moved more than PAN_SLOP is a pan, and the
+  // click the browser sends when it ends is swallowed, so a pan never turns a
+  // tile. Under PAN_SLOP it is a tap and the tile under it turns as usual.
+  let pan = null, swallowClick = false, _swallowTimer = 0;
+  wrapEl.addEventListener('pointerdown', (e) => {
+    swallowClick = false;   // a new touch is a new gesture: its own click is its own
+    if (!zoomed || pan || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    pan = { id: e.pointerId, x0: e.clientX, y0: e.clientY, px0: panX, py0: panY, moved: false };
+  });
+  wrapEl.addEventListener('pointermove', (e) => {
+    if (!pan || e.pointerId !== pan.id) return;
+    if (!pan.moved) {
+      if (Math.hypot(e.clientX - pan.x0, e.clientY - pan.y0) <= PAN_SLOP) return;
+      // Start from where the finger is now, so the board does not jump by the slop.
+      pan.moved = true;
+      pan.x0 = e.clientX; pan.y0 = e.clientY; pan.px0 = panX; pan.py0 = panY;
+      stageEl.classList.add('panning');
+      hideZoomHint();
+      try { wrapEl.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+      return;
+    }
+    const c = clampPan(pan.px0 + (e.clientX - pan.x0), pan.py0 + (e.clientY - pan.y0));
+    panX = c.x; panY = c.y;
+    stageEl.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + zoomScale + ')';
+  });
+  function endPan(e) {
+    if (!pan || e.pointerId !== pan.id) return;
+    if (pan.moved) {
+      swallowClick = true;
+      clearTimeout(_swallowTimer);
+      // The click a mouse drag leaves behind comes straight after the release.
+      _swallowTimer = setTimeout(() => { swallowClick = false; }, 80);
+    }
+    stageEl.classList.remove('panning');
+    pan = null;
+  }
+  wrapEl.addEventListener('pointerup', endPan);
+  wrapEl.addEventListener('pointercancel', endPan);
+  wrapEl.addEventListener('click', (e) => {
+    if (swallowClick) { swallowClick = false; e.stopPropagation(); e.preventDefault(); }
+  }, true);
 
   function onTileClick(x, y) {
     const i = y * puzzle.width + x;
     const t = puzzle.tiles[i];
-    if (t.type === 'empty' || t.fixed) return;
+    // A tile that does nothing when tapped: empty soil, a fixed piece, a goal
+    // sticker (never turned by a tap, even if a host hands over a puzzle that
+    // forgot to mark it fixed: tapping it used to rotate the hidden stub and
+    // break a finished route), a cross. Where the whole board is too small to
+    // hit well, a tap on one of these zooms in on that spot instead; it cannot
+    // clash with turning a tile, because it only happens where nothing turns.
+    // a crossing (bridge) is the same: it never turns, whatever a host hands over.
+    if (t.type === 'empty' || t.fixed || t.type === 'habitat-endpoint' || t.type === 'cross' || t.type === 'bridge') {
+      if (canZoom && !zoomed && layout && !document.body.classList.contains('locked')) {
+        setZoom(true, {
+          x: layout.boardX + 6 + (x + 0.5) * layout.tileSize,
+          y: layout.boardY + 6 + (y + 0.5) * layout.tileSize,
+        });
+      }
+      return;
+    }
+    unlockAudio();
     tryStartMusic();
-    if (t.type === 'gate') puzzle.tiles[i] = toggleGate(t);
-    else puzzle.tiles[i] = rotateTile(t);
+    if (t.type === 'gate') {
+      puzzle.tiles[i] = toggleGate(t);
+      if (puzzle.tiles[i].open !== false) rememberGateOpened();
+    } else puzzle.tiles[i] = rotateTile(t);
     renderGrid();
   }
 
   function onSubmit() {
+    unlockAudio();
     tryStartMusic();
     // Lock the board — every tile picks up the same darker tint
     // that fixed tiles wear, signalling the puzzle is set.
     document.body.classList.add('locked', 'animating');
+    // Zoom back out: she watches the whole run, and QUICK is for fixing a tile
+    // in it, so the whole board is what she needs in front of her.
+    setZoom(false);
     quickFixUsed = false; // reset quick-fix availability per submit
-    document.getElementById('btn-quick')?.classList.remove('used');
+    clearTimeout(quickTimer);
+    document.body.classList.remove('quick-paused');
+    setQuick('ready');
     const result = solvePuzzle(puzzle);
     const allReached = puzzle.animals.every((a) => result[a]?.reached);
     runAnimalAnimations(result, allReached);
   }
 
-  // Activate the QUICK pause-time bonus. Pauses the animation loop
-  // for 3 seconds (animation generations + waitWhileQuickPaused
-  // handle the actual blocking) while the kid rotates a tile or two,
-  // then re-solves the puzzle and re-runs the animation from the
-  // top with the kid's edits applied.
-  function onQuickFix() {
-    if (quickFixUsed) return;
-    quickFixUsed = true;
+  // QUICK! — one pause per run to fix a tile that is wrong. The button is on
+  // (and pulses) from the moment the animals are sent: setQuick('ready').
+  // Pressing it holds the animal where it is for QUICK_PAUSE_MS while the
+  // board is open for turning tiles (orange edge, "Fix it now!"); then the
+  // puzzle is solved again with her edits and the run starts over from the
+  // top. The button then gives way to the next run's.
+  const QUICK_LABEL = 'QUICK! ⏸ fix it';
+  const QUICK_PAUSE_MS = 3000;
+  let quickTimer = 0;
+  // 'off' (not in a run), 'ready' (on offer), 'pausing' (pressed, board open),
+  // 'used' (pressed, board closed again).
+  function setQuick(state) {
     const btn = document.getElementById('btn-quick');
-    if (btn) btn.classList.add('used');
-    quickPauseUntil = Date.now() + 3000;
-    document.body.classList.add('quick-paused');
-    setTimeout(() => {
-      document.body.classList.remove('quick-paused');
-      // Re-solve with the kid's edits and re-run the animation.
+    if (!btn) return;
+    btn.disabled = state !== 'ready';
+    btn.classList.toggle('used', state === 'pausing' || state === 'used');
+    btn.textContent = state === 'pausing' ? 'Fix it now!' : QUICK_LABEL;
+  }
+  function onQuickFix() {
+    const body = document.body;
+    if (quickFixUsed || !body.classList.contains('animating') || body.classList.contains('quick-paused')) return;
+    quickFixUsed = true;
+    setQuick('pausing');
+    quickPauseUntil = Date.now() + QUICK_PAUSE_MS;
+    body.classList.add('quick-paused');
+    clearTimeout(quickTimer);
+    quickTimer = setTimeout(() => {
+      body.classList.remove('quick-paused');
+      setQuick('used');
+      // Re-solve with her edits and re-run the animation.
       const r = solvePuzzle(puzzle);
       const allReached = puzzle.animals.every((a) => r[a]?.reached);
       runAnimalAnimations(r, allReached);
-    }, 3000);
+    }, QUICK_PAUSE_MS);
   }
 
   // Animal sprite paths per species. Each animal gets its own
@@ -1726,8 +2297,30 @@
       try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
       catch (_) { return null; }
     }
+    // Safari / WKWebView (the iPad app) start a context suspended, and one
+    // made outside a tap stays that way until resume() is called — so the
+    // win and "oh dear" sounds played to nobody. Ask every time; it is a no-op
+    // once running.
+    if (_audioCtx.state === 'suspended') {
+      try { const p = _audioCtx.resume(); if (p && p.catch) p.catch(() => {}); } catch (_) { /* ignore */ }
+    }
     return _audioCtx;
   }
+  // Called from inside a tap (Ready, a tile, Send): this is the one place iOS
+  // lets a context be unlocked. A one-sample silent buffer finishes the job.
+  let _audioUnlocked = false;
+  function unlockAudio() {
+    const ctx = audioCtx();
+    if (!ctx || _audioUnlocked) return;
+    try {
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf; src.connect(ctx.destination); src.start(0);
+      if (ctx.state === 'running') _audioUnlocked = true;
+    } catch (_) { /* ignore */ }
+  }
+  document.addEventListener('pointerdown', unlockAudio, true);
+  document.addEventListener('touchend', unlockAudio, true);
   function tone(freq, durMs, type = 'sine', startGain = 0.18) {
     const ctx = audioCtx();
     if (!ctx) return;
@@ -1745,6 +2338,12 @@
   // Cheery 3-note ascending arpeggio when an animal makes it home.
   function playSuccessChime() {
     [523, 659, 784].forEach((f, i) => setTimeout(() => tone(f, 240, 'triangle', 0.18), i * 90));
+  }
+  // A short jaunty fanfare when the win card lands (design doc: "a satisfying
+  // chime" / "a brief jaunty fanfare"): a rising run, then a held chord.
+  function playWinFanfare() {
+    [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 220, 'triangle', 0.16), i * 110));
+    setTimeout(() => { tone(784, 520, 'triangle', 0.12); tone(1047, 520, 'triangle', 0.12); tone(1319, 520, 'sine', 0.08); }, 520);
   }
   // Soft descending two-note 'oh dear' when an animal gets stuck.
   function playMishap() {
@@ -1865,7 +2464,19 @@
       void sprite.offsetWidth;
       sprite.style.transition = '';
 
+      // Entering a crossing along the run that is UNDER the bridge, the animal
+      // goes into the dark mouth and out of the other (the sprite fades while
+      // it is beneath the planks); along the run that is on top it walks over
+      // the planks in plain view.
+      const goesUnder = (toX, toY, fromX, fromY) => {
+        if (!Number.isInteger(toX) || !Number.isInteger(toY)) return false;
+        const t = puzzle.tiles[toY * puzzle.width + toX];
+        if (!t || t.type !== 'bridge') return false;
+        const along = toX !== fromX ? 'ew' : 'ns';
+        return along !== (t.rotation % 2 === 0 ? 'ns' : 'ew');
+      };
       const stepTo = (toX, toY, fromX, fromY) => {
+        sprite.classList.toggle('dive', goesUnder(toX, toY, fromX, fromY));
         const { rotateDeg, flipX } = spriteOrientation(toX - fromX, toY - fromY);
         sprite.style.setProperty('--sprite-rotate', `${rotateDeg}deg`);
         sprite.style.setProperty('--sprite-flip', flipX);
@@ -1964,24 +2575,98 @@
     }
     if (aborted()) return;
     document.body.classList.remove('animating');
+    setQuick('off');
     showResult(allReached);
+  }
+
+  // What the host last told us about the paid re-digs (null = no host, i.e. this
+  // page is open on its own, so nothing about coins is claimed).
+  let hostDigsLeft = null;
+  let hostDigsPerDay = 3;
+
+  function digLabels() {
+    // Plain words on the buttons when a dig will pay nothing.
+    const noCoins = hostDigsLeft !== null && hostDigsLeft <= 0;
+    const re = document.getElementById('btn-reroll');
+    if (re) re.textContent = noCoins ? 'Re-dig tunnels (no coins)' : 'Re-dig tunnels';
+    const again = document.getElementById('result-again');
+    if (again) again.textContent = noCoins ? 'Play again (no coins)' : 'Play again';
+  }
+
+  let _toastTimer = 0;
+  function showDigNote(text) {
+    const el = document.getElementById('dig-toast');
+    const wrap = document.getElementById('grid-wrap');
+    const scene = document.getElementById('scene');
+    if (!el) return;
+    el.textContent = text;
+    if (wrap && scene) {
+      const w = wrap.getBoundingClientRect(), sc = scene.getBoundingClientRect();
+      el.style.top = Math.max(0, w.top - sc.top + 8) + 'px';
+      el.style.left = (w.left - sc.left + w.width / 2) + 'px';
+    }
+    el.classList.add('show');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => el.classList.remove('show'), 4500);
+  }
+
+  function noteForDig(p) {
+    const n = hostDigsPerDay;
+    if (p && p.paid) {
+      const left = p.left | 0;
+      return 'New tunnels dug. +' + (p.coins | 0) + ' coins! ' +
+        (left > 0 ? left + ' more paid ' + (left === 1 ? 'dig' : 'digs') + ' today.' : 'That was the last paid dig today.');
+    }
+    return 'New tunnels dug. No coins this time: only ' + n + ' digs a day pay, and today\'s are used up.';
+  }
+
+  // The words on the win card for what each animal gained. The host knows (it
+  // is the one that applies the gain); until it says, the card makes no claim.
+  function winMessage(gains, missing, capped, played) {
+    // Past the day's allowance (the host says `capped`): the win is still a
+    // win, the animals enjoyed the play, and nobody is shown a number.
+    if (capped) {
+      const names = (played || []).map((p) => p && p.name).filter(Boolean);
+      const who = names.length === 0 ? 'The animals'
+        : names.length === 1 ? names[0]
+          : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+      return who + ' enjoyed the play in the garden.\nMore wins today are just for fun. Tomorrow they cheer the animals up again.';
+    }
+    const lines = [];
+    for (const g of gains || []) {
+      const bits = [];
+      const hap = Math.round(g.happiness), bond = Math.round(g.bond);  // whole numbers, whatever the host sends
+      if (hap > 0) bits.push(hap + ' happiness');
+      if (bond > 0) bits.push(bond + ' bond');
+      lines.push(bits.length
+        ? g.name + ' is out playing in the garden and gained ' + bits.join(' and ') + '.'
+        : g.name + ' is out playing in the garden, and is already as happy as can be.');
+    }
+    for (const sp of missing || []) {
+      lines.push('No ' + sp + ' has arrived at the centre yet, so nobody gained anything for that tunnel.');
+    }
+    return lines.join('\n');
   }
 
   function showResult(win) {
     const overlay = document.getElementById('result-overlay');
+    const card = document.getElementById('result-card');
     const title = document.getElementById('result-title');
     const msg = document.getElementById('result-msg');
     const done  = document.getElementById('result-done');
     const again = document.getElementById('result-again');
     const retry = document.getElementById('result-retry');
+    card.classList.toggle('win', !!win);
     if (win) {
-      title.textContent = 'Hooray!';
-      msg.textContent = 'The animals are out playing in the garden — happiness +!';
+      title.textContent = 'Tunnels connected!';
+      msg.textContent = 'The animals are out playing in the garden.';
       done.style.display = '';
       again.style.display = '';
       retry.style.display = 'none';
+      digLabels();
       // Soften the music so kid clearly hears the run is over.
       if (music && !musicMuted) music.volume = 0.15;
+      playWinFanfare();
     } else {
       title.textContent = 'So close!';
       msg.textContent = 'One of the animals got a bit lost — try again?';
@@ -1991,9 +2676,10 @@
     }
     overlay.classList.add('show');
     if (win) {
-      // The painted overlay was already faded BACK IN during the
-      // animation (so the kid sees the animal arrive in its
-      // habitat above ground). Just notify the host.
+      // Report the win and its reward to the host straight away. The card
+      // STAYS UP: the host no longer closes the page on this message, and
+      // the child leaves with "Done" (or goes again with "Play again").
+      // The host answers with `complete-result`, which fills in the words.
       window.parent?.postMessage({
         source: 'arc-tunnel',
         type: 'tunnel-complete',
@@ -2008,6 +2694,14 @@
     renderGrid();
   }
   function reset() {
+    // Unlock the board + abort any in-flight animation, fresh QUICK. Before
+    // the redraw, so the redraw does not keep a running animal on the board.
+    document.body.classList.remove('locked', 'animating', 'quick-paused');
+    animGeneration++;
+    quickFixUsed = false;
+    quickPauseUntil = 0;
+    clearTimeout(quickTimer);
+    setQuick('off');
     if (originalPuzzle) {
       puzzle = JSON.parse(JSON.stringify(originalPuzzle));
       renderGrid();
@@ -2015,19 +2709,16 @@
     // Restore overlay opacity (cleared by win reveal).
     const og = document.getElementById('overground-overlay');
     if (og) og.style.opacity = '';
-    // Unlock the board + abort any in-flight animation, fresh QUICK.
-    document.body.classList.remove('locked', 'animating', 'quick-paused');
-    animGeneration++;
-    quickFixUsed = false;
-    quickPauseUntil = 0;
-    document.getElementById('btn-quick')?.classList.remove('used');
   }
   function reroll() {
     document.body.classList.remove('locked', 'animating', 'quick-paused');
     animGeneration++;
     quickFixUsed = false;
     quickPauseUntil = 0;
-    document.getElementById('btn-quick')?.classList.remove('used');
+    clearTimeout(quickTimer);
+    setQuick('off');
+    // A new board is seen whole first.
+    zoomed = false;
     const newSeed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
     loadFromSeed(newSeed);
     window.parent?.postMessage({
@@ -2050,19 +2741,27 @@
   // After the intro, the kid can toggle the overlay back on for
   // spatial reference.
   document.body.classList.add('overlay-on', 'intro-stage-1');
-  setTimeout(() => {
-    document.body.classList.remove('intro-stage-1');
-  }, 1500);
-  setTimeout(() => {
-    const og = document.getElementById('overground-overlay');
-    if (og) og.classList.add('hidden');
-    document.body.classList.remove('overlay-on');
-    const btn = document.getElementById('btn-overlay');
-    if (btn) {
-      btn.classList.remove('is-on');
-      btn.textContent = '🏠 hidden';
-    }
-  }, 3000);
+  // The intro used to start here, at page load, and ran to its end behind the
+  // "Ready to dig?" scrim before the child had finished reading it, so nobody
+  // saw it. It now starts on the Ready tap.
+  let _introStarted = false;
+  function startIntro() {
+    if (_introStarted) return;
+    _introStarted = true;
+    setTimeout(() => {
+      document.body.classList.remove('intro-stage-1');
+    }, 1500);
+    setTimeout(() => {
+      const og = document.getElementById('overground-overlay');
+      if (og) og.classList.add('hidden');
+      document.body.classList.remove('overlay-on');
+      const btn = document.getElementById('btn-overlay');
+      if (btn) {
+        btn.classList.remove('is-on');
+        btn.textContent = '🏠 hidden';
+      }
+    }, 3000);
+  }
   document.getElementById('btn-overlay').addEventListener('click', (e) => {
     const og = document.getElementById('overground-overlay');
     const btn = e.currentTarget;
@@ -2140,7 +2839,9 @@
   // the scrim. The puzzle's intro-stage-1/2 sequence then runs.
   const readyOverlay = document.getElementById('ready-overlay');
   document.getElementById('btn-ready')?.addEventListener('click', () => {
+    unlockAudio();
     tryStartMusic();
+    startIntro();
     readyOverlay?.classList.add('gone');
     setTimeout(() => readyOverlay?.remove(), 500);
   });
@@ -2160,6 +2861,8 @@
         const k = _seasonKeyFromRaw(payload.season);
         if (k) _currentSeason = k;
       }
+      if (typeof payload.digsLeft === 'number') { hostDigsLeft = payload.digsLeft; digLabels(); }
+      if (typeof payload.digsPerDay === 'number') hostDigsPerDay = payload.digsPerDay;
       if (payload.puzzle) {
         puzzle = payload.puzzle;
         originalPuzzle = JSON.parse(JSON.stringify(puzzle));
@@ -2168,6 +2871,20 @@
         const seed = typeof payload.seed === 'number' ? payload.seed : (Date.now() >>> 0);
         loadFromSeed(seed);
       }
+    }
+    // A win has been applied: say what each animal gained.
+    if (m.type === 'complete-result' && m.payload && typeof m.payload === 'object') {
+      const card = document.getElementById('result-card');
+      if (card && card.classList.contains('win')) {
+        const text = winMessage(m.payload.gains, m.payload.missing, m.payload.capped === true, m.payload.played);
+        if (text) document.getElementById('result-msg').textContent = text;
+      }
+    }
+    // A re-dig ("Re-dig tunnels" or "Play again") has been counted: say plainly
+    // whether it paid, and put "(no coins)" on the buttons once it stops.
+    if (m.type === 'dig-result' && m.payload && typeof m.payload === 'object') {
+      if (typeof m.payload.left === 'number') { hostDigsLeft = m.payload.left; digLabels(); }
+      showDigNote(noteForDig(m.payload));
     }
     // Forward subsequent season updates from the host (long-running
     // session crossing a season boundary). Triggers a re-render.

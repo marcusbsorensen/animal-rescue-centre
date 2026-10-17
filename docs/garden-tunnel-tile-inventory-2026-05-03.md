@@ -46,7 +46,7 @@ tier need.
 | 3 | Corner | `└` `┌` `┐` `┘` | Connects 2 adjacent edges. | yes (4 states) | T1 | Required to turn from trunk into branches. |
 | 4 | T-junction | `┬` `┴` `├` `┤` | Connects 3 edges. | yes (4 states) | T2 | Branch tap — multiple destinations require splits. |
 | 5 | Cross | `┼` | Connects all 4. Two streams cross AND mix. | no (symmetric) | T3 | Lets streams merge at the trunk centre when 3+ animals share. |
-| 6 | Bridge | `╪` / `╫` | Two tunnels CROSS without connecting (one over, one under). | yes (2 states for orientation) | T3 | Resolves wrong-animal-takes-wrong-exit at junctions. The decongester. |
+| 6 | Bridge (the crossing) | `╪` / `╫` | Two tunnels CROSS without connecting (one over, one under). | NO — fixed, a tap does nothing (118A); its rotation is only the picture | T3 | Resolves wrong-animal-takes-wrong-exit at junctions. The decongester. |
 | 7 | Gate | `[G]` | Straight segment with a player-toggle. Open = pass; shut = block. | toggle only (orientation fixed by board) | T2 | Sequencing animals; required for "no collision" puzzles. |
 | 8 | Habitat endpoint | `[F] [S] [H] [R] [⌂]` | Fixed source/destination tile. Letter = which animal/home. | NO (fixed orientation, fixed position) | T1 (`[F]`+`[⌂]`) | Anchors the puzzle to real map geometry. |
 | 9 | Viewing-dome porthole | `(o)` | Cosmetic overlay on a trunk tile. Tap to peek; no routing effect. | n/a | T1 | Whimsy + map-link. Reinforces "above and below" mental model without changing puzzle. |
@@ -64,6 +64,22 @@ tier need.
   obstacle reveals, do them as an animation, not a tile type.
 
 **Final tile count: 9** (well inside the "smallest viable" target).
+
+> **Update 2026-10-14 (118A) — the bridge is the crossing.** In the cumulative
+> network (one board that grows, 110A) the fox, raccoon and skunk run up the
+> adjacent columns 6, 7 and 8, so the bends that would cross another animal's
+> run were dropped. The bridge is now what lets them cross. It is **fixed and
+> never turns** (the earlier "2 states for orientation" is gone: a child never
+> has to work out which way round it goes), is first met at tier 3 (the
+> raccoon's run), and is only built where both runs pass straight through at
+> right angles: never on an endpoint, corner, connector out of the building, a
+> dome, or a gate the board already has. The newer run is the one on top (the
+> tunnel dug last goes above the older one); `rotation` 0 draws the north-south
+> run on top and 1 the east-west run. It is drawn in code (a planked deck with
+> rails over a dark-mouthed passage) and is no longer dealt as a decoy, so every
+> bridge on a board is two runs meeting. No painted art is needed; if Lily's
+> tests want a painted bridge later, the slot is the `tile.type === 'bridge'`
+> branch of `tileSvg` in `apps/game/public/admin/tunnel.html`.
 
 ---
 
@@ -302,9 +318,11 @@ tile.
    wobble + a small "this one's already aligned" chime, OR omit cross
    from tier-3 player rack (only fixed-on-board), so kid never tries
    to rotate it.
-3. **Bridge tile orientation** — has 2 states (NS-over-EW vs EW-over-NS).
-   Visually distinguish over/under with a clear painted shadow so kids
-   parse it instantly.
+3. **Bridge tile orientation** — (answered 2026-10-14, 118A) fixed: the
+   generator decides which run is on top (the newer one) and the tile never
+   turns. Over/under is told by a plank deck with rails over a dark-mouthed
+   passage, and an animal on the run beneath fades into the mouth and out of
+   the far side.
 4. **Tile size at tier 4/5 (~54px)** — borderline finger-friendly on
    smaller tablets. If we discover Lily struggles, bump to 13×13 for
    tier 4 and accept slightly less detail; the tile inventory still

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { AssetLoader } from '../lib/AssetLoader';
 import { RoomAnchors } from '../lib/RoomAnchors';
 import { CollarAnchors } from '../lib/CollarAnchors';
+import { WardrobeAnchors } from '../lib/WardrobeAnchors';
 
 /**
  * BootScene — ultra-fast boot that gets kids to the menu in <1 second.
@@ -37,6 +38,10 @@ export class BootScene extends Phaser.Scene {
     // Collar anchors JSON — hand-placed neck positions for the walking
     // player sprite in WalkScene.
     CollarAnchors.getInstance().load();
+    // Wardrobe anchors — where each sprite wears its garment (one measured
+    // entry per texture). Without them a garment goes where the species
+    // defaults say, which is plausible and often a little off.
+    WardrobeAnchors.getInstance().load();
 
     // Fetch manifest, then load logo, then transition
     const loader = AssetLoader.getInstance();

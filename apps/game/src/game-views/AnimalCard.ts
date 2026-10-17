@@ -5,7 +5,8 @@ import {
   canLetOutside,
   getUrgentNeed,
   getGarmentForSpecies,
-  needsCoat,
+  animalNeedsGarment,
+  canBeDressed,
   pickRandomFact,
   walkBlockReason,
   type IllnessDef,
@@ -646,12 +647,19 @@ function buildActions(
     : canLetOutside(animal, store.animals, store.sickAnimals, weather);
 
   const garment = getGarmentForSpecies(animal.species);
-  const wantsGarment = !!weather && needsCoat(animal, weather);
-  const garmentBlock = animal.wardrobe
-    ? `Already wearing a ${garment}.`
-    : !wantsGarment
-      ? 'The weather is fine — no need today.'
-      : null;
+  const wantsGarment = !!weather && animalNeedsGarment(animal, weather);
+  // A garment that is on can be changed or taken off — it is drawn on her now,
+  // and a coat that can never come off is a coat in the sunshine for ever.
+  // A species with no garment drawn yet is not asked to wear one either
+  // (`animalNeedsGarment`), and says why.
+  const wearing = !!animal.wardrobe;
+  const garmentBlock = !canBeDressed(animal.species)
+    ? `${animal.name} is cosy enough without one.`
+    : wearing
+      ? null
+      : !wantsGarment
+        ? 'The weather is fine — no need today.'
+        : null;
 
   return [
     {
@@ -680,7 +688,7 @@ function buildActions(
         reason: letOut.ok ? undefined : letOut.reason,
       },
     {
-      label: `Put on\na ${garment}`,
+      label: wearing && !garmentBlock ? `Change the\n${garment}` : `Put on\na ${garment}`,
       run: garmentBlock ? undefined : () => callbacks.onEquipWardrobe(),
       reason: garmentBlock ?? undefined,
     },

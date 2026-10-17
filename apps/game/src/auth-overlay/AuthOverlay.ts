@@ -8,12 +8,28 @@
  *   - parent → iframe: {type:'init', payload:{usernames:string[]}}  (once loaded)
  *   - iframe → parent: {type:'play'|'login'|'signup'|'back-to-welcome'}
  *   - iframe → parent: {type:'login-submit', payload:{username,pin}}
- *   - iframe → parent: {type:'signup-complete', payload:{username,pin,avatarEmoji,avatarBgColour,pinHint?}}
- *   - parent → iframe: {type:'auth-error', payload:{message}}   (on failure, iframe shakes+clears)
+ *   - iframe → parent: {type:'need-names'}   (the signup name screen wants ready-made names)
+ *   - parent → iframe: {type:'sign-in-names', payload:{names:string[]}}   (empty on failure)
+ *   - iframe → parent: {type:'signup-complete', payload:{username,pin,avatarEmoji,avatarBgColour,hintCode?,displayName?,readyMadeName?}}
+ *   - parent → iframe: {type:'auth-error', payload:{message, suggestions?}}   (on failure, iframe shakes+clears)
+ *
+ * The friends screen (146A):
+ *   - parent → iframe: {type:'friends', payload:{friends:[{id,displayName,emoji,bg}]}}   (once loaded; [] on failure)
+ *   - iframe → parent: {type:'remove-friend', payload:{id}}   (after the child chose Remove on the card)
+ *   - parent → iframe: {type:'friend-removed'|'friend-remove-failed', payload:{id}}
+ *   - iframe → parent: {type:'add-friend', payload:{joinCode}}   (a code typed in the box, as FOX-428)
+ *   - parent → iframe: {type:'friend-added', payload:{friend:{id,displayName,emoji,bg}, friends?:[...]}}
+ *       (`friends` is the list as the server now holds it, when it could be had)
+ *   - parent → iframe: {type:'friend-add-failed', payload:{reason}}
+ *       (reason: not-found | own-code | already-friends | too-many-tries | bad-code | failed;
+ *        the page has the words for each)
  */
 
-import { login, signup, checkUsername, SignupError, getRememberedUsernames, type AuthSession } from '../lib/auth';
+import { login, signup, checkUsername, offerSignInNames, SignupError, getRememberedUsernames, type AuthSession } from '../lib/auth';
+import { addFriendByCode, FriendError, getFriends, removeFriend, type Friend } from '../lib/friends';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { AudioManager } from '../audio/AudioManager';
+import { isPinHintCode, isDisplayNameBase } from '@arc/game-logic';
 
 export type AuthAction =
   | 'play'
@@ -23,7 +39,6 @@ export type AuthAction =
   | 'logout'
   | 'back-to-menu'
   | 'back-to-welcome'
-  | 'type-name'                   // login → "Not here? Type your name" → signup with context
   | 'forgot-pin'                  // login → "Forgot your secret code?" → recovery flow
   | 'recruit-apprentice'
   | 'auth-success-existing'      // login() resolved
@@ -56,6 +71,10 @@ const PAGE_URLS: Record<AuthPage, string> = {
 };
 
 let activeFrame: HTMLIFrameElement | null = null;
+/** True once the mounted page has loaded and can hear a message. */
+let activeFrameLoaded = false;
+/** Messages for the mounted page sent before it had loaded. */
+let pendingPosts: Array<{ type: string; payload?: unknown }> = [];
 let activeListener: ((e: MessageEvent) => void) | null = null;
 
 /** Send a message from parent → iframe (used for init + error feedback). */
@@ -66,8 +85,15 @@ function postToFrame(type: string, payload?: unknown): void {
 
 /** Public version — host scenes can post to whichever auth iframe is
  *  currently mounted. Used by ForgotPinScene to push the kid's
- *  freshly-fetched PIN-hint after the iframe is up. */
+ *  freshly-fetched PIN-hint. A message sent before the page has loaded
+ *  waits for it: posted earlier, it would reach the blank document the
+ *  iframe starts with, and be lost. */
 export function postToActiveFrame(type: string, payload?: unknown): void {
+  if (!activeFrame) return;
+  if (!activeFrameLoaded) {
+    pendingPosts.push({ type, payload });
+    return;
+  }
   postToFrame(type, payload);
 }
 
@@ -94,6 +120,11 @@ export function mountAuth(
   frame.setAttribute('aria-label', `A.R.C. ${page} screen`);
   document.body.appendChild(frame);
   activeFrame = frame;
+  activeFrameLoaded = false;
+  pendingPosts = [];
+
+  // The friends list, asked for while the page loads and sent once it has.
+  const friendsList = page === 'friends' ? friendsForScreen() : null;
 
   // After iframe loads, send any per-page init data it needs.
   frame.addEventListener('load', () => {
@@ -102,10 +133,8 @@ export function mountAuth(
       postToFrame('init', { usernames });
     }
     if (page === 'signup' && context?.reason) {
-      // Pass the "why we're here" reason to the signup iframe so it can
-      // show contextual greeting (e.g. "Couldn't find you in the list —
-      // let's make a new account!" when a kid taps "Not here? Type
-      // your name" on login).
+      // Pass the "why we're here" reason to the signup iframe, for a
+      // page that has a note to show for it.
       postToFrame('init', { reason: context.reason });
     }
     if (page === 'menu' && context?.session) {
@@ -115,6 +144,9 @@ export function mountAuth(
       postToFrame('init', {
         joinCode: context?.session?.joinCode,
         recruited: context?.recruited ?? [],
+      });
+      void friendsList?.then((friends) => {
+        if (activeFrame === frame) postToFrame('friends', { friends });
       });
     }
     if (page === 'intro' && context) {
@@ -128,6 +160,13 @@ export function mountAuth(
     // Always sync the current music-on state so the speaker emoji
     // starts in the right 🔊/🔇 position regardless of page.
     postToFrame('music-state', { enabled: AudioManager.getInstance().isMusicOn() });
+    // Then anything a scene sent while the page was still loading.
+    if (activeFrame === frame) {
+      activeFrameLoaded = true;
+      const queued = pendingPosts;
+      pendingPosts = [];
+      for (const m of queued) postToFrame(m.type, m.payload);
+    }
   });
 
   activeListener = async (e: MessageEvent) => {
@@ -140,7 +179,7 @@ export function mountAuth(
         msg.type === 'signup' || msg.type === 'back-to-welcome' ||
         msg.type === 'friends' || msg.type === 'logout' ||
         msg.type === 'back-to-menu' ||
-        msg.type === 'type-name' || msg.type === 'forgot-pin' ||
+        msg.type === 'forgot-pin' ||
         msg.type === 'intro-complete' || msg.type === 'set-skip-intro' ||
         msg.type === 'intro-climactic-sfx') {
       handlers.onAction(msg.type as AuthAction, undefined, msg.payload);
@@ -150,6 +189,46 @@ export function mountAuth(
     // the host scene, which calls the game-logic recruit function.
     if (msg.type === 'recruit-apprentice') {
       handlers.onAction('recruit-apprentice', undefined, msg.payload);
+      return;
+    }
+    // Friends-page: the child chose Remove on a friend's card and then on
+    // the question. The answer goes back to the same page only: if the
+    // child has left it, there is nothing to update.
+    if (msg.type === 'remove-friend') {
+      const id = String((msg.payload as { id?: unknown })?.id ?? '');
+      let removed = false;
+      try {
+        await removeFriend(id);
+        removed = true;
+      } catch {
+        removed = false;
+      }
+      if (activeFrame === frame) postToFrame(removed ? 'friend-removed' : 'friend-remove-failed', { id });
+      return;
+    }
+    // Friends-page: the child typed a friend's code and chose Add. The answer
+    // goes back to the same page only, as with Remove. What is not three to
+    // seven letters and three numbers is not sent: the server would refuse it,
+    // and the page can say so without the round trip.
+    if (msg.type === 'add-friend') {
+      const joinCode = joinCodeFrom((msg.payload as { joinCode?: unknown })?.joinCode);
+      if (!joinCode) {
+        if (activeFrame === frame) postToFrame('friend-add-failed', { reason: 'bad-code' });
+        return;
+      }
+      let friend: Friend;
+      try {
+        friend = await addFriendByCode(joinCode);
+      } catch (err) {
+        if (activeFrame === frame) postToFrame('friend-add-failed', { reason: addFailure(err) });
+        return;
+      }
+      // The list as it now stands, so the board is the server's; without it
+      // (the call failed) the page puts the new friend on the end of its own.
+      const friends = await friendsOnScreen();
+      if (activeFrame === frame) {
+        postToFrame('friend-added', { friend: screenFriend(friend), ...(friends ? { friends } : {}) });
+      }
       return;
     }
     // Speaker icon in the screen — toggle music, then echo the state
@@ -172,6 +251,14 @@ export function mountAuth(
       return;
     }
 
+    // Ready-made sign-in names for the name screen: three when it opens,
+    // three more for each "Show another". Always answers, with an empty
+    // list on failure, so the button never stays disabled.
+    if (msg.type === 'need-names') {
+      postToFrame('sign-in-names', { names: await offerSignInNames() });
+      return;
+    }
+
     // Real auth submissions — call lib/auth, route on success, shake on failure.
     if (msg.type === 'login-submit') {
       try {
@@ -182,12 +269,14 @@ export function mountAuth(
       }
       return;
     }
-    // Signup completion — the iframe now sends 'signup-complete' once
-    // the whole multi-stage flow (name+animal → PIN → hint) is done.
-    // Older 'signup-submit' kept as an alias for back-compat with any
-    // external callers still using the original event name. The
-    // payload from the iframe carries `hint`; we map it to `pinHint`
-    // so it lines up with SignupData on the lib/auth side.
+    // Signup completion — the iframe sends 'signup-complete' once the
+    // whole multi-stage flow (name+animal → PIN → clue) is done. Older
+    // 'signup-submit' kept as an alias for back-compat with any external
+    // callers still using the original event name. The payload carries
+    // `hintCode`, a code from the fixed clue list; typed text is never
+    // passed on, even if an old page sends it. `displayName` is the name
+    // other players see, as the page showed it: passed on only if it is a
+    // pair from the word lists, and the server checks again.
     if (msg.type === 'signup-complete' || msg.type === 'signup-submit') {
       try {
         const raw = (msg.payload ?? {}) as Record<string, unknown>;
@@ -196,7 +285,10 @@ export function mountAuth(
           pin: String(raw.pin ?? ''),
           avatarEmoji: String(raw.avatarEmoji ?? raw.animal ?? ''),
           avatarBgColour: String(raw.avatarBgColour ?? '#ffd0a0'),
-          pinHint: typeof raw.hint === 'string' ? raw.hint : (typeof raw.pinHint === 'string' ? raw.pinHint : undefined),
+          pinHintCode: isPinHintCode(raw.hintCode) ? raw.hintCode : undefined,
+          displayName: isDisplayNameBase(raw.displayName) ? raw.displayName : undefined,
+          // Picked from the offered names, not typed: the server claims it.
+          readyMadeName: raw.readyMadeName === true ? true : undefined,
         };
         const session = await signup(data);
         handlers.onAction('auth-success-new', session);
@@ -213,11 +305,62 @@ export function mountAuth(
   return unmountAuth;
 }
 
+type ScreenFriend = { id: string; displayName: string; emoji: string; bg: string };
+
+/** A friend in the page's own shape. */
+function screenFriend(f: Friend): ScreenFriend {
+  return { id: f.id, displayName: f.displayName, emoji: f.avatarEmoji, bg: f.avatarBgColour };
+}
+
+/** The friends screen's list, in the page's own shape, or null when it can't
+ *  be had. */
+async function friendsOnScreen(): Promise<ScreenFriend[] | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    return (await getFriends()).map(screenFriend);
+  } catch {
+    return null;
+  }
+}
+
+/** The friends screen's list. Empty when it can't be had: the page then shows
+ *  its "No friends here yet!" board. */
+async function friendsForScreen(): Promise<ScreenFriend[]> {
+  return (await friendsOnScreen()) ?? [];
+}
+
+/** What a child typed in the code box as the code the server takes (OTTER-428),
+ *  or null. The page tidies it first; this is the same again for a page that
+ *  did not (otter428, OTTER 428), so what is sent is always in the server's shape. */
+function joinCodeFrom(raw: unknown): string | null {
+  const m = /^([A-Z]{3,7})([0-9]{3})$/.exec(String(raw ?? '').toUpperCase().replace(/[^A-Z0-9]/g, ''));
+  return m ? `${m[1]}-${m[2]}` : null;
+}
+
+type AddFailure = 'not-found' | 'own-code' | 'already-friends' | 'too-many-tries' | 'bad-code' | 'failed';
+
+/** Why a friend was not added, as the reason the page has words for. The
+ *  server's own sentences are English for a developer and never shown. Anything
+ *  that is not a FriendError, or has a code this does not know, is `failed`. */
+function addFailure(err: unknown): AddFailure {
+  switch (err instanceof FriendError ? err.code : 'failed') {
+    case 'not_found': return 'not-found';
+    case 'own_code': return 'own-code';
+    case 'already_friends': return 'already-friends';
+    case 'too_many_tries': return 'too-many-tries';
+    case 'bad_format':
+    case 'no_code': return 'bad-code';
+    default: return 'failed';
+  }
+}
+
 export function unmountAuth(): void {
   if (activeListener) {
     window.removeEventListener('message', activeListener);
     activeListener = null;
   }
+  pendingPosts = [];
+  activeFrameLoaded = false;
   if (activeFrame) {
     activeFrame.remove();
     activeFrame = null;

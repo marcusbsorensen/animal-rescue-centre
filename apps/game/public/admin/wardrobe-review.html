@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A.R.C. — wardrobe review</title>
+<!--
+  Garments on animals, drawn by the game's own code.
+
+  **Dev server only.** The script is `/src/dev/wardrobe-review.ts`, which vite
+  transforms on the fly in dev and does not put in a production build. Open at
+  http://127.0.0.1:4173/admin/wardrobe-review.html with
+  `pnpm --filter @arc/game dev --host 127.0.0.1 --port 4173` running.
+
+  Each animal is drawn twice, bare and dressed, by `createAnimalSprite` with
+  the same box and scale the Room uses — so this is the size a child sees,
+  not the size the file is. See `src/dev/wardrobe-review.ts` for the query
+  string (?rows=cat:ginger,dog:husky &poses=sleeping &mode=fill).
+-->
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; background: #fef9ef; color: #3a2618; font: 15px/1.5 system-ui, sans-serif; }
+  #game { padding: 0; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<script type="module" src="/src/dev/wardrobe-review.ts"></script>
+</body>
+</html>

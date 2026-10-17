@@ -53,10 +53,14 @@ Deno.serve(async (req) => {
       .eq('user_id', userId)
       .single();
 
+    // Goes back with the reply for the `receiver` badge, as send-gift does
+    // for `giver` and `generous`; left out when there is no stats row.
+    let giftsReceivedCount: number | undefined;
     if (stats) {
+      giftsReceivedCount = (stats.gifts_received_count ?? 0) + 1;
       await supabase
         .from('rescue_stats')
-        .update({ gifts_received_count: (stats.gifts_received_count ?? 0) + 1 })
+        .update({ gifts_received_count: giftsReceivedCount })
         .eq('user_id', userId);
     }
 
@@ -74,6 +78,7 @@ Deno.serve(async (req) => {
         messagePresetCode: gift.message_preset_code,
         fromUser: gift.from_user,
       },
+      giftsReceivedCount,
     });
   } catch (err) {
     console.error('Claim gift error:', err);

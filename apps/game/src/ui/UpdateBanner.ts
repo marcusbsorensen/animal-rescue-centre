@@ -22,7 +22,7 @@ export function showUpdateBanner(onRefresh: () => void): void {
     'transform: translateX(-50%) translateY(-200%)',
     'z-index: 9997',                         // below iframe overlays
     'pointer-events: none',                  // children opt in
-    'font-family: "Chalkboard SE", "Chalkboard", "Kalam", "Fredoka", system-ui, sans-serif',
+    'font-family: var(--body-font)',         // public/fonts/fonts.css: the one body face
     'transition: transform 0.55s cubic-bezier(.34,1.56,.64,1)',
   ].join(';');
 
@@ -140,7 +140,6 @@ export function showUpdateBanner(onRefresh: () => void): void {
     'color: #fffbe8',
     'opacity: 0.85',
     'font: inherit',
-    'font-family: "Caveat", cursive',
     'font-size: 14px',
     'cursor: pointer',
     'padding: 2px 4px',

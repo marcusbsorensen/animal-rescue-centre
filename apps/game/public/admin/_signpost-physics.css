@@ -82,8 +82,11 @@
     2px 3px 5px rgba(0,0,0,0.35);
   z-index: 0;
 }
-.signs-on-stake::before { left: 22%; right: auto; }
-.signs-on-stake::after  { left: auto; right: 22%; }
+/* `--post-in` is how far in from the stake's edges the posts stand; the sign
+   row (section 9) reads it to keep every sign across a post. */
+.signs-on-stake { --post-k: 0.22; --post-in: calc(var(--post-k) * 100%); }
+.signs-on-stake::before { left: var(--post-in); right: auto; }
+.signs-on-stake::after  { left: auto; right: var(--post-in); }
 
 /* The posts have to land in the grass, because the grass is the only
  * ground these screens draw — outside the tuft there is nothing but the
@@ -95,8 +98,7 @@
  * do not share a `container-name`, and naming it excludes most of them.
  */
 @container (max-height: 520px) {
-  .signs-on-stake::before { left: 32%; }
-  .signs-on-stake::after  { right: 32%; }
+  .signs-on-stake { --post-k: 0.32; }
 }
 
 /* ── 4. The logo hangs on nothing ───────────────────────────────────
@@ -183,3 +185,871 @@
 .signs-on-stake {
   margin-inline: auto;
 }
+
+
+/* ── 7. The animals: ink round them, and a place to stand ───────────
+ *
+ * Marcus, 2026-10-14 (97A, 99A): "the animals need a bit more of an
+ * outline, like we did with the vehicles on the road so they are more
+ * anchored on the signpost, and the bird needs positioning so its claws
+ * are hooked over the top of the wooden panel ... so it is a world where
+ * each element works together like a scene from reality, and not
+ * disparate pieces of interface".
+ *
+ * THE OUTLINE is a band round the silhouette with the shadow cast from the
+ * outlined silhouette rather than from the bare art (the vehicles'
+ * treatment, drive-spike/vehicle-look.js). There it is a distance
+ * transform on a canvas; here it is four hard drop-shadows, one a side,
+ * chained — each shadows the result of the one before, so the four
+ * together are a square dilation of the sprite by one weight. One weight,
+ * `--animal-ink-w`, for every animal on every screen.
+ *
+ * Its colour is the animal's own: Marcus, 2026-10-14, on the first cut
+ * (one near-black #2b2520 at 1.75px on all of them): "way too dark and
+ * they shouldn't all be black, because that doesn't match the styling of
+ * the images around ... it needs to be the darkest colour that is within
+ * that animal's palette ... not as thick". `--animal-ink` is that colour, set per
+ * image in the table at the end of this file: the mean of the darkest
+ * k-means cluster (k=12) of the painting's opaque pixels (alpha >= 230)
+ * that holds at least 1.2% of them, so a stray pixel or a pair of pupils
+ * is not the line colour. A ginger cat's is a brown (#774426), a Siamese's
+ * a dark umber, the bee's a warm grey-brown; the animals whose own darkest
+ * is true black (black patches, black feathers) keep a near-black, which is
+ * their painted line. One pixel wide, because the painted line work round
+ * them is about that, and the shadow's soft edge does the rest.
+ *
+ * THE FEET. Every animal's art has empty canvas under it, so `bottom: 0`
+ * on the image puts the animal floating by however much that canvas is,
+ * and the amount differs from one painting to the next and with the
+ * animal's height. `--edge-y` is the fraction of each painting at which the
+ * animal meets the thing it stands on (measured from the art's alpha: the
+ * belly of a sleeping cat, the claws of a perched bird, the paws of a
+ * rabbit), and `translateY((1 - edge) * 100%)` moves exactly that line to
+ * the anchor, whatever size the animal is drawn at. Percentages in a
+ * translate are of the element's own box, which is the point.
+ *
+ * Nothing below depends on the viewport: the cat is anchored to the
+ * board's top edge, the bird to the plank's (to the board's, beside the cat,
+ * on the seven screens of section 9), the rabbit to the stake's foot, so they
+ * hold wherever the layout puts those.
+ */
+:root {
+  --animal-ink-w: 1px;
+  /* Soft, close and low: the contact shadow on the wood or the grass. */
+  --animal-contact: drop-shadow(0 2px 2px rgba(35, 20, 8, 0.42));
+}
+
+/* --animal-outline is declared on the animal and not on :root: it reads
+   `--animal-ink`, and a var() in a custom property is resolved where the property is
+   declared, so on :root every animal would get the fallback. The fallback is a
+   warm dark brown for a sprite that is not in the table below. */
+.intro-cat,
+.play-parrot,
+.ground-bunny,
+.bee-flyer,
+.conflict-anim,
+.arrival-anim {
+  --animal-outline:
+    drop-shadow(var(--animal-ink-w) 0 0 var(--animal-ink, #4a3626))
+    drop-shadow(calc(var(--animal-ink-w) * -1) 0 0 var(--animal-ink, #4a3626))
+    drop-shadow(0 var(--animal-ink-w) 0 var(--animal-ink, #4a3626))
+    drop-shadow(0 calc(var(--animal-ink-w) * -1) 0 var(--animal-ink, #4a3626));
+  filter: var(--animal-outline) var(--animal-contact);
+}
+
+/* Each animal's own `--animal-ink` (and, for the story plaques' sprites, `--edge-y`)
+   is in the table at the end of this file. */
+
+/* The cat lies on the board's top edge: its belly on the board's padding edge,
+   which is the board's border-width (2-3px) below the outer edge, so it is
+   sunk into the top rail by exactly that much at any size. */
+.intro-cat {
+  --edge-y: 0.79;
+  top: auto !important;
+  bottom: 100% !important;
+  transform: translateY(calc((1 - var(--edge-y)) * 100%));
+}
+.intro-cat[src*="siamese"] { --edge-y: 0.865; }
+
+/* The bird's claws hook over the plank's top edge. Each painting's feet are
+   flat on an imaginary floor, so the edge is put a little above the claws'
+   tips: the toes hang over the front of the wood instead of standing on air.
+   The plank is tilted 0.8deg; the tilt moves to the wrapper so the bird,
+   which is the wrapper's child, leans with the wood it grips. */
+/* z-index 10: the wrapper is now a stacking context of its own (a transform),
+   and the board is 7, so on a screen whose stack is not itself a context (news)
+   the board painted over the bird's back. The plank and its bird are in front
+   of the board they hang below. */
+.btn-primary-wrap { transform: rotate(0.8deg); z-index: 10; }
+.btn-primary,
+.btn-primary:hover { transform: none; }
+.btn-primary:active { transform: translateY(2px); }
+
+.play-parrot {
+  --edge-y: 0.845;
+  top: auto !important;
+  bottom: 100%;
+  /* At the plank's end, not nine-tenths of the way along it: a bird above the
+     middle of the plank stands in front of the board's lower edge and hides
+     the last animal in the picker; at the end it stands on wood with nothing
+     behind it. */
+  right: 3%;
+  /* Sways from the claws, which stay where they grip. */
+  transform-origin: 50% calc(var(--edge-y) * 100%);
+  animation: parrotPerched 3.6s ease-in-out infinite;
+}
+.play-parrot[src*="parrot-grey"]      { --edge-y: 0.75; }
+.play-parrot[src*="parrot-cockatiel"] { --edge-y: 0.875; }
+@keyframes parrotPerched {
+  0%, 100% { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(-6deg); }
+  50%      { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(2deg); }
+}
+
+/* The rabbit's paws on the stake's foot, in the grass. */
+.ground-bunny {
+  --edge-y: 0.945;
+  bottom: 0;
+  transform-origin: 50% calc(var(--edge-y) * 100%);
+  animation: bunnyHopGrounded 5.2s ease-in-out infinite;
+}
+.ground-bunny[src*="bunny-lop"] { --edge-y: 0.935; }
+.ground-bunny[src*="bunny-rex"] { --edge-y: 0.97; }
+@keyframes bunnyHopGrounded {
+  0%, 55%, 100% { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(-4deg); }
+  62%           { transform: translateY(calc((1 - var(--edge-y)) * 100% - 14px)) rotate(-6deg); }
+  69%           { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(-4deg); }
+  76%           { transform: translateY(calc((1 - var(--edge-y)) * 100% - 14px)) rotate(-6deg); }
+  83%           { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(-4deg); }
+}
+
+/* The bee is in the air, in front of everything. It was behind the buttons
+   (z 6 against their 9), so for part of every loop it flew behind a plank. */
+.bee-flyer { z-index: 12; }
+
+/* On a phone held sideways the stack is as tall as the screen allows, so the
+   tuft used to show only as a strip of blades behind the pills, and a rabbit
+   "in the grass" was behind one: 54px of rabbit, 39 of them under the "I
+   already have an account" button, a black-and-white smudge. The first fix put
+   it on the lawn at the screen's left edge, on nothing the picture draws (the
+   menu has no lawn at all), and Marcus (109B) wanted it back in its tuft:
+   "give up a little height for a strip of ground, so it can sit in the tuft
+   again". `_short-landscape.css` gives the stake that strip (`--rabbit-h` of
+   ground under the buttons, paid for by lifting the stack into the empty
+   corner above the sign), and the rabbit sits in it, just left of the tuft's
+   middle between the posts, facing right as it does on every other size. It is
+   only as tall as the strip, and hops within it, so it is never behind a pill. */
+@container (max-height: 520px) {
+  .ground-bunny {
+    left: calc(50% - clamp(42px, 7cqw, 66px));
+    bottom: 1px;
+    height: var(--rabbit-h, 34px);
+    animation-name: bunnyHopTuft;
+  }
+  /* The bee works the lawn beside the rabbit instead of the stake's foot,
+     where the stack leaves no ground: flown there it crossed the pills, and
+     on the PIN screens it hid the code dots. */
+  .bee-flyer {
+    left: calc(50% - 50cqw + clamp(48px, 7cqw, 96px));
+    bottom: clamp(24px, 7cqh, 44px);
+    animation-name: beeBuzzLawn;
+  }
+}
+@keyframes beeBuzzLawn {
+  0%   { transform: translate(0,    -12px) rotate(-4deg); }
+  15%  { transform: translate(4px,    4px) rotate(14deg); }
+  25%  { transform: translate(9px,   -8px) rotate(-8deg); }
+  40%  { transform: translate(20px, -20px) rotate(4deg); }
+  55%  { transform: translate(30px,   5px) rotate(-16deg); }
+  65%  { transform: translate(34px, -12px) rotate(8deg); }
+  80%  { transform: translate(18px, -22px) rotate(-6deg); }
+  92%  { transform: translate(-4px, -14px) rotate(6deg); }
+  100% { transform: translate(0,    -12px) rotate(-4deg); }
+}
+@keyframes beeBuzzGrass {
+  0%   { transform: translate(0,     -8px) rotate(-4deg); }
+  20%  { transform: translate(6px,    2px) rotate(12deg); }
+  40%  { transform: translate(16px, -10px) rotate(4deg); }
+  60%  { transform: translate(26px,   2px) rotate(-14deg); }
+  80%  { transform: translate(12px, -12px) rotate(-6deg); }
+  100% { transform: translate(0,     -8px) rotate(-4deg); }
+}
+/* The strip is the rabbit's height and a few px: a hop is a hop of that size. */
+@keyframes bunnyHopTuft {
+  0%, 55%, 100% { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(-4deg); }
+  62%           { transform: translateY(calc((1 - var(--edge-y)) * 100% - 4px)) rotate(-6deg); }
+  69%           { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(-4deg); }
+  76%           { transform: translateY(calc((1 - var(--edge-y)) * 100% - 4px)) rotate(-6deg); }
+  83%           { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(-4deg); }
+}
+
+/* Tablets held sideways: the same problem as the phone, a little less of it.
+   The stake's foot is 44-70px here (see the tablet branch of
+   _short-landscape.css), and a rabbit of 54-105px came out from behind the
+   signs over it by its ears. It was put beside the stake on the lawn, where the
+   credits are, and its paws were in "Designed by Lily age 8". Since 130A it is
+   in the tuft as on a phone, the height of the strip of ground under the signs. */
+@container (orientation: landscape) and (min-height: 521px) and (max-height: 900px) {
+  .signs-on-stake { --rabbit-h: clamp(48px, 7cqh, 64px); }
+  .signs-on-stake:has(> .ground-bunny),
+  body.stage-pin-active .signs-on-stake:has(> .ground-bunny) {
+    padding-bottom: calc(var(--rabbit-h) + 3px);
+  }
+  .ground-bunny {
+    left: calc(50% - clamp(42px, 7cqw, 66px));
+    right: auto;
+    bottom: 1px;
+    height: var(--rabbit-h);
+    animation-name: bunnyHopTuft;
+  }
+}
+
+/* ── 7b. The sign's list is as wide as its words ─────────────────────
+ * welcome.html and welcome-new.html set the three steps in a block as wide as
+ * the board, left-aligned under a centred logo: at 1024x768 the words ended
+ * 160-190px short of the board's right edge (blank space on the right of the
+ * sign). The list is as wide as its longest line and centred, so the blank is
+ * shared by both sides and the sign is as wide as its widest content.
+ */
+.intro ol { width: fit-content; max-width: 100%; margin-inline: auto; }
+
+/* ── 8. The animal a story plaque is about stands in the room ────────
+ * (conflict.html, vet.html, arrival.html)
+ *
+ * Marcus, 2026-10-14: "I'm not entirely clear on the one that's showing
+ * animal conflict, why they are somehow contained on a panel but also
+ * hanging halfway off it" and then, choosing the room over the picture
+ * (117B): "make sure the animals are correctly sized and placed (not in a
+ * vignette on the sign) for the background, as they are too small now
+ * despite being the main feature for the kids".
+ *
+ * Each of these screens is a room (a dimmed, blurred photograph) with a
+ * plaque in front of it. The animal is the subject, so it is IN the room:
+ * it stands on the floor with a shadow under it, outside the plaque and in
+ * front of nothing, at the scale the room is drawn at. The plaque keeps the
+ * words and the choices and is only as wide as they are.
+ *
+ * SCALE. The photograph is `background-size: cover`, so one pixel of it is
+ * `--room` css pixels, whatever the screen: max(width / photo width,
+ * height / photo height). An animal is drawn `--k` photo pixels tall, so it
+ * is the same fraction of the room's furniture on every screen: the dog room's
+ * patchwork bed is ~290 photo px across and the golden puppy's body 150 (about
+ * half a bed), the sick cat 176 long, a cat on a dog's bed; the arrival room is
+ * a 1280px photograph with a ~450px bed, so the bunny's box is 300 of its
+ * pixels. Where the screen cannot hold that (a narrow phone, two animals and a
+ * ball) the width or the height caps it, so it is as big as the room will bear.
+ *
+ * PLACE. The floor in the photograph starts at the skirting a little over
+ * halfway down, so the animals stand near the foot of the screen, at the depth
+ * of the beds' near edges or a little nearer, and so a little larger than the
+ * furniture behind them. On a landscape phone
+ * (no room under the plaque) they stand beside it, on its left, and the plaque
+ * centres in the rest; everywhere else they stand below it. Their feet are
+ * put on the floor by `--edge-y` (the fraction of the painting at which the
+ * body ends; the table at the end of this file has it for every sprite these
+ * screens can show), and the soft ellipse under each is the floor taking
+ * their weight. The stage that holds them clips only the painting's empty
+ * canvas under the feet, so the screen cannot scroll to reach it.
+ */
+.welcome-inner:has(.conflict-scene, .arrival-scene) {
+  --room-w: 800;     /* the backdrop photograph's size, in its own pixels */
+  --room-h: 446;
+  --room: max(100cqw / var(--room-w), 100cqh / var(--room-h));   /* css px per photo px */
+  --k: 158;          /* an animal's box, in photo pixels */
+  --stage-fr: 2.34;  /* the stage's width / the box: two animals, the ball, the gaps */
+  --stage-share: 0.5;  /* of the screen's width, for a landscape phone */
+  --plaque-est: 48cqh; /* the plaque's height (its type scales with the screen's), for the room left under it */
+  --hcap: min(40cqh, 100cqh - 110px - var(--plaque-est));   /* below the plaque */
+  --hcap-land: 46cqh;  /* of its height, beside it */
+  --ch: min(calc(var(--room) * var(--k)), var(--ch-cap));
+  --ch-cap: max(80px, min((100cqw - 52px) / var(--stage-fr), var(--hcap)));
+  --toy: clamp(26px, calc(var(--ch) * 0.24), 64px);
+  --ground: calc(var(--ch) * 0.09 + 6px);
+  --stage-w: calc(var(--stage-fr) * var(--ch) + 28px);
+  --stage-h: calc(var(--ch) + 30px);
+}
+/* The backdrop's blurred edge fades into this (dark, like the wash over it)
+   rather than into the page's cream, and it is not scaled up to hide that
+   edge: a scaled box counts as scrollable overflow, 9-21px of scroll here. */
+.welcome:has(.conflict-scene, .arrival-scene) { background: #2a2018; }
+.welcome:has(.conflict-scene, .arrival-scene)::before { transform: none; }
+.welcome-inner:has(.arrival-scene) { --room-w: 1280; --room-h: 720; }
+/* One animal, so a little larger and the stage is just its width. */
+.welcome-inner:has(.vet-scene-wrap) { --k: 215; --stage-fr: 1; --stage-share: 0.4; --hcap-land: 60cqh; --plaque-est: 54cqh; }
+.welcome-inner:has(.arrival-scene) { --k: 300; --stage-fr: 1; --stage-share: 0.4; --hcap-land: 60cqh; --plaque-est: 60cqh; }
+
+.conflict-scene,
+.arrival-scene {
+  position: absolute;
+  z-index: 21;                 /* in front of the plaque's shadow */
+  left: 50%; bottom: 4px;
+  transform: translateX(-50%);
+  grid-area: auto;             /* not a cell of the plaque's grid any more */
+  align-self: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: max-content;
+  max-width: none;
+  margin: 0;
+  gap: calc(var(--ch) * 0.04);
+  padding: calc(var(--ch) * 0.08 + 14px) 14px var(--ground);
+  overflow: hidden;
+  pointer-events: none;
+  /* The floor's shadow under each animal: a flat ellipse centred on its feet. */
+  background:
+    radial-gradient(closest-side, rgba(22, 12, 5, 0.5), rgba(22, 12, 5, 0))
+      no-repeat left calc(14px + var(--ch) * 0.07) bottom calc(var(--ground) - var(--ch) * 0.05) / calc(var(--ch) * 0.86) calc(var(--ch) * 0.1),
+    radial-gradient(closest-side, rgba(22, 12, 5, 0.5), rgba(22, 12, 5, 0))
+      no-repeat left calc(14px + var(--ch) * 1.27 + var(--toy)) bottom calc(var(--ground) - var(--ch) * 0.045) / calc(var(--ch) * 0.66) calc(var(--ch) * 0.09);
+}
+.conflict-scene:has(.vet-scene-wrap),
+.arrival-scene {
+  background:
+    radial-gradient(closest-side, rgba(22, 12, 5, 0.5), rgba(22, 12, 5, 0))
+      no-repeat left calc(14px + var(--ch) * 0.1) bottom calc(var(--ground) - var(--ch) * 0.05) / calc(var(--ch) * 0.82) calc(var(--ch) * 0.1);
+}
+/* The 🤒 floats 6px above the sick animal's head and bobs 6px higher. */
+.conflict-scene:has(.vet-scene-wrap) { padding-top: calc(var(--ch) * 0.2 + 20px); }
+
+:where(.conflict-anim, .arrival-anim) { --edge-y: 0.85; }
+.conflict-anim,
+.arrival-anim {
+  height: var(--ch);
+  max-height: none;            /* _short-landscape.css capped these at 150px */
+  width: auto;
+  /* Feet on the floor, whatever the painting's empty canvas under them. */
+  margin-bottom: calc((var(--edge-y) - 1) * var(--ch));
+}
+.conflict-toy { font-size: var(--toy); line-height: 1; margin-bottom: calc(var(--toy) * -0.1); }
+/* The sick animal's 🤒 hovers just above its head, which is `--top-y` of the way
+   down its painting, so the painting's empty canvas above it is pulled away. */
+.vet-sick-anim { margin-top: calc(var(--top-y, 0.28) * var(--ch) * -1); }
+.vet-scene-wrap::before { font-size: clamp(28px, calc(var(--ch) * 0.2), 56px); top: -1em; }
+
+/* The plaque is only as wide as its words and choices. Its subtitle wraps at
+   about 21em instead of setting the width. */
+.conflict-plaque,
+.arrival-plaque {
+  width: fit-content;
+  max-width: min(92%, 560px);  /* a long title (a 16-letter name in the vet's) is two lines, not three */
+  align-self: center;          /* as tall as its content, centred in what it has */
+}
+/* arrival.html pins its audio button to the top-right with `position: absolute`;
+   the landscape sheet's `.top-strip { position: relative }` (for paths) undid that
+   and pushed the button 20px off the left edge of the screen. */
+.welcome-inner:has(.arrival-plaque) > .top-strip {
+  position: absolute;
+  top: clamp(10px, 2cqh, 18px);
+  right: clamp(12px, 3cqw, 24px);
+  z-index: 25;
+}
+/* The corner badge hangs on the plaque's top-left corner (arrival's always did;
+   conflict's and vet's were top-right, over the audio button on a landscape
+   phone), and the title starts below it. */
+.conflict-flag { right: auto; left: -14px; }
+.conflict-plaque { padding-top: max(clamp(18px, 3cqh, 28px), calc(clamp(42px, 6.5cqh, 56px) - 10px)); }
+.arrival-plaque { padding-top: max(clamp(18px, 3cqh, 28px), calc(clamp(52px, 8cqh, 72px) - 12px)); }
+.conflict-subtitle,
+.arrival-subtitle { max-width: 21em; margin-inline: auto; }
+/* A pill's emoji and words sit together in the middle of it, not against its
+   left edge with the rest of it blank: 150-340px of blank to the right of the
+   words on a wide pill. */
+.conflict-choices .choice-pill,
+.arrival-choices .choice-pill {
+  grid-template-columns: auto auto;
+  justify-content: center;
+}
+
+/* Below the plaque (portrait, and a tablet held sideways): it rises to leave
+   them the floor, and starts below the audio button. */
+.conflict-plaque,
+.arrival-plaque { top: 70px; bottom: calc(var(--stage-h) + 10px); }
+
+/* A landscape phone: no room under the plaque, so the animals stand on its
+   left, in the foot of the screen, and the plaque centres in the rest, clear of
+   the audio button above it. */
+@container (orientation: landscape) and (max-height: 520px) {
+  .welcome-inner:has(.conflict-scene, .arrival-scene) {
+    --ch-cap: max(80px, min((var(--stage-share) * 100cqw - 28px) / var(--stage-fr), var(--hcap-land)));
+  }
+  .conflict-scene,
+  .arrival-scene { left: 12px; transform: none; }
+  .conflict-plaque,
+  .arrival-plaque {
+    top: 62px;
+    bottom: 6px;
+    left: calc(12px + var(--stage-w) + 8px);
+    right: 12px;
+    max-width: none;
+    padding-top: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "title" "sub" "choices";
+    grid-template-rows: auto auto 1fr;
+  }
+  /* The title takes two lines here, so the words under it sit closer. */
+  .conflict-subtitle,
+  .arrival-subtitle { margin-top: 2px; margin-bottom: 8px; }
+  /* A smaller badge, so the plaque need not make room for a big one. */
+  .conflict-flag { width: 36px; height: 36px; top: -14px; left: -12px; font-size: 22px; }
+  .arrival-flag { width: 40px; height: 40px; top: -16px; left: -12px; font-size: 24px; }
+}
+
+/* ── 8b. The title on a story plaque ─────────────────────────────────
+ * Its style is shared by every story screen and lives in _story-title.css
+ * (linked after this sheet). What this sheet adds is the room it needs on a
+ * landscape phone, where a two-line title costs ~35px: the plaque starts 4px
+ * higher and the words under the title sit closer (section 8, the container
+ * query at the end).
+ */
+
+/* ── 9. One signpost: the board, two posts, small signs, three animals ─
+ * (welcome-new, login, signup, menu, friends, forgot-PIN, news)
+ *
+ * Marcus, 2026-10-14 (130A): Next and "I already have an account" on one row,
+ * as two small signs on the two posts, and the room that frees given to the
+ * animals, which were 26-32px of cat, parrot and rabbit on a phone held
+ * sideways.
+ *
+ * THE ROW. Where the primary sign has one sign beside it (signup's NEXT! and
+ * "I already have an account"), the two share a row: two columns either side
+ * of the board's centre line, each sign hugging the line, so the left sign is
+ * across the left post and the right sign across the right post at every width
+ * (the geometry check in e2e/sign-geometry.spec.ts holds each post inside its
+ * sign). The primary is a small sign there, as tall as a touch target rather
+ * than a 56px plank the width of the board.
+ *
+ * THE PARROT stands on the board's top edge with its claws over the wood, at
+ * the other end from the cat. On the plank under the board it stood in front
+ * of the board's lower edge, over whatever the board held there (the "s" of
+ * "Find forever homes", the hedgehog in the picker, the corner of the friends
+ * list), and a bigger bird would have covered more; above the board there is
+ * nothing to cover. Each board carries its own parrot in the markup, as it
+ * carries its own cat, so the bird leans with the board's tilt and goes where
+ * the board goes. The macaw's painting faces left; it is turned to face along
+ * the board.
+ *
+ * THE BAND above the board holds the cat and the parrot, and the STRIP of
+ * ground under the posts holds the rabbit. On a phone, either way up, the band
+ * is set (`--band`): the sound button comes out of the flow and keeps its
+ * place, the board starts `--band` down, and the cat and the parrot are sized
+ * from it. _short-landscape.css used to lift the stack 20-27px into that corner
+ * to pay for the rabbit's strip; the row pays for the strip now. The boards
+ * that carry the most (login's four names and its number pad, signup's clue)
+ * lower the band a little on a phone held sideways, in their own pages.
+ */
+.signs-on-stake {
+  --cat-h: clamp(92px, 13cqh, 132px);
+  --parrot-h: clamp(84px, 12cqh, 118px);
+}
+@container (max-height: 520px) {
+  /* The band is set rather than left to the top strip: the sound button comes
+     out of the flow (it keeps its place at the top right), and the board starts
+     `--band` down. The cat's painting is 59% animal from its back to its belly,
+     the macaw's 78% from its crown to its claws, so these are the largest that
+     stand in the band without leaving the top of the screen. */
+  .welcome-inner:has(.signs-on-stake) {
+    --band: clamp(54px, 16cqh, 72px);
+  }
+  .signs-on-stake {
+    --cat-h: calc(var(--band) * 1.5);
+    --parrot-h: calc(var(--band) * 1.22);
+    --rabbit-h: clamp(40px, 12cqh, 52px);
+  }
+  .welcome-inner:has(.signs-on-stake) > .top-strip {
+    position: absolute;
+    /* Out of its grid area too: an absolutely placed item with a grid area is
+       placed inside that area, 18px below where the area starts. */
+    grid-area: auto;
+    top: 18px; left: 0; right: 0;
+    z-index: 20;
+    pointer-events: none;
+  }
+  .welcome-inner:has(.signs-on-stake) > .top-strip > * { pointer-events: auto; }
+  /* The column is the screen's width, so the stake is its own width (94%, at
+     most 600px) on every sign screen rather than as wide as its widest sign. */
+  .welcome-content > .text-block { width: 100%; }
+  .welcome-inner:has(.signs-on-stake) > .welcome-content,
+  body.stage-pin-active .welcome-inner:has(.signs-on-stake) > .welcome-content {
+    padding-top: calc(var(--band) - 18px);
+  }
+}
+.signs-on-stake .intro > .intro-cat { height: var(--cat-h); }
+/* The same height of animal from paintings that fill their canvases
+   differently: the Siamese is 75% cat from ears to belly against the ginger's
+   59%, the cockatiel 85% bird from crest to claws against the macaw's 78%. */
+.signs-on-stake .intro > .intro-cat[src*="siamese"] { height: calc(var(--cat-h) * 0.78); }
+.signs-on-stake .intro > .play-parrot[src*="cockatiel"] { --parrot-scale: 0.9; }
+.signs-on-stake .intro > .play-parrot[src*="parrot-grey"] { --parrot-scale: 1.05; }
+.signs-on-stake .intro > .play-parrot {
+  position: absolute;
+  top: auto !important;
+  right: auto;
+  bottom: 100%;
+  left: var(--parrot-x, clamp(14px, 4cqw, 34px));
+  height: calc(var(--parrot-h) * var(--parrot-scale, 1));
+  width: auto;
+  z-index: 3;
+  pointer-events: none;
+  animation-name: parrotOnBoard;
+}
+.signs-on-stake .intro > .play-parrot[src*="parrot-macaw"] { --face: -1; }
+/* Its claws come over the front of the wood by 5-8px; the title starts that
+   much lower on a board with a parrot, so they are over wood and not words. */
+.intro:has(> .play-parrot) > :is(.sign-title-row, .sign-title):not(.sign-logo + *) { margin-top: 6px; }
+/* Clear of the back button that sits on the board's top-left corner. */
+.intro:has(> .back-sticker) { --parrot-x: clamp(44px, 7cqh, 62px); }
+.intro:has(> .back-tab, > .back-pill) { --parrot-x: clamp(100px, 14cqw, 124px); }
+@keyframes parrotOnBoard {
+  0%, 100% { transform: translateY(calc((1 - var(--edge-y)) * 100%)) scaleX(var(--face, 1)) rotate(-5deg); }
+  50%      { transform: translateY(calc((1 - var(--edge-y)) * 100%)) scaleX(var(--face, 1)) rotate(2deg); }
+}
+
+/* The row of two. */
+.cta-stack:has(> .btn-primary-wrap:not(.hidden)):has(> .secondary-row:not(.hidden) > :only-child) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: clamp(10px, 2cqw, 16px);
+  align-items: stretch;
+}
+.cta-stack:has(> .secondary-row:not(.hidden) > :only-child) > .btn-primary-wrap {
+  justify-self: end;
+  width: auto;
+  max-width: 100%;
+}
+/* Each of a row of two reaches from the centre line past its post by a hand's
+   breadth: (1 - 2k) of its half of the row, k the posts' inset. "Log out" alone
+   stopped 5px short of the right post's outer edge. */
+.cta-stack:has(> .secondary-row:not(.hidden) > :only-child) > .btn-primary-wrap,
+.cta-stack:has(> .btn-primary-wrap:not(.hidden)) > .secondary-row:has(> :only-child),
+.cta-stack > .secondary-row:has(> :nth-child(2):last-child) > .link-btn {
+  min-width: calc(100% * (1 - 2 * var(--post-k)) + 16px);
+}
+.cta-stack:has(> .btn-primary-wrap:not(.hidden)) > .secondary-row:has(> :only-child) > .link-btn { flex: 1 1 auto; }
+.cta-stack:has(> .btn-primary-wrap:not(.hidden)) > .secondary-row:has(> :only-child) {
+  justify-self: start;
+  display: flex;
+  position: relative;
+  bottom: auto;
+  max-width: 100%;
+}
+.cta-stack:has(> .secondary-row:not(.hidden) > :only-child) .btn-primary {
+  width: 100%;
+  height: 100%;
+  min-height: 48px;
+  padding: 2px clamp(16px, 2.6cqw, 24px);
+  font-size: clamp(20px, 5.4cqh, 26px);
+  gap: clamp(6px, 1cqw, 10px);
+}
+.cta-stack:has(> .secondary-row:not(.hidden) > :only-child) .btn-primary .paw {
+  font-size: clamp(18px, 5cqh, 26px);
+}
+.cta-stack:has(> .btn-primary-wrap:not(.hidden)) > .secondary-row > .link-btn:only-child {
+  min-height: 48px;
+  white-space: normal;
+  text-wrap: balance;
+  line-height: 1.15;
+}
+
+/* Two small signs under the primary (login's "Forgot your secret code?" and
+   "New? Make an account", menu's Friends and Log out) are the same row of two,
+   one on each post, at every size: on a portrait phone they were stacked down
+   the middle, a row each. Where a sign's words are wider than its half of the
+   row they take two lines. */
+.cta-stack > .secondary-row:has(> :nth-child(2):last-child) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: clamp(10px, 2cqw, 16px);
+  align-items: stretch;
+  width: 100%;
+}
+.cta-stack > .secondary-row:has(> :nth-child(2):last-child) > :first-child { justify-self: end; }
+.cta-stack > .secondary-row:has(> :nth-child(2):last-child) > :last-child { justify-self: start; }
+.cta-stack > .secondary-row:has(> :nth-child(2):last-child) > .link-btn {
+  max-width: 100%;
+  min-height: 48px;
+  white-space: normal;
+  text-wrap: balance;
+  line-height: 1.15;
+}
+
+/* A portrait phone. The primary sign's words on one line (START PLAYING! and
+   BACK TO GAME took two, at 34px between 52px paws: a 140px plank), and the
+   credits in two centred lines at the foot (in one row they were 9px wider than
+   a 390px screen, which cut both ends off). */
+@container (max-width: 420px) {
+  /* The band, as on a phone held sideways: the cat and the parrot stand in it,
+     the cat far enough from the right that it is not under the sound button. */
+  .welcome-inner:has(.signs-on-stake) { --band: clamp(80px, 10cqh, 96px); }
+  /* The rabbit in its strip of ground, as on a phone held sideways: login and
+     signup, which carry the most, hid the grass and the rabbit here, and their
+     posts ended in mid-air. */
+  .signs-on-stake { --rabbit-h: clamp(52px, 7cqh, 60px); }
+  /* The screens with room for it keep the bigger rabbit they had. */
+  .signs-on-stake:not(:has(> .intro[class*="stage-"])) { --rabbit-h: clamp(60px, 9.5cqh, 84px); }
+  .signs-on-stake:has(> .ground-bunny),
+  body.stage-pin-active .signs-on-stake:has(> .ground-bunny) {
+    padding-bottom: calc(var(--rabbit-h) + 3px);
+  }
+  .ground-bunny {
+    left: calc(50% - clamp(40px, 12cqw, 56px));
+    bottom: 1px;
+    height: var(--rabbit-h);
+    animation-name: bunnyHopTuft;
+  }
+  .welcome-inner:has(.signs-on-stake) > .top-strip {
+    position: absolute;
+    grid-area: auto;
+    top: 18px; left: 0; right: 0;
+    z-index: 20;
+    pointer-events: none;
+  }
+  .welcome-inner:has(.signs-on-stake) > .top-strip > * { pointer-events: auto; }
+  .welcome-inner:has(.signs-on-stake) > .welcome-content,
+  body.stage-pin-active .welcome-inner:has(.signs-on-stake) > .welcome-content {
+    padding-top: calc(var(--band) - 18px);
+    /* The two lines of credits at the foot, under the ground and not on it. */
+    padding-bottom: 52px;
+  }
+  .signs-on-stake .intro > .intro-cat { right: 36px !important; }
+  /* The signs run the screen's width here, so the bee keeps low, in the grass
+     at the foot of the left post, instead of crossing the left sign. */
+  .signs-on-stake > .bee-flyer {
+    width: 28px;
+    bottom: 2px;
+    animation-name: beeBuzzGrass;
+  }
+  /* welcome-new's picture of the centre was 236px of an 844px screen. */
+  .signs-on-stake .intro:has(.arc-snapshot-wrap) .arc-snapshot { max-height: clamp(130px, 19cqh, 180px); }
+  /* On the board's corner, not 3px off the screen's edge. */
+  .intro > .back-sticker { left: -4px; }
+  /* NEXT! in its half of the row. */
+  .cta-stack:has(> .secondary-row:not(.hidden) > :only-child) .btn-primary {
+    font-size: 22px;
+    padding-inline: 10px;
+    gap: 4px;
+  }
+  .cta-stack:has(> .secondary-row:not(.hidden) > :only-child) .btn-primary .paw { font-size: 20px; }
+  .signs-on-stake .btn-primary {
+    font-size: clamp(22px, 6.4cqw, 28px);
+    padding: clamp(8px, 1.4cqh, 12px) clamp(14px, 4cqw, 20px);
+  }
+  .signs-on-stake .btn-primary .paw { font-size: clamp(24px, 8cqw, 34px); }
+  .welcome-inner:has(.signs-on-stake) > .credits {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: clamp(2px, 0.5cqh, 6px);
+    height: auto;
+    padding: 0 8px;
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: center;
+    column-gap: 12px;
+    z-index: 8;
+  }
+  .welcome-inner:has(.signs-on-stake) > .credits > .credit-scrawl {
+    position: static;
+    white-space: nowrap;
+    transform: none;
+  }
+}
+
+/* A narrower phone held sideways (667px): the crest beside a title gives its
+   room to the title. With it, signup's "Pick a secret name" ran under "Show
+   another", the clue's title took two lines, and login's line beside its title
+   took three. */
+@container (max-height: 520px) and (max-width: 720px) {
+  .intro > .sign-title-row > .sign-logo { display: none; }
+}
+
+/* The lines under a title, in the body face at full strength: cream at 700
+   with the sign's dark shadow, as on the story boards. Login's was at 400 and
+   95%, and menu's "Welcome back," at 90%. */
+.signs-on-stake .intro .sign-subtitle,
+.signs-on-stake .intro .player-hello {
+  font-weight: 700;
+  opacity: 1;
+  text-shadow: 1px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* The board in front of the tuft. Where nothing hangs under it (forgot-PIN on a
+   tablet) the grass reached up over its last button. */
+.signs-on-stake > .intro { z-index: 7; }
+
+/* Clear of the sound button. The board starts `--band` down, above the bottom
+   of the button, so it is kept out of the button's column on both sides (it is
+   centred): 72px each side is the button, its margin and a gap. */
+@container (max-height: 520px) {
+  .signs-on-stake > .intro { max-width: min(98%, 600px, calc(100cqw - 144px)); }
+}
+
+/* The bee works the lawn at the left of the screen at every size, as it does on
+   a phone held sideways. Over the stake its loop crossed the signs: at 1024x768
+   it hid the N of NEXT!, the "Not here?" sign and Friends at rest. */
+.bee-flyer {
+  left: calc(50% - 50cqw + var(--bee-x, clamp(48px, 7cqw, 96px)));
+  bottom: clamp(24px, 7cqh, 44px);
+  animation-name: beeBuzzLawn;
+}
+/* A phone held sideways has 70-90px of lawn left of the signs at 667px. */
+@container (max-height: 520px) {
+  .bee-flyer { --bee-x: 14px; }
+}
+
+/* A sign on its own in its row is nailed across both posts, so it is as wide
+   as its words and at least as wide as the two posts and a hand's breadth of
+   wood either side; it was the stake's whole width (600px on a phone held
+   sideways, for "Continue!"). */
+.cta-stack:not(:has(> .secondary-row:not(.hidden) > :only-child)) > .btn-primary-wrap:not(:has(.demoted)),
+.cta-stack > .invite-share-panel {
+  width: fit-content;
+  min-width: min(100%, calc(100% - 2 * var(--post-in) + 56px));
+  max-width: 100%;
+  margin-inline: auto;
+}
+.cta-stack:not(:has(> .secondary-row:not(.hidden) > :only-child)) > .btn-primary-wrap:not(:has(.demoted)) > .btn-primary {
+  width: 100%;
+}
+
+/* ── The per-animal table ────────────────────────────────────────────
+ * Generated by scripts/sign-animal-ink.py (`--write`); do not edit by hand.
+ * `--animal-ink` is each animal's own darkest fur or feather colour, darkened by
+ * one fixed step (INK_DARKEN, so a ginger or golden animal's line shows) and
+ * lifted to a deep tone where it is near-black (no outline is ever pure black); `--edge-y`
+ * is the bottom of the painted body as a fraction of the image height. Re-run it
+ * when the art changes or an animal is added. Fallback for a sprite not listed:
+ * a warm dark brown (section 7).
+ */
+/* ink-table:begin */
+[src$="/bunny-lionhead-arriving.png"] { --animal-ink: #683a23; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/dog-golden-growling.png"] { --animal-ink: #714619; --edge-y: 0.885; --top-y: 0.115; }
+[src$="/cat-ginger-growling.png"] { --animal-ink: #954d1e; --edge-y: 0.850; --top-y: 0.213; }
+[src$="/cat-ginger-sleeping.png"] { --animal-ink: #884a21; }
+[src$="/cat-black-sleeping.png"] { --animal-ink: #292e3d; }
+[src$="/parrot-grey-sheltered.png"] { --animal-ink: #303236; }
+[src$="/bunny-lop-sheltered.png"] { --animal-ink: #5f3b1e; }
+[src$="/bee-flying.png"] { --animal-ink: #3c2e2a; }
+[src$="/parrot-macaw-nobranch.png"] { --animal-ink: #2c2b3b; }
+[src$="/bunny-dutch-sheltered.png"] { --animal-ink: #402926; }
+[src$="/cat-siamese-sleeping.png"] { --animal-ink: #4a291c; }
+[src$="/parrot-cockatiel-sheltered.png"] { --animal-ink: #5a5352; }
+[src$="/bunny-rex-sheltered.png"] { --animal-ink: #673118; }
+[src$="/cat-ginger-sick.png"] { --animal-ink: #834822; --edge-y: 0.738; --top-y: 0.279; }
+[src$="/bat-brown-sick.png"] { --animal-ink: #4d2c1b; --edge-y: 0.699; --top-y: 0.301; }
+[src$="/bat-fruit-sick.png"] { --animal-ink: #4a2d1c; --edge-y: 0.684; --top-y: 0.316; }
+[src$="/bat-longeared-sick.png"] { --animal-ink: #422c24; --edge-y: 0.945; --top-y: 0.055; }
+[src$="/bat-pipistrelle-sick.png"] { --animal-ink: #4a281c; --edge-y: 0.691; --top-y: 0.307; }
+[src$="/bat-sick.png"] { --animal-ink: #432d23; --edge-y: 0.896; --top-y: 0.102; }
+[src$="/bat-white-sick.png"] { --animal-ink: #655d56; --edge-y: 0.674; --top-y: 0.326; }
+[src$="/bunny-angora-sick.png"] { --animal-ink: #3e2f28; --edge-y: 0.801; --top-y: 0.197; }
+[src$="/bunny-arctic-sick.png"] { --animal-ink: #3b312b; --edge-y: 0.820; --top-y: 0.180; }
+[src$="/bunny-dutch-sick.png"] { --animal-ink: #432b23; --edge-y: 0.715; --top-y: 0.283; }
+[src$="/bunny-lionhead-sick.png"] { --animal-ink: #673621; --edge-y: 0.900; --top-y: 0.100; }
+[src$="/bunny-lop-sick.png"] { --animal-ink: #4a291c; --edge-y: 0.730; --top-y: 0.270; }
+[src$="/bunny-rex-sick.png"] { --animal-ink: #5e250c; --edge-y: 0.773; --top-y: 0.225; }
+[src$="/bunny-sick.png"] { --animal-ink: #8a5353; --edge-y: 0.924; --top-y: 0.074; }
+[src$="/bunny-spotted-sick.png"] { --animal-ink: #432d23; --edge-y: 0.748; --top-y: 0.252; }
+[src$="/cat-black-sick.png"] { --animal-ink: #2a2c3c; --edge-y: 0.730; --top-y: 0.287; }
+[src$="/cat-calico-sick.png"] { --animal-ink: #4a341c; --edge-y: 0.814; --top-y: 0.348; }
+[src$="/cat-grey-sick.png"] { --animal-ink: #323545; --edge-y: 0.773; --top-y: 0.293; }
+[src$="/cat-siamese-sick.png"] { --animal-ink: #49291d; --edge-y: 0.799; --top-y: 0.268; }
+[src$="/cat-sick.png"] { --animal-ink: #7d4a26; --edge-y: 0.895; --top-y: 0.174; }
+[src$="/cat-tortie-sick.png"] { --animal-ink: #3b2b2b; --edge-y: 0.969; --top-y: 0.156; }
+[src$="/cat-tuxedo-sick.png"] { --animal-ink: #333036; --edge-y: 0.842; --top-y: 0.145; }
+[src$="/cat-white-sick.png"] { --animal-ink: #4b4f4e; --edge-y: 0.930; --top-y: 0.156; }
+[src$="/dog-beagle-sick.png"] { --animal-ink: #3f2e27; --edge-y: 0.699; --top-y: 0.301; }
+[src$="/dog-chocolate-sick.png"] { --animal-ink: #4a2a1c; --edge-y: 0.764; --top-y: 0.236; }
+[src$="/dog-collie-sick.png"] { --animal-ink: #37322f; --edge-y: 0.693; --top-y: 0.307; }
+[src$="/dog-dalmatian-sick.png"] { --animal-ink: #47271f; --edge-y: 0.699; --top-y: 0.299; }
+[src$="/dog-golden-sick.png"] { --animal-ink: #472e1f; --edge-y: 0.705; --top-y: 0.295; }
+[src$="/dog-husky-sick.png"] { --animal-ink: #363232; --edge-y: 0.850; --top-y: 0.150; }
+[src$="/dog-pug-sick.png"] { --animal-ink: #492c1d; --edge-y: 0.805; --top-y: 0.195; }
+[src$="/dog-sick.png"] { --animal-ink: #5b311f; --edge-y: 0.914; --top-y: 0.102; }
+[src$="/dog-terrier-sick.png"] { --animal-ink: #3a312c; --edge-y: 0.828; --top-y: 0.172; }
+[src$="/fox-arctic-sick.png"] { --animal-ink: #8e7b5f; --edge-y: 0.777; --top-y: 0.223; }
+[src$="/fox-cross-sick.png"] { --animal-ink: #3f2b27; --edge-y: 0.748; --top-y: 0.250; }
+[src$="/fox-fennec-sick.png"] { --animal-ink: #705d44; --edge-y: 0.900; --top-y: 0.100; }
+[src$="/fox-marble-sick.png"] { --animal-ink: #363330; --edge-y: 0.730; --top-y: 0.268; }
+[src$="/fox-red-sick.png"] { --animal-ink: #3d3329; --edge-y: 0.736; --top-y: 0.262; }
+[src$="/fox-sick.png"] { --animal-ink: #4a2a1c; --edge-y: 0.928; --top-y: 0.072; }
+[src$="/fox-silver-sick.png"] { --animal-ink: #3a2c31; --edge-y: 0.734; --top-y: 0.266; }
+[src$="/hedgehog-albino-sick.png"] { --animal-ink: #cb4b4f; --edge-y: 0.797; --top-y: 0.201; }
+[src$="/hedgehog-blonde-sick.png"] { --animal-ink: #8e543c; --edge-y: 0.807; --top-y: 0.193; }
+[src$="/hedgehog-brown-sick.png"] { --animal-ink: #4a261c; --edge-y: 0.818; --top-y: 0.182; }
+[src$="/hedgehog-chocolate-sick.png"] { --animal-ink: #4a2a1c; --edge-y: 0.797; --top-y: 0.205; }
+[src$="/hedgehog-pinto-sick.png"] { --animal-ink: #4a261c; --edge-y: 0.805; --top-y: 0.195; }
+[src$="/hedgehog-salt-and-pepper-sick.png"] { --animal-ink: #343232; --edge-y: 0.811; --top-y: 0.188; }
+[src$="/hedgehog-sick.png"] { --animal-ink: #4a261c; --edge-y: 0.814; --top-y: 0.186; }
+[src$="/parrot-budgie-sick.png"] { --animal-ink: #294224; --edge-y: 0.951; --top-y: 0.049; }
+[src$="/parrot-cockatiel-sick.png"] { --animal-ink: #3a332c; --edge-y: 0.879; --top-y: 0.121; }
+[src$="/parrot-grey-sick.png"] { --animal-ink: #5c1e1a; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/parrot-lovebird-sick.png"] { --animal-ink: #214527; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/parrot-macaw-sick.png"] { --animal-ink: #1c404a; --edge-y: 0.936; --top-y: 0.064; }
+[src$="/parrot-sick.png"] { --animal-ink: #6c191f; --edge-y: 0.977; --top-y: 0.023; }
+[src$="/raccoon-sick.png"] { --animal-ink: #3a312c; --edge-y: 0.723; --top-y: 0.277; }
+[src$="/skunk-sick.png"] { --animal-ink: #3a2e2c; --edge-y: 0.908; --top-y: 0.092; }
+[src$="/snake-corn-sick.png"] { --animal-ink: #6c2116; --edge-y: 0.863; --top-y: 0.137; }
+[src$="/snake-garter-sick.png"] { --animal-ink: #3c3c2a; --edge-y: 0.732; --top-y: 0.268; }
+[src$="/snake-hognose-sick.png"] { --animal-ink: #5c442f; --edge-y: 0.906; --top-y: 0.092; }
+[src$="/snake-king-sick.png"] { --animal-ink: #392e2d; --edge-y: 0.893; --top-y: 0.105; }
+[src$="/snake-python-sick.png"] { --animal-ink: #3b2f2b; --edge-y: 0.912; --top-y: 0.088; }
+[src$="/snake-sick.png"] { --animal-ink: #45491d; --edge-y: 0.951; --top-y: 0.049; }
+[src$="/bat-arriving.png"] { --animal-ink: #462c20; --edge-y: 0.906; --top-y: 0.172; }
+[src$="/bat-brown-arriving.png"] { --animal-ink: #4a291c; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/bat-fruit-arriving.png"] { --animal-ink: #4a261c; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/bat-longeared-arriving.png"] { --animal-ink: #503e34; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/bat-pipistrelle-arriving.png"] { --animal-ink: #48271e; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/bat-white-arriving.png"] { --animal-ink: #47291f; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/bunny-angora-arriving.png"] { --animal-ink: #5d4b3d; --edge-y: 0.826; --top-y: 0.174; }
+[src$="/bunny-arctic-arriving.png"] { --animal-ink: #432b23; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/bunny-arriving.png"] { --animal-ink: #644b3a; --edge-y: 0.906; --top-y: 0.062; }
+[src$="/bunny-dutch-arriving.png"] { --animal-ink: #3b2b2c; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/bunny-lop-arriving.png"] { --animal-ink: #542716; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/bunny-rex-arriving.png"] { --animal-ink: #642f19; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/bunny-spotted-arriving.png"] { --animal-ink: #4a221c; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/cat-arriving.png"] { --animal-ink: #4f2e1b; --edge-y: 0.852; --top-y: 0.141; }
+[src$="/cat-black-arriving.png"] { --animal-ink: #2b2c3b; --edge-y: 0.934; --top-y: 0.074; }
+[src$="/cat-calico-arriving.png"] { --animal-ink: #39302d; --edge-y: 0.865; --top-y: 0.135; }
+[src$="/cat-ginger-arriving.png"] { --animal-ink: #924b1f; --edge-y: 0.818; --top-y: 0.219; }
+[src$="/cat-grey-arriving.png"] { --animal-ink: #3a3847; --edge-y: 0.871; --top-y: 0.139; }
+[src$="/cat-siamese-arriving.png"] { --animal-ink: #442922; --edge-y: 0.906; --top-y: 0.104; }
+[src$="/cat-tortie-arriving.png"] { --animal-ink: #3b2d2b; --edge-y: 0.914; --top-y: 0.092; }
+[src$="/cat-tuxedo-arriving.png"] { --animal-ink: #38322e; --edge-y: 0.951; --top-y: 0.088; }
+[src$="/cat-white-arriving.png"] { --animal-ink: #725139; --edge-y: 0.936; --top-y: 0.125; }
+[src$="/dog-arriving.png"] { --animal-ink: #473223; --edge-y: 0.914; --top-y: 0.117; }
+[src$="/dog-beagle-arriving.png"] { --animal-ink: #3d2e29; --edge-y: 0.973; --top-y: 0.029; }
+[src$="/dog-chocolate-arriving.png"] { --animal-ink: #432d23; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/dog-collie-arriving.png"] { --animal-ink: #3a302c; --edge-y: 0.883; --top-y: 0.115; }
+[src$="/dog-dalmatian-arriving.png"] { --animal-ink: #39332d; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/dog-golden-arriving.png"] { --animal-ink: #4a321c; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/dog-husky-arriving.png"] { --animal-ink: #3b302b; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/dog-pug-arriving.png"] { --animal-ink: #402e26; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/dog-terrier-arriving.png"] { --animal-ink: #482c1e; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/fox-arctic-arriving.png"] { --animal-ink: #4a2f1c; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/fox-arriving.png"] { --animal-ink: #4d2e22; --edge-y: 1.000; --top-y: 0.000; }
+[src$="/fox-cross-arriving.png"] { --animal-ink: #4a221c; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/fox-fennec-arriving.png"] { --animal-ink: #6a4a2c; --edge-y: 0.955; --top-y: 0.045; }
+[src$="/fox-marble-arriving.png"] { --animal-ink: #38302e; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/fox-red-arriving.png"] { --animal-ink: #423024; --edge-y: 0.955; --top-y: 0.043; }
+[src$="/fox-silver-arriving.png"] { --animal-ink: #412528; --edge-y: 0.879; --top-y: 0.121; }
+[src$="/hedgehog-albino-arriving.png"] { --animal-ink: #4a1c20; --edge-y: 0.871; --top-y: 0.129; }
+[src$="/hedgehog-arriving.png"] { --animal-ink: #4a251c; --edge-y: 0.967; --top-y: 0.033; }
+[src$="/hedgehog-blonde-arriving.png"] { --animal-ink: #a16435; --edge-y: 0.887; --top-y: 0.113; }
+[src$="/hedgehog-brown-arriving.png"] { --animal-ink: #4a251c; --edge-y: 0.961; --top-y: 0.039; }
+[src$="/hedgehog-chocolate-arriving.png"] { --animal-ink: #4a281c; --edge-y: 0.924; --top-y: 0.076; }
+[src$="/hedgehog-pinto-arriving.png"] { --animal-ink: #4a291c; --edge-y: 0.857; --top-y: 0.143; }
+[src$="/hedgehog-salt-and-pepper-arriving.png"] { --animal-ink: #333333; --edge-y: 0.906; --top-y: 0.092; }
+[src$="/parrot-arriving.png"] { --animal-ink: #68211d; --edge-y: 0.898; --top-y: 0.102; }
+[src$="/parrot-budgie-arriving.png"] { --animal-ink: #422d24; --edge-y: 0.945; --top-y: 0.055; }
+[src$="/parrot-cockatiel-arriving.png"] { --animal-ink: #323135; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/parrot-grey-arriving.png"] { --animal-ink: #362c3a; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/parrot-lovebird-arriving.png"] { --animal-ink: #2a3c2d; --edge-y: 0.959; --top-y: 0.041; }
+[src$="/parrot-macaw-arriving.png"] { --animal-ink: #272d3f; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/raccoon-arriving.png"] { --animal-ink: #403126; --edge-y: 0.854; --top-y: 0.146; }
+[src$="/skunk-arriving.png"] { --animal-ink: #422924; --edge-y: 0.957; --top-y: 0.041; }
+[src$="/snake-arriving.png"] { --animal-ink: #39352d; --edge-y: 0.836; --top-y: 0.162; }
+[src$="/snake-corn-arriving.png"] { --animal-ink: #622317; --edge-y: 0.963; --top-y: 0.035; }
+[src$="/snake-garter-arriving.png"] { --animal-ink: #343b2b; --edge-y: 0.885; --top-y: 0.113; }
+[src$="/snake-hognose-arriving.png"] { --animal-ink: #4a2c1c; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/snake-king-arriving.png"] { --animal-ink: #4a3c1c; --edge-y: 0.867; --top-y: 0.133; }
+[src$="/snake-python-arriving.png"] { --animal-ink: #4a391c; --edge-y: 0.943; --top-y: 0.057; }
+/* ink-table:end */

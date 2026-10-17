@@ -231,6 +231,19 @@ checking the claim still holds.
 - **Rewilding has no gameplay route at all.** `openRewildingOverlay` fires
   only from `'aspire-rewild'`, and `paths.html`'s rewild card is
   hard-locked — the click handler returns early on `.path-state-locked`.
+  *Out of date since `e0f626d`:* the host now unlocks the card for each
+  animal that has a wild home (`exitsForAnimal`), and the van's arrival
+  opens the ceremony too.
+- **Nothing sets `Animal.chronicIllness`, so the keepers' route cannot be
+  reached by playing.** The flag is what stops an animal that cannot be
+  released being sent to the wild; it goes to the wildlife park or the hog
+  hospital instead (`PLACEMENTS`, `exits.ts`). To see it: from the
+  inspector, `a = gs.store.animals[0]; a.chronicIllness = true;
+  gs.openPathsOverlay(a)` (or `gs.openPlacementOverlay(a)`). Set it on the
+  store's own object and open at once — `tickAllNeeds` replaces animals every
+  two seconds, though it spreads the flag across. Real arrivals get it when
+  the vet work in `docs/animal-flow-implementation-plan-2026-05-03.md`
+  Phase 4 lands.
 - **Adoption needs bond ≥ 50 and state ≠ 'pet'** (`AnimalDetailsPopup.ts:78`);
   bond hitting 100 flips the animal to `'pet'` and removes the Paths
   button, so the usable window is bond 50–99. Feed is +3 and closes the
@@ -589,3 +602,127 @@ checking the claim still holds.
   act on it, and a crash is a worse answer than an animation that does not
   move. Audited at the time — every other `stateTween` and
   `decorativeTween` call in the repo passes plain numbers.
+- **The vet game and the walk never call the `onComplete` GameScene hands
+  them; they report through the registry.** `VetScene` sets `vetResult` and
+  `WalkScene` sets `walkResult` on their last button and start `GameScene`,
+  which reads them in `create()` (`registry.get('vetResult')`). The
+  `onComplete` closures in `showAnimalDetails` (`doWalk`, `doVetVisit`) are
+  never invoked, so a counter wired there counts nothing. This is why
+  `selfHealed` and `walksWithoutIncident` are incremented in `create()`,
+  and why `healedByCare` counts only when `sickAnimals.delete` finds the
+  animal sick: if anything ever does call `onComplete`, a heal arriving by
+  both routes is still one.
+- **`mountInGame` takes down whatever overlay is open, and `unmount()`
+  takes down whatever is open now.** A badge plaque is an overlay, so
+  `checkBadges()` called before a popup's own `unmount()` puts the plaque up
+  and removes it in the same tick, with the badge already marked earned and
+  never shown. Call `checkBadges()` after `unmount()`. The same replacement
+  means a due visitor (`checkDueVisitors`, 1.5s after `create()`) will cover
+  a plaque that is still on screen; nothing guards it yet.
+- **The social screens read their tables with the anon key, and every
+  policy in `00002_rls_policies.sql` keys on `auth.uid()`, which this game
+  never has.** `getFriends` (`lib/friends.ts`), `getGiftInbox` and
+  `getFriendLeaderboard` (`lib/gifts.ts`) therefore returned nothing, as
+  `game_states` did before `load-game` existed: a child saw "Add friends
+  first!", could not reach `sendGift`, and had an empty inbox, so `giver`,
+  `generous` and `receiver` could never rise.
+  **All three reads go through Edge Functions now** — `get-friends`
+  (2026-10-14), then `get-gifts` and `get-leaderboard` (2026-10-16, 154A) —
+  and the client calls them with the `x-arc-session` header, so the account
+  comes from the session and never from the body.
+  The trap itself stands for anything new: a direct `supabase.from()` read
+  of a table whose policy names `auth.uid()` is silently empty in this game,
+  and `lib/gifts.ts` swallowed the error, which is why sending worked and
+  receiving looked broken for months. Reach for an Edge Function first.
+  Not verified against the live project, and **none of these functions is
+  deployed: committed is not deployed.**
+- **Days played are a set of day keys (`GameStateStore.playedDays`), not two
+  counters, and nothing trims it.** About 13 bytes a day, near 5 KB a
+  year; the merge unions it, which a pair of counters could not do without
+  counting a Tuesday twice when two devices open the game on it. A day is
+  recorded when the store is loaded, and saved with the next save: a launch
+  that saves nothing leaves no day behind.
+- **The roads on the map and the roads the van drives are one graph, written
+  by one tool.** `birchie-graph.json` and the `roads-*` groups of
+  `birchie-roads.svg` both come from `tools/simplify-road-graph.py`, from the
+  OSM import kept in `tools/road-graph-source/` (candidate D, installed
+  2026-10-11: 970 edges, 154 drawn roads). Do not edit either by hand, and do
+  not re-run `tools/osm-to-svg.py`: it rewrites the WHOLE svg from OSM, every
+  road class back again and none of the landmarks added by hand since.
+  To change a road, change the tool, run `--svg`, copy the two outputs over
+  (the tool splices only the road layer into the live svg and asserts every
+  other byte is untouched, so landmark edits survive). `road-graph-reach.test.ts`
+  fails if a destination has no road, a pin is more than 40 units from one, or
+  the drawing and the graph drift. Tracks are the only way to Cove Harbour,
+  Moorland and the hog hospital, so they are drawn solid brown, not cream.
+- **FIXED 2026-10-11: `map.html` placed its pins as if the SVG were letterboxed
+  (`meet`) while the SVG root said `slice`, so they agreed only on a 1.6:1 stage.**
+  At 874x402 the A.R.C. stamp stood 73px right and 20px below its drawn plot, at
+  2400x480 540px; every pin moved the same way, so a pin on a road in the data was
+  off the road on a phone (`road-graph-reach.test.ts` read the data and passed).
+  The SVG was `meet` until `1b2ae80` (2026-05-18), which made it `slice` to stop
+  the stage's tan gradient showing as bars either side of the map. Cropping was
+  never wanted: `mapExtentFor` promises every unlocked pin is in the frame, and
+  `slice` at 874x402 loses a third of the map's height.
+  **How it is fixed.** The root is `meet` again. `map.html` no longer holds the
+  viewBox or assumes a fit: it reads `viewBox` and `preserveAspectRatio` off the
+  loaded SVG's root and `map-fit.js` (`MapFit.place`) does what the SVG does with
+  them, so a change to either follows instead of contradicting. `intro.html` did
+  the same sum with the same assumption and now uses `map-fit.js` too (stamp 0px
+  off at 874x402, 812x375, 1440x900, 2400x480). The spare room a `meet` map leaves
+  is the stage, painted the colour of the SVG's own sea in the current season
+  (`syncStageSea`), and the SVG is clipped to its viewBox so the fields it keeps
+  past its edge do not float in it. The tabs-and-clamp rules are unchanged.
+  `road-graph-reach.test.ts` ("the map on a screen") runs `map.html`'s geometry
+  block as written (between the `begin/end screen geometry` markers) against the
+  root's real attributes at ten stage shapes, and fails if the root crops the map,
+  if the page stops reading the attribute, or if either disagrees with Chrome's
+  own `getScreenCTM()` numbers recorded in the test. Keep the markers.
+  **Also fixed in the same code:** `computeSvgRect` read `getBoundingClientRect()`
+  of an object it had itself put a CSS zoom on, so every second `placePins` call (a
+  resize, a rotation, the 200 and 600ms retries after an `init`) undid the frame
+  the one before set, toggling the zoom. It reads the layout box now. Do not
+  reintroduce a read of the transformed rect (the test stubs it to throw).
+  **Still true:** a pin at the frame's edge is pulled in by `keepOnStage` so its
+  whole marker stays on stage (hog hospital and Wilderwood 24px up at 874x402,
+  level 10). The crowded south-west cluster (Bramble Farm's name under the
+  neighbouring discs) was a layout decision, and it is taken: see the next
+  entry. Do not "fix" a pin to match a phone screenshot: fix the disagreement.
+- **FIXED 2026-10-11: the map's text. SVG labels were 8px (a place) and 5px
+  (service) at 874x402, and Bramble Farm's name rendered as "mble F".**
+  The game's type floor is 16px (`--fs-floor`); the SVG draws its text in map
+  units, so it was as small as the map. `map.html` ("Names and labels", after
+  `placePins`) now sets every `text.poi-label` at a SCREEN size (18px a place,
+  16px the rest) whatever the frame's zoom, outlined cream-on-dark rather than
+  on a plate (a plate means "tap me" here), and lays names and labels out
+  together: pins are tap targets and never move, every name and label gives way
+  (another side of its disc or icon, one line or two, a place's name down to 16px);
+  a label with no clear place is hidden for that frame (`data-placed="hidden"`),
+  never drawn over a pin and never below 16px. One cost function, annealed from a
+  fixed seed (deterministic; ~15ms), so overlaps, distance from the usual place,
+  roads under the text and a label reading as another place's name are traded
+  off together. Measured at 874x402 and 812x375, every level 0-10: no text
+  overlaps text, a pin or a painted icon. Tractor strips (`data-run`) are
+  obstacles too, in every season, so winter moves no text.
+  **What still collides, and is not text:** the Jolly Jim's icon is half under
+  the Pinebark Medical disc at levels 0-2 (170-190 px2 of ~340), the golf flag
+  sits 11 px2 under the Sea Cliffs disc at 812x375, and Cove Harbour's disc
+  touches the A.R.C. pill (11 px2): pin over art or pin over chrome, not labels;
+  move the icon or the pin, it needs a decision. At 812x375, level 8-10, one
+  label has no room (Petrol Station, or Birchie Station when two collection
+  calls are showing); its icon stays.
+  **Do not:** put label sizes back in the SVG for map.html's sake (intro.html
+  draws the same file zoomed to 5x and wants the map-unit sizes); read the
+  transformed rect of the `<object>` (the geometry block's test stubs it to
+  throw: the new code reads the elements inside it and the stage); spell the two
+  placeholder names in `map.html` (exits.test.ts); add an SVG label without
+  `data-tier` and a `data-for` naming a `.poi-icon` (map-tractors-and-labels.test.ts).
+- **FIXED 2026-10-11: the map's tractors crossed roads.** They ran 420 and 330
+  units across fields that are not that wide (west: two roads; east: ended on a
+  third). They are kept at full size (Marcus's decision: they are the seasonal
+  cue) and rerouted: west in field 24 (x 536-774, y 838-874, travel 194), east in
+  field 17 (x 1272-1486, y 854-890, travel 143), measured on the visible body
+  of the sprite, 4 units off every road. Winter takes both off through
+  `svg[data-season="winter"] .tractor-wrap`. `map-tractors-and-labels.test.ts`
+  fails if a run touches a road, leaves its field, goes under a park, or a
+  tractor is shrunk. The drive scene's all-year tractors are a separate job.

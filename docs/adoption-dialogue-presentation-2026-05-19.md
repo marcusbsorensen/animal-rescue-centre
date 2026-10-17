@@ -118,3 +118,54 @@ portraits**, waist-up, painted. That's the big cost. Options:
   faster to ship.
 - How long should a hand-over conversation be? Reference beats are
   ~4–6 lines. Suggest 3–4 for ARC to keep it snappy for an 8-year-old.
+
+## Update 2026-10-14: how it landed
+
+Marcus decided the polish (113A), kept Marnie as the warden (114A) and chose voices recorded by people (115B).
+What the running game does now, against the spec above:
+
+- **Portrait**: waist-up, 60% of the screen's height (the unit test allows 55-65%), standing on the end of the
+  dialogue box on the speaker's side with its lower edge behind the box's top edge, so no cut edge shows.
+  Full-figure adopters are cropped by a per-picture table, `tools/build-dialogue-framing.py` ->
+  `apps/game/src/ui/dialogue-framing.ts`. Priya's crop ends at her chair's arm rests: the chair's back and
+  handles show and the wheels are not sliced through. Groups with their arms out can be up to twice as wide as
+  tall, so a portrait is held to three quarters of the screen's width and gives up a little height instead.
+- **Backdrop**: a pale mist wash (a canvas texture drawn once, thicker at the top), not a dark dim.
+- **Name pill**: Marnie honey-amber, every guest soft blue, dashed border kept, in a darker tone of each so it
+  shows on the paler fill.
+- **Name highlights**: animal names deep green, person names deep amber (both at least 4.5:1 on the box).
+  Since 121A the hand-over's own four lines say no animal's name (so each can be recorded once and fit every
+  animal), which leaves "Marnie", in amber, as the one name in them; the green stays in the runner for any
+  conversation that does name an animal.
+- **Choices** (demo only): reply pills sit on the far side of the speaker, above the box, so the speaker is
+  never covered.
+- **Resize**: a window resize no longer restarts GameScene while the conversation is up (the restart destroyed
+  the dialogue and dropped the adoption); the dialogue lays itself out again and the scene catches up when
+  the ceremony closes.
+- **Voice**: a beat plays its recording when one has shipped and stays silent when not.
+  See [`voice-recording-plan-2026-10-14.md`](voice-recording-plan-2026-10-14.md).
+
+Checked by `e2e/dialogue-demo.spec.ts` (the dev demo, at 844x390 and 1024x768) and
+`e2e/adoption-handover.spec.ts` (one real adoption at each size).
+
+### Update 2026-10-14 (later): the two screens either side of the conversation, on a phone held sideways (124A)
+
+The match picker before the conversation and the ceremony after it were laid out for a tablet and broke on a
+sideways phone (cards collapsed to a strip at 844x390; the ceremony's two buttons pinned over its scroll text).
+Both are now laid out for the screen they are on:
+
+- **Picker** (`ui/adoption-match-layout.ts`, drawn by `AdoptionMatchScene`): *columns* on a tablet held sideways
+  (three tall cards under the animal), *rows* on a sideways phone (a rail down the left with the question, the
+  animal and "Not yet", and the three families as wide rows), *stack* in a narrow window. Every card is a 48px
+  or larger tap target; every piece of text is fitted to its box, shrinking towards 14px and only then trimming.
+- **Ceremony** (`public/admin/adoption.html`): on any landscape screen, two columns (the plaque on the left; the
+  gifts, "WAVE THEM OFF!" and "Not yet" on the right), drawn in from the height on a phone, so it fits 667x375
+  with the longest names the game has and needs no scrolling or pinning.
+
+Checked at 667x375, 844x390, 852x393, 932x430, 1024x768 and 1180x820 by `e2e/adoption-handover.spec.ts`: nothing
+overlaps, nothing is cut off, and every tap target is 44px or more.
+
+The conversation's own SKIP is the same: still the reference's small pill at the box's bottom right, but 44px tall
+(88-96px wide) and its own tap target, with the phone's dialogue box 8px taller (120) so two lines of copy end above it.
+`e2e/dialogue-demo.spec.ts` checks it at those six sizes on every beat.
+

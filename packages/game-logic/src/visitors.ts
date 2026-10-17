@@ -8,6 +8,8 @@
  * functions each dawn (schedule) and each tick (due).
  */
 
+import { isPlacementId } from './adoption';
+
 // ── Types ────────────────────────────────────────────────────────────
 
 export type VisitType =
@@ -74,6 +76,18 @@ const REHOMED_WEIGHTS: Array<{ type: VisitType; w: number }> = [
   { type: 'wild-visit',    w: 0 },
 ];
 
+// An animal placed with keepers (exits.ts, `commitPlacement`) sits in `rehomed`
+// under a placement id. Keepers do not drop off gifts or "welcome another
+// friend", which is what a household's weights would have them say, so they
+// send word of the animal and nothing else.
+const PLACED_WEIGHTS: Array<{ type: VisitType; w: number }> = [
+  { type: 'drop-by',       w: 60 },
+  { type: 'donation',      w: 0 },
+  { type: 'photo-letter',  w: 40 },
+  { type: 'second-adopt',  w: 0 },
+  { type: 'wild-visit',    w: 0 },
+];
+
 const REWILDED_WEIGHTS: Array<{ type: VisitType; w: number }> = [
   { type: 'drop-by',       w: 40 },
   { type: 'donation',      w: 25 },
@@ -136,7 +150,7 @@ export function scheduleVisitsForDay(store: VisitorStoreShape): VisitorEntry[] {
 
   for (const r of store.rehomed) {
     if (Math.random() < REHOMED_VISIT_CHANCE) {
-      const type = pickWeighted(REHOMED_WEIGHTS);
+      const type = pickWeighted(isPlacementId(r.householdId) ? PLACED_WEIGHTS : REHOMED_WEIGHTS);
       newEntries.push({
         id: makeId(),
         householdId: r.householdId,

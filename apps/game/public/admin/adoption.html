@@ -83,7 +83,12 @@
     container-type: size;
     container-name: adopt;
   }
-  .adopt::before {
+  /* The painted garden and its wash sit in a layer of their own, clipped: the
+     garden is scaled up 4% to hide its edges, and left in .adopt itself that
+     extra 4% counted as scrollable height, so the screen could be dragged up
+     a few pixels with nothing under it. */
+  .backdrop { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  .backdrop::before {
     content: ''; position: absolute; inset: 0;
     background-image: url('/assets/bg/garden-lawn-summer-morning.png');
     background-size: cover; background-position: center;
@@ -91,7 +96,7 @@
     transform: scale(1.04);
     z-index: 0;
   }
-  .adopt::after {
+  .backdrop::after {
     content: ''; position: absolute; inset: 0;
     background:
       radial-gradient(ellipse at 50% 25%, rgba(255, 230, 240, 0.30) 0%, transparent 60%),
@@ -112,6 +117,7 @@
   }
 
   /* ── Ambient: drifting petals + sparkles ── */
+  .ambient { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 3; }
   .petal, .sparkle {
     position: absolute;
     line-height: 1;
@@ -201,29 +207,17 @@
   .adopt-plaque::before { left: 12px; }
   .adopt-plaque::after  { right: 12px; }
 
-  .adopt-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(26px, 4.4cqh, 38px);
-    letter-spacing: 0.02em;
-    text-align: center;
-    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
-    -webkit-background-clip: text; background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
-    line-height: 1.1;
-    margin-bottom: clamp(4px, 0.8cqh, 8px);
-  }
+  /* The title's style (white on a darker plank, larger) is shared by every story board
+     and lives in _story-title.css; only the space under it is set here. */
+  .adopt-title { margin-bottom: clamp(4px, 0.8cqh, 8px); }
   .adopt-subtitle {
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-style: italic;
+    font-family: var(--body-font);
     font-weight: 700;
     color: #fffbe8;
     font-size: clamp(18px, 2.6cqh, 24px);
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
     text-align: center;
+    text-wrap: balance;
     margin-bottom: clamp(10px, 1.8cqh, 16px);
     line-height: 1.2;
   }
@@ -297,7 +291,7 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    font-family: 'Quicksand', system-ui, sans-serif;
+    font-family: var(--body-font);
     font-weight: 600;
     letter-spacing: 0.15px;
     color: #4a2e14;
@@ -325,7 +319,7 @@
     50%      { transform: scale(1.25); opacity: 1; }
   }
   .meet-label {
-    font-family: 'Quicksand', system-ui, sans-serif;
+    font-family: var(--body-font);
     font-weight: 600;
     letter-spacing: 0.2px;
     color: #fffbe8;
@@ -351,8 +345,8 @@
       0 4px 10px rgba(0,0,0,0.35),
       inset 0 0 20px rgba(160,110,60,0.12);
     transform: rotate(-2.2deg);
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-weight: 500;
+    font-family: var(--body-font);
+    font-weight: 600;
     font-size: clamp(var(--fs-floor), 2.1cqh, 19px);
     line-height: 1.35;
     color: #4a2e14;
@@ -361,9 +355,8 @@
   .scroll-card .scroll-sign {
     display: block;
     margin-top: clamp(4px, 0.8cqh, 8px);
-    font-family: 'Caveat', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
-    font-style: italic;
     color: #6b3a18;
     font-size: clamp(16px, 2.3cqh, 21px);
   }
@@ -430,7 +423,7 @@
     line-height: 1;
   }
   .gift-label {
-    font-family: 'Quicksand', system-ui, sans-serif;
+    font-family: var(--body-font);
     font-weight: 600;
     letter-spacing: 0.15px;
     font-size: clamp(var(--fs-floor), 1.7cqh, 16px);
@@ -450,7 +443,7 @@
   .btn-primary {
     width: 100%;
     padding: clamp(14px, 2.6cqh, 22px) clamp(20px, 3.4cqw, 30px);
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-size: clamp(18px, 3cqh, 26px); font-weight: 700;
     color: #fffbe8;
     text-shadow: 2px 3px 0 rgba(0,0,0,0.5);
@@ -587,11 +580,102 @@
   /* Narrow layout — iPhone */
   @container adopt (max-width: 420px) {
     .adopt-inner { gap: clamp(6px, 1.2cqh, 10px); padding: 10px; }
-    .adopt-title { font-size: clamp(22px, 3.8cqh, 28px); }
     .portrait-frame { max-width: clamp(110px, 32cqw, 160px); }
     .meet-connector { min-width: clamp(44px, 12cqw, 70px); }
     .gift-label { font-size: clamp(var(--fs-floor), 1.6cqh, 16px); }
-  }  /* Vertical scroll on desktop + iPad L — content stack is taller than
+  }
+
+  /* ── Landscape: the story on the left, the gifts and the two buttons on the right ──
+     The ceremony was one tall column: 825px of it in a 375px-tall phone, 1000px
+     in an iPad. "WAVE THEM OFF!" and "Not yet" were pinned over the bottom of the
+     screen by _short-landscape.css, so on every landscape size they sat on top of
+     the scroll text and the gifts, and what was under them could not be read.
+     Held sideways there is width to spare and no height, so the plaque (the title,
+     the two portraits, the scroll) takes the left and the gifts and the buttons the
+     right. Everything is on the screen at once, nothing is pinned over anything,
+     and nothing has to be scrolled to. A portrait screen keeps the one column.
+
+     The grid's first and last rows are 1fr, so the right column stays together in
+     the middle however tall the plaque is. The pinning and the padding that made
+     room for it (_short-landscape.css, which loads after this block) are undone
+     with selectors that outrank it. */
+  @container adopt (min-aspect-ratio: 6/5) {
+    html .adopt .adopt-inner {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      grid-template-rows: 1fr auto auto auto 1fr;
+      column-gap: clamp(12px, 2.4cqw, 28px);
+      row-gap: clamp(8px, 1.6cqh, 16px);
+      align-items: center;
+      justify-items: center;
+      padding: clamp(10px, 2.4cqh, 24px) clamp(16px, 3cqw, 40px);
+    }
+    .adopt-plaque { grid-column: 1; grid-row: 1 / -1; width: 100%; max-width: 660px; }
+    /* Both pictures the same width. (As flex-basis 0 with a 4:3 box, the family's picture and the animal's came out different sizes.) */
+    .adopt .portrait-frame { flex: 0 1 clamp(120px, 24cqw, 260px); max-width: none; min-width: 0; }
+    .gifts-panel { grid-column: 2; grid-row: 2; width: 100%; max-width: 440px; }
+    .adopt .wave-wrap { grid-column: 2; grid-row: 3; width: 100%; max-width: 440px; position: static; }
+    .adopt .secondary-row { grid-column: 2; grid-row: 4; position: static; }
+  }
+
+  /* A phone held sideways: the same two columns, with every vertical gap and size
+     drawn in from the height, so the plaque fits 375px.
+
+     The letter is set in the body face (Nunito, fonts.css), which is a third wider than the
+     script it replaced (Caveat drew 72% of Nunito's x-height at the same size), so the plaque
+     gives it room instead of more height: it takes two parts in three of the width, the letter
+     is the width of the plaque and a little more (it is a sheet pinned over the board), the
+     sparkle that sat under "going home together" is gone (that column set the portrait row's
+     height, not the pictures), the pictures are a little smaller (24% of the height, not 29), and the gaps are drawn in. */
+  @container adopt (min-aspect-ratio: 6/5) and (max-height: 560px) {
+    /* Prefixed with .adopt so they outrank _short-landscape.css, which loads after this
+       block and, for every screen, sets the pills to one line and the buttons to its own sizes. */
+    html .adopt .adopt-inner { padding-block: 3px; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+    .adopt .adopt-plaque { padding: 6px clamp(12px, 2.4cqw, 20px) 8px; }
+    .adopt .adopt-plaque::before, .adopt .adopt-plaque::after { top: 6px; }
+    .adopt .adopt-title { margin-bottom: 2px; }
+    .adopt .adopt-subtitle { font-size: clamp(16px, 4.4cqh, 20px); line-height: 1.15; margin-bottom: 2px; }
+    .adopt .portrait-row { padding: 0 0 clamp(2px, 0.8cqh, 6px); gap: clamp(4px, 1cqw, 10px); }
+    /* Both pictures the same size: a fixed share of the height, 4:3. */
+    .adopt .portrait-frame { flex: 0 1 clamp(80px, 24cqh, 200px); max-width: none; min-width: 0; }
+    .adopt .meet-connector .meet-spark:last-child { display: none; }
+    .adopt .meet-connector { min-width: clamp(44px, 9cqw, 90px); }
+    /* The animal fills its frame's height (its picture has its own margin), so it is not dwarfed by the family beside it. */
+    .adopt .portrait-frame:not(.portrait-family) { padding: 0 6% 2%; }
+    .adopt .portrait-frame:not(.portrait-family) .portrait-animal { height: 100%; }
+    /* The scroll is tilted, so its corners swing a few pixels: leave more than that above it. */
+    .adopt .scroll-card {
+      width: calc(100% + 16px);
+      margin: 8px -8px 0;
+      padding: 5px 12px 8px;
+      font-size: 16px;
+      line-height: 1.2;
+    }
+    .adopt .scroll-card .scroll-sign { margin-top: 0; font-size: 16px; }
+    /* the sign-off ends in a paw of its own, and this one sat under it */
+    .adopt .scroll-card .paw-stamp { display: none; }
+    .adopt .gifts-panel { padding: clamp(6px, 1.6cqh, 12px) clamp(10px, 2cqw, 18px); gap: clamp(4px, 1cqh, 8px); }
+    .adopt .gift-disc { width: clamp(44px, 9cqh, 56px); height: clamp(44px, 9cqh, 56px); }
+    .adopt .gift-label { max-width: none; }
+    .adopt .btn-primary { padding: clamp(10px, 3.2cqh, 18px) clamp(10px, 2cqw, 20px); font-size: clamp(18px, 4.8cqh, 24px); gap: clamp(4px, 1cqw, 10px); }
+    .adopt .btn-primary .flower-flank { font-size: clamp(22px, 5.4cqh, 32px); }
+    /* The sentence wraps inside the column rather than running off the screen. */
+    .adopt .secondary-row { width: 100%; max-width: 440px; }
+    .adopt .link-btn { max-width: 100%; white-space: normal; text-align: center; line-height: 1.15; padding: 6px clamp(12px, 2.4cqw, 20px); font-size: clamp(17px, 3.6cqh, 20px); }
+  }
+
+  /* The smallest sideways phone (667px wide). The title is 27px there (_story-title.css) and
+     29 letters of it are ~405px, so it takes two lines in the plaque's 329px, which the plaque
+     had no height for: 32px of scroll. The plaque takes a little more of the width (1.8 parts in
+     2.8 instead of 1.5 in 2.5, with 10px at the sides and between the columns), so the subtitle
+     and the scroll take fewer lines, and the title's plank sits a little closer to its neighbours.
+     The gifts and the buttons keep 228px. */
+  @container adopt (min-aspect-ratio: 6/5) and (max-width: 700px) {
+    html .adopt .adopt-inner { grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr); column-gap: 10px; padding-inline: 10px; }
+    .adopt .adopt-title { line-height: 1; padding-block: 0.04em 0.08em; }
+  }
+
+  /* Vertical scroll on desktop + iPad L — content stack is taller than
      the device's viewport on these landscape sizes; allow the user to
      scroll to see the bottom (grass tuft, bunny, fox, credits). */
   .device[data-size="desktop"] .welcome,
@@ -654,6 +738,7 @@
   }
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 
@@ -672,19 +757,27 @@
   <div class="device" id="device" data-size="ipad-p">
     <div class="adopt">
 
-      <!-- Drifting cherry-blossom petals -->
-      <span class="petal petal-1" aria-hidden="true">🌸</span>
-      <span class="petal petal-2" aria-hidden="true">🌸</span>
-      <span class="petal petal-3" aria-hidden="true">🌸</span>
-      <span class="petal petal-4" aria-hidden="true">🌸</span>
+      <div class="backdrop" aria-hidden="true"></div>
 
-      <!-- Sparkles rising from below -->
-      <span class="sparkle sparkle-1" aria-hidden="true">✨</span>
-      <span class="sparkle sparkle-2" aria-hidden="true">✨</span>
-      <span class="sparkle sparkle-3" aria-hidden="true">✨</span>
-      <span class="sparkle sparkle-4" aria-hidden="true">✨</span>
-      <span class="sparkle sparkle-5" aria-hidden="true">✨</span>
-      <span class="sparkle sparkle-6" aria-hidden="true">✨</span>
+      <!-- The drifting petals and rising sparkles animate well outside the screen.
+           They live in a clipping layer of their own: left loose, their travel
+           counted as scrollable height and the iframe could be dragged up by a
+           few pixels, with nothing under it. -->
+      <div class="ambient" aria-hidden="true">
+        <!-- Drifting cherry-blossom petals -->
+        <span class="petal petal-1" aria-hidden="true">🌸</span>
+        <span class="petal petal-2" aria-hidden="true">🌸</span>
+        <span class="petal petal-3" aria-hidden="true">🌸</span>
+        <span class="petal petal-4" aria-hidden="true">🌸</span>
+
+        <!-- Sparkles rising from below -->
+        <span class="sparkle sparkle-1" aria-hidden="true">✨</span>
+        <span class="sparkle sparkle-2" aria-hidden="true">✨</span>
+        <span class="sparkle sparkle-3" aria-hidden="true">✨</span>
+        <span class="sparkle sparkle-4" aria-hidden="true">✨</span>
+        <span class="sparkle sparkle-5" aria-hidden="true">✨</span>
+        <span class="sparkle sparkle-6" aria-hidden="true">✨</span>
+      </div>
 
       <div class="adopt-inner">
 
@@ -754,7 +847,7 @@
         </div>
 
         <div class="secondary-row">
-          <button class="link-btn" id="not-yet-btn" type="button">← Not yet, let me hug her first</button>
+          <button class="link-btn" id="not-yet-btn" type="button">← Not yet, let me hug them first</button>
         </div>
 
       </div>

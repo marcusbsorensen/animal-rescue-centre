@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { runDialogue, type DialoguePortrait } from '../ui/DialogueRunner';
+import { portraitCropFor } from '../ui/dialogue-framing';
+import { ADOPTER_HOUSEHOLD_DEFS, buildHandoverDialogue, WARDEN_SPEAKER } from '@arc/game-logic';
 import type { DialogueSequence, DialogueBeat } from '@arc/game-logic';
+import type { Animal } from '@arc/shared-types';
 import { FONTS, TYPE } from '../ui/constants';
 
 /**
@@ -8,92 +11,118 @@ import { FONTS, TYPE } from '../ui/constants';
  * without playing through to an adoption. Registered ONLY when the game is
  * booted with `?dialogueDemo=1`. Not part of normal play.
  *
- * Exercises: a right-side real portrait (adopter greeting), a left-side
- * painted-initials fallback (a speaker with no portrait), inline name
- * highlighting, the name pill, chevron and SKIP.
+ * It runs the real hand-over script (the same `buildHandoverDialogue` the game
+ * uses) over a real painted scene, with a choice beat swapped in for beat 3 so
+ * the reply pills can be seen.
+ *
+ *   ?dialogueDemo=1                              Marnie and Priya, choice on Marnie (left)
+ *   ?dialogueDemo=1&household=31-estrada-train   any household in the roster
+ *   ?dialogueDemo=1&choiceSide=right             the choice beat is the guest's (right)
  */
+const DEMO_ANIMAL: Animal = {
+  id: 'demo-1', name: 'Pumpkin', species: 'cat', variant: 'ginger',
+  state: 'bonding', arrivalStory: 'Found under a car.',
+  hunger: 20, tiredness: 20, happiness: 80, health: 100,
+  bondLevel: 60, roomId: 'room-cat',
+};
+
 export class DialogueDemoScene extends Phaser.Scene {
   constructor() {
     super({ key: 'DialogueDemoScene' });
   }
 
+  private params(): URLSearchParams {
+    return new URLSearchParams(window.location.search);
+  }
+
+  private household() {
+    const id = this.params().get('household');
+    return ADOPTER_HOUSEHOLD_DEFS.find((h) => h.householdId === id) ?? ADOPTER_HOUSEHOLD_DEFS[0];
+  }
+
   preload(): void {
-    this.load.image('demo-priya', '/admin/scene-assets/cast/01-priya.png');
-    this.load.image('demo-priya-greeting', '/admin/scene-assets/cast/variants/01-priya-greeting.png');
+    const h = this.household();
+    this.load.image('demo-bg', '/assets/bg/bg-garden.png');
     this.load.image('demo-warden', '/admin/scene-assets/cast/warden-marnie.png');
     this.load.image('demo-warden-happy', '/admin/scene-assets/cast/warden-marnie-happy.png');
+    this.load.image('demo-guest', h.avatarSrc);
+    this.load.image('demo-guest-greeting', greetingUrlOf(h.avatarSrc));
   }
 
   create(): void {
-    // A soft painted-garden stand-in so the dim backdrop reads like real play.
-    this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0xbfe3c8).setOrigin(0, 0);
-    this.add
-      .text(this.scale.width / 2, 40, 'DialogueRunner demo (?dialogueDemo=1)', {
-        fontSize: TYPE.body, fontFamily: FONTS.body, color: '#2d5a1e', fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
-
-    const sequence: DialogueSequence = {
-      id: 'demo',
-      beats: [
-        {
-          speaker: 'Marnie', speakerId: 'warden', side: 'left',
-          expression: 'neutral',
-          text: 'This is Pumpkin. Pumpkin has been hoping for the perfect home.',
-          highlights: ['Pumpkin'],
-        },
-        {
-          speaker: 'Priya "Pri" Kaur', speakerId: 'priya', side: 'right',
-          expression: 'neutral',
-          text: "Hello little Pumpkin! We've come all this way to meet you.",
-          highlights: ['Pumpkin'],
-        },
-        // A choice beat — showcases the choice-pill UI (Marcus, 2026-07-05).
-        {
-          speaker: 'Marnie', speakerId: 'warden', side: 'left',
-          expression: 'happy',
-          text: 'Ready to take Pumpkin home?',
-          highlights: ['Pumpkin'],
-          choices: [
-            { id: 'yes', label: 'Yes — off you go, together!' },
-            { id: 'cuddle', label: 'One last cuddle first' },
-          ],
-        },
-        {
-          speaker: 'Priya "Pri" Kaur', speakerId: 'priya', side: 'right',
-          expression: 'greeting',
-          text: "We'll love Pumpkin forever. Promise!",
-          highlights: ['Pumpkin'],
-        },
-      ],
+    // A real painted scene behind the conversation, so the mist is judged
+    // against what it will actually sit on.
+    const bg = this.add.image(0, 0, 'demo-bg').setOrigin(0.5, 0.5);
+    const fit = () => {
+      const W = this.scale.width;
+      const H = this.scale.height;
+      bg.setPosition(W / 2, H / 2);
+      bg.setScale(Math.max(W / bg.width, H / bg.height));
     };
+    fit();
+    this.scale.on('resize', fit);
+
+    const h = this.household();
+    const sequence = this.buildSequence(h);
+    const greetingUrl = greetingUrlOf(h.avatarSrc);
 
     const resolvePortrait = (beat: DialogueBeat): DialoguePortrait => {
-      if (beat.speakerId === 'warden') {
-        const happy = beat.expression === 'happy' || beat.expression === 'greeting';
-        return happy
-          ? { key: 'demo-warden-happy', altKey: 'demo-warden', fallbackName: 'Marnie' }
-          : { key: 'demo-warden', fallbackName: 'Marnie' };
+      const warm = beat.expression === 'happy' || beat.expression === 'greeting';
+      if (beat.speakerId === WARDEN_SPEAKER.id) {
+        const happyUrl = '/admin/scene-assets/cast/warden-marnie-happy.png';
+        const url = '/admin/scene-assets/cast/warden-marnie.png';
+        return warm
+          ? { key: 'demo-warden-happy', altKey: 'demo-warden', fallbackName: 'Marnie', crop: portraitCropFor(happyUrl) }
+          : { key: 'demo-warden', fallbackName: 'Marnie', crop: portraitCropFor(url) };
       }
-      const wantsGreeting = beat.expression === 'greeting' || beat.expression === 'happy';
-      return wantsGreeting
-        ? { key: 'demo-priya-greeting', altKey: 'demo-priya', fallbackName: 'Priya Kaur' }
-        : { key: 'demo-priya', fallbackName: 'Priya Kaur' };
+      return warm
+        ? { key: 'demo-guest-greeting', altKey: 'demo-guest', fallbackName: h.name, crop: portraitCropFor(greetingUrl) }
+        : { key: 'demo-guest', fallbackName: h.name, crop: portraitCropFor(h.avatarSrc) };
     };
 
-    const replay = () => runDialogue(this, sequence, {
+    runDialogue(this, sequence, {
       onComplete: () => {
         this.add
-          .text(this.scale.width / 2, this.scale.height / 2, 'Dialogue complete ✓  (tap to replay)', {
-            fontSize: TYPE.lead, fontFamily: FONTS.body, color: '#2d5a1e', fontStyle: 'bold',
+          .text(this.scale.width / 2, this.scale.height / 2, 'Dialogue complete  (tap to replay)', {
+            fontSize: TYPE.lead, fontFamily: FONTS.body, color: '#173a4d', fontStyle: 'bold',
+            backgroundColor: '#ffffffcc', padding: { x: 14, y: 8 },
           })
           .setOrigin(0.5)
+          .setName('demo-complete')
           .setInteractive()
           .once('pointerdown', () => { this.scene.restart(); });
       },
       resolvePortrait,
       onChoice: (choiceId) => { console.log('[dialogue demo] choice picked:', choiceId); },
     });
-    replay();
   }
+
+  /** The real hand-over, with beat 3 turned into a choice. */
+  private buildSequence(household: ReturnType<DialogueDemoScene['household']>): DialogueSequence {
+    const seq = buildHandoverDialogue(DEMO_ANIMAL, household);
+    const guestChoice = this.params().get('choiceSide') === 'right';
+    const beats = seq.beats.map((b, i): DialogueBeat => {
+      if (i !== 2) return b;
+      const base: DialogueBeat = guestChoice ? { ...seq.beats[1], expression: 'neutral' } : b;
+      const choice: DialogueBeat = {
+        ...base,
+        // The hand-over's own lines say no animal's name; this demo-only beat does,
+        // so the runner's green animal-name highlight can still be seen.
+        highlights: [DEMO_ANIMAL.name],
+        text: guestChoice ? `Shall we take ${DEMO_ANIMAL.name} home?` : `Ready to take ${DEMO_ANIMAL.name} home?`,
+        choices: [
+          { id: 'yes', label: 'Yes — off you go, together!' },
+          { id: 'cuddle', label: 'One last cuddle first' },
+        ],
+      };
+      // These are not words anyone has recorded, so no recording may play under them.
+      delete choice.lineId;
+      return choice;
+    });
+    return { ...seq, beats };
+  }
+}
+
+function greetingUrlOf(avatarSrc: string): string {
+  return avatarSrc.replace(/\/([^/]+)\.png$/, '/variants/$1-greeting.png');
 }

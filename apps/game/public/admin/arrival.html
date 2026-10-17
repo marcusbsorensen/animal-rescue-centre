@@ -186,23 +186,10 @@
     50%      { transform: rotate(2deg)  translateY(-4px); }
   }
 
-  .arrival-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(24px, 4cqh, 34px);
-    letter-spacing: 0.02em;
-    text-align: center;
-    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
-    -webkit-background-clip: text; background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
-    line-height: 1.1;
-  }
+  /* The title's style (white on a darker plank, larger) is shared by every story plaque
+     and lives in _story-title.css. */
   .arrival-subtitle {
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-style: italic;
+    font-family: var(--body-font);
     font-weight: 700;
     color: #fffbe8;
     font-size: clamp(17px, 2.6cqh, 22px);
@@ -251,8 +238,8 @@
     line-height: 1.15;
   }
   .choice-hint {
-    font-family: 'Quicksand', system-ui, sans-serif;
-    font-weight: 500;
+    font-family: var(--body-font);
+    font-weight: 600;
     letter-spacing: 0.15px;
     font-size: clamp(var(--fs-floor), 1.7cqh, 16px);
     opacity: 0.95;
@@ -308,9 +295,8 @@
     line-height: 1.1;
   }
   .fact-text {
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-style: italic;
-    font-weight: 500;
+    font-family: var(--body-font);
+    font-weight: 600;
     font-size: clamp(var(--fs-floor), 2.1cqh, 17px);
     color: #4a3416;
     line-height: 1.2;
@@ -383,7 +369,7 @@
   }
   .arrival-plaque.first-arrival .first-arrival-step.active { display: flex; }
 
-  /* Painted name-tag input — cream wash, painted brown border, Caveat,
+  /* Painted name-tag input — cream wash, painted brown border,
      big hit target. Sits on the wood like a cardboard label nailed on. */
   .nametag-input-wrap {
     position: relative;
@@ -415,7 +401,7 @@
     background: transparent;
     border: none;
     outline: none;
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(26px, 4.4cqh, 38px);
     color: #4a3416;
@@ -426,7 +412,7 @@
   .nametag-input::placeholder {
     color: #b3956b;
     font-style: italic;
-    font-weight: 500;
+    font-weight: 600;
   }
 
   /* Smaller btn-primary variant — fits inside the plaque without
@@ -434,7 +420,7 @@
   .btn-primary-sm {
     width: 100%;
     padding: clamp(10px, 1.8cqh, 14px) clamp(18px, 3cqw, 24px);
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-size: clamp(18px, 2.8cqh, 22px); font-weight: 700;
     color: #fffbe8;
     text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
@@ -486,7 +472,7 @@
   }
 
   /* Recovery-anchor message — same wooden plaque feel, with the chosen
-     name in painted cream-on-wood (bigger, Caveat). */
+     name in painted cream-on-wood (bigger). */
   .anchor-message {
     font-family: var(--sign-font);
     color: #fffbe8;
@@ -498,7 +484,7 @@
   }
   .anchor-message .anchor-name {
     display: inline-block;
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(24px, 4cqh, 34px);
     color: #fff5d4;
@@ -537,7 +523,7 @@
     background: linear-gradient(180deg, #fff8e5 0%, #f0d99a 100%);
     border: 2.5px solid #8a5a2a;
     border-radius: 999px;
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(18px, 2.8cqh, 24px);
     color: #4a3416;
@@ -646,16 +632,8 @@
   .memory-wall-photo + .memory-wall-empty { display: none; }
   .memory-wall.has-photo .memory-wall-empty { display: none; }
 
-  /* Step-1 sprite (smaller, no name yet) */
-  .first-arrival-step .arrival-anim-mini {
-    height: clamp(96px, 15cqh, 130px);
-    width: auto;
-    align-self: center;
-    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4));
-    animation: arrivalWobble 2.2s ease-in-out infinite;
-    transform-origin: bottom center;
-    margin-bottom: clamp(4px, 0.8cqh, 8px);
-  }
+  /* Step-1 sprite: the animal now stands in the room, so the copy on the plaque goes. */
+  .first-arrival-step .arrival-anim-mini { display: none; }
 
   /* Painted red drawing-pin sticker — borrowed from signup.html.
      Used to show validateAnimalName errors over the plaque. */
@@ -673,7 +651,7 @@
       0 6px 16px rgba(0,0,0,0.35),
       inset 0 2px 0 rgba(255,255,255,0.25),
       inset 0 -2px 0 rgba(0,0,0,0.3);
-    font-family: 'Kalam', 'Caveat', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: 18px;
     line-height: 1.2;
@@ -711,7 +689,7 @@
 
   /* Step-3 polaroid frame — painted cream border with photo + name tag inside */
   .photo-title {
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
@@ -743,7 +721,7 @@
   .photo-anim-wrap.bounce-in { animation: polaroidBounce 0.65s cubic-bezier(.34,1.56,.64,1); }
 
   .pinned-label {
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     color: #fff5d4;
@@ -778,6 +756,8 @@
   }
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
+<link rel="stylesheet" href="/admin/_signpost-physics.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 
@@ -803,10 +783,6 @@
 
         <div class="arrival-plaque">
           <div class="arrival-flag">📮</div>
-          <div class="arrival-scene">
-            <img class="arrival-anim" id="arrivalAnim"
-                 src="/assets/animals/bunny-lionhead-arriving.png" alt="">
-          </div>
           <div class="arrival-title">A new arrival!</div>
           <div class="arrival-subtitle" id="arrivalSubtitle">
             Someone just dropped off a little bunny. They look a bit scared…
@@ -896,6 +872,13 @@
               <img class="memory-wall-photo" id="memoryWallPhoto" alt="">
             </div>
           </div>
+        </div>
+
+        <!-- The new arrival stands in the room, on its floor, not in a picture on
+             the plaque (see _signpost-physics.css section 8). -->
+        <div class="arrival-scene">
+          <img class="arrival-anim" id="arrivalAnim"
+               src="/assets/animals/bunny-lionhead-arriving.png" alt="">
         </div>
       </div>
     </div>
@@ -991,8 +974,8 @@
     document.querySelector('.arrival-title').textContent = 'A new friend!';
     document.getElementById('arrivalSubtitle').textContent =
       "This little one doesn't have a name yet. Let's give them one!";
-    // Hide the big arrival-scene sprite — step-name has its own mini sprite
-    document.querySelector('.arrival-scene').style.display = 'none';
+    // The animal stays where it stands, in the room (the .arrival-anim-mini
+    // copy the name step used to carry on the plaque is hidden in CSS).
     showStep(stepName);
     memoryWall.style.display = 'flex';
     // Sync the mini + photo sprites to whatever sprite the host gave us

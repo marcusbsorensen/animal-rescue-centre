@@ -837,7 +837,14 @@ export function calculateGridWalkRewards(state: WalkGridState): {
   bondIncrease: number;
   happinessIncrease: number;
   tirednessIncrease: number;
+  /** No road incident AND at least 60% of the things on the walk explored. */
   perfectWalk: boolean;
+  /**
+   * No road incident, whatever was explored. This is what the Pavement Pro
+   * badge ("complete 10 walks without a road incident") counts; it must not
+   * wait on exploration, which that badge never mentions.
+   */
+  roadSafe: boolean;
   explorationPercent: number;
 } {
   const explorationPercent = state.totalInteractables > 0
@@ -863,5 +870,7 @@ export function calculateGridWalkRewards(state: WalkGridState): {
   // Each NPC interaction adds a small bonus
   bondIncrease += state.animalsApproached;
 
-  return { bondIncrease, happinessIncrease, tirednessIncrease, perfectWalk, explorationPercent };
+  return {
+    bondIncrease, happinessIncrease, tirednessIncrease, perfectWalk, roadSafe: perfectRoads, explorationPercent,
+  };
 }

@@ -24,7 +24,8 @@
  * from App Store Connect rather than switching back to automatic.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createPrivateKey, createSign } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
@@ -38,6 +39,7 @@ const optionsPath = path.join(work, 'ExportOptions.plist');
 
 const TEAM_ID = 'R94VDZ56RY';
 const BUNDLE_ID = 'com.healingishere.arc';
+const APP_ID = '6821467142';
 const PROFILE_NAME = 'ARC App Store';
 
 const args = process.argv.slice(2);
@@ -72,36 +74,62 @@ const capture = (cmd, cmdArgs, opts = {}) =>
  * App Store Connect rejects a build number it has already seen, and the
  * rejection arrives after the 100 MB upload rather than before it. Asking for
  * the highest build on record costs one request and saves that round trip.
+ *
+ * The token is minted here rather than by python, which needed PyJWT: the
+ * module was not installed on this machine on 2026-10-11, the lookup failed,
+ * and build 2 had to be numbered by hand. node:crypto signs ES256 with no
+ * dependency at all, and `dsaEncoding: 'ieee-p1363'` is what makes the result
+ * a JWS signature (raw r||s) rather than the DER sequence OpenSSL returns by
+ * default — Apple rejects the DER one as malformed.
  */
-function nextBuildNumber() {
+async function nextBuildNumber() {
   const explicit = value('--build');
   if (explicit) return explicit;
 
-  const script = `
-import os, sys, time, json, urllib.request
-import jwt
-tok = jwt.encode(
-    {"iss": os.environ["ASC_ISSUER_ID"], "exp": int(time.time()) + 600,
-     "aud": "appstoreconnect-v1"},
-    open(os.environ["ASC_PRIVATE_KEY_PATH"]).read(),
-    algorithm="ES256",
-    headers={"kid": os.environ["ASC_KEY_ID"], "typ": "JWT"})
-url = ("https://api.appstoreconnect.apple.com/v1/builds"
-       "?filter[app]=${'6821467142'}&sort=-version&limit=1&fields[builds]=version")
-req = urllib.request.Request(url, headers={"Authorization": "Bearer " + tok})
-data = json.load(urllib.request.urlopen(req))["data"]
-print(int(data[0]["attributes"]["version"]) + 1 if data else 1)
-`;
+  const b64 = (s) => Buffer.from(s).toString('base64url');
+
   try {
-    return capture('python3', ['-c', script]).trim();
-  } catch {
+    const { ASC_ISSUER_ID, ASC_KEY_ID, ASC_PRIVATE_KEY_PATH } = process.env;
+    const signing = [
+      b64(JSON.stringify({ alg: 'ES256', kid: ASC_KEY_ID, typ: 'JWT' })),
+      b64(
+        JSON.stringify({
+          iss: ASC_ISSUER_ID,
+          aud: 'appstoreconnect-v1',
+          exp: Math.floor(Date.now() / 1000) + 600,
+        }),
+      ),
+    ].join('.');
+
+    const signature = createSign('sha256')
+      .update(signing)
+      .sign(
+        {
+          key: createPrivateKey(readFileSync(ASC_PRIVATE_KEY_PATH)),
+          dsaEncoding: 'ieee-p1363',
+        },
+        'base64url',
+      );
+
+    const url =
+      `https://api.appstoreconnect.apple.com/v1/builds?filter[app]=${APP_ID}` +
+      '&sort=-version&limit=1&fields[builds]=version';
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${signing}.${signature}` },
+    });
+    if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
+
+    const { data } = await res.json();
+    return data.length ? String(Number(data[0].attributes.version) + 1) : '1';
+  } catch (err) {
     console.warn('! Could not reach App Store Connect for the build number.');
+    console.warn(`  ${err.message}`);
     console.warn('  Pass one yourself with --build <n>.');
     process.exit(1);
   }
 }
 
-const buildNumber = nextBuildNumber();
+const buildNumber = await nextBuildNumber();
 console.log(`→ build ${buildNumber}`);
 
 // ------------------------------------------------------------------ web bundle

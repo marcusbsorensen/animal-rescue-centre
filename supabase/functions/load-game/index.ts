@@ -39,16 +39,43 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Could not load your game' }, 500);
     }
 
+    // The server's tally of gifts this child has sent and claimed, which
+    // the gift badges (giver, generous, receiver) read. `send-gift` and
+    // `claim-gift` are the only things that increment it, so the client is
+    // told the number rather than keeping a count of its own to drift from
+    // it. Same reasoning as the save above for going through here: the
+    // table's policies key on auth.uid(), which this game never has.
+    //
+    // A failure here costs the badges their input, not the child their
+    // shelter, so it is logged and left out of the reply (the client treats
+    // a missing `stats` as "unchanged") instead of failing the load.
+    const { data: statsRow, error: statsError } = await supabase
+      .from('rescue_stats')
+      .select('gifts_sent_count, gifts_received_count')
+      .eq('user_id', session.userId)
+      .maybeSingle();
+
+    if (statsError) {
+      console.error('load-game stats query error:', statsError);
+    }
+    const stats = statsError
+      ? undefined
+      : {
+        giftsSentCount: statsRow?.gifts_sent_count ?? 0,
+        giftsReceivedCount: statsRow?.gifts_received_count ?? 0,
+      };
+
     // No row is the honest answer for a first-time player — the client
     // keeps its defaults. Distinguished from an error so the client does
     // not show a retry overlay to someone who simply has no save yet.
     // The client records "no row" as a null version, which is what makes
     // its first save an insert rather than an overwrite.
     if (!data) {
-      return jsonResponse({ save: null });
+      return jsonResponse({ save: null, stats });
     }
 
     return jsonResponse({
+      stats,
       save: {
         state: data.state ?? {},
         level: data.level ?? 1,

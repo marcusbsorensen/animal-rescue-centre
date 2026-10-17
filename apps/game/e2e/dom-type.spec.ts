@@ -57,6 +57,23 @@ const SCREENS = [
 interface SmallRun { sel: string; size: number; text: string }
 
 /**
+ * What the game sends a screen before a child sees it, where the screen is
+ * empty without it. The friends screen waits for its list (146A); this one
+ * has two friends and the card asking "Remove … from your friends?" open,
+ * so the cards, the Remove plank and the question are all measured. The game
+ * sends no `lastVisit` or `bond` yet, and a card without them shows neither;
+ * the first friend carries both, so the line and the medal's label, which
+ * appear the day the game sends them, are held to the floor too.
+ */
+const SETUP: Partial<Record<(typeof SCREENS)[number], string>> = {
+  friends: `window.postMessage({ source: 'arc-auth-host', type: 'friends', payload: { friends: [
+    { id: '00000000-0000-4000-8000-000000000001', displayName: 'MossyOtter', emoji: '🦦', bg: '#d0f0c0', lastVisit: 'Yesterday', bond: 5 },
+    { id: '00000000-0000-4000-8000-000000000002', displayName: 'CuriousDormouse99', emoji: '🐭', bg: '#ffd0a0' },
+  ] } }, '*');
+  setTimeout(() => document.querySelectorAll('.friend-card .remove-btn')[1].click(), 50);`,
+};
+
+/**
  * The app's real WKWebView viewport on an iPhone 17 Pro, measured inside the
  * shipped app — and the short-landscape branch these screens' `@container`
  * rules key on, which is where the low floors actually bite. See TRAPS.md.
@@ -77,6 +94,7 @@ test.describe('DOM screens keep the type floor', () => {
       // short-landscape branch never applied. Every measurement taken that
       // way describes an iPad-portrait preview, not the phone.
       await page.goto(`/admin/${screen}.html?embed=1`);
+      if (SETUP[screen]) await page.evaluate(SETUP[screen]!);
       await page.waitForTimeout(250);
 
       const small: SmallRun[] = await page.evaluate((floor) => {
@@ -104,4 +122,124 @@ test.describe('DOM screens keep the type floor', () => {
       ).toEqual([]);
     });
   }
+});
+
+/**
+ * ONE DISPLAY FACE AND ONE BODY FACE, held on every DOM screen.
+ *
+ * Marcus, 2026-10-14, on the adoption panels: "too many mixed font faces ...
+ * the calligraphic one will be almost impossible for kids to read". The
+ * ceremony alone drew in five faces, and a brush-script for the whole letter
+ * from the family. The two faces are declared once in `public/fonts/fonts.css`
+ * (`--headline-font` Fredoka, for titles; `--body-font` Nunito, for everything
+ * else a child reads). This is the half that stops them drifting back: it
+ * resolves the face each visible text element actually draws in, the way the
+ * browser does (the first family in its stack that is loaded), and fails on
+ * any other, and on the display face anywhere a child has to press something
+ * or read a sentence.
+ *
+ * Named exception: the friend code, which is monospace on purpose so that a
+ * string a child copies to a friend is not misread (menu.html says why).
+ */
+const DISPLAY = 'Fredoka';
+const BODY = 'Nunito';
+/** The display face is for a title: a few words, never a control and never a paragraph. */
+const TITLE_MAX_CHARS = 60;
+
+interface FaceRun { sel: string; face: string; text: string; why: string }
+
+test.describe('DOM screens draw in the display face and the body face, and no other', () => {
+  test.use({ viewport: VIEWPORT });
+
+  for (const screen of SCREENS) {
+    test(`${screen} uses ${DISPLAY} for titles and ${BODY} for everything else`, async ({ page }) => {
+      await page.goto(`/admin/${screen}.html?embed=1`);
+      if (SETUP[screen]) await page.evaluate(SETUP[screen]!);
+      await page.waitForTimeout(250);
+      await page.evaluate(() => document.fonts.ready);
+
+      const bad: FaceRun[] = await page.evaluate(({ display, body, titleMax }) => {
+        const generic = new Set(['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui', 'ui-sans-serif',
+          'ui-serif', 'ui-monospace', 'ui-rounded', '-apple-system', 'emoji', 'math']);
+        const declared = new Set(Array.from(document.fonts).map((f) => f.family.replace(/["']/g, '')));
+        const resolve = (el: Element, text: string): string => {
+          const cs = getComputedStyle(el);
+          const families = cs.fontFamily.split(',').map((s) => s.trim().replace(/^["']|["']$/g, ''));
+          for (const fam of families) {
+            if (generic.has(fam)) return fam;
+            if (!declared.has(fam)) return fam;
+            if (document.fonts.check(`${cs.fontWeight} ${cs.fontSize} "${fam}"`, text.slice(0, 12))) return fam;
+          }
+          return families[families.length - 1] ?? '';
+        };
+        const out: FaceRun[] = [];
+        for (const el of Array.from(document.querySelectorAll('body *'))) {
+          if (el.children.length) continue;
+          if (el.closest('.vp-bar')) continue;
+          const text = (el.textContent ?? '').trim();
+          if (!text || !/\p{Letter}/u.test(text)) continue;
+          const anyEl = el as Element & { checkVisibility?: (o?: unknown) => boolean };
+          if (typeof anyEl.checkVisibility === 'function'
+            && !anyEl.checkVisibility({ contentVisibilityAuto: true, opacityProperty: true, visibilityProperty: true })) continue;
+          const face = resolve(el, text);
+          const cls = typeof el.className === 'string' && el.className.trim()
+            ? '.' + el.className.trim().split(/\s+/).join('.') : '';
+          const entry = { sel: el.tagName.toLowerCase() + cls, face, text: text.slice(0, 30) };
+          if (face === body) continue;
+          if (face === display) {
+            if (el.closest('button, a, input, select, textarea, [role="button"]')) out.push({ ...entry, why: 'the display face is for titles, and this is a control' });
+            else if (text.length > titleMax) out.push({ ...entry, why: `the display face is for titles, and this is ${text.length} characters` });
+            continue;
+          }
+          if (el.closest('.friend-code') && /monospace/.test(face)) continue;
+          out.push({ ...entry, why: `${face} is neither ${display} nor ${body}` });
+        }
+        return out;
+      }, { display: DISPLAY, body: BODY, titleMax: TITLE_MAX_CHARS });
+
+      expect(
+        bad,
+        bad.map((b) => `${b.sel} draws in ${b.face}: ${b.why} — ${JSON.stringify(b.text)}`).join('\n'),
+      ).toEqual([]);
+    });
+  }
+});
+
+/**
+ * THE FRIENDS CODE BOX. The box a child types a friend's code in is a
+ * control, not text a script can read, so the two walks above never see its
+ * type: this one does. 18px or more, so a phone does not zoom in when the box
+ * takes the keyboard, in the body face like everything else a child reads;
+ * and what the box says back, which appears only after an answer, at the floor.
+ */
+test.describe('the friends code box', () => {
+  test.use({ viewport: VIEWPORT });
+
+  test('is typed in at 18px or more in the body face, and answers at the floor', async ({ page }) => {
+    await page.goto('/admin/friends.html?embed=1');
+    await page.evaluate(() => document.fonts.ready);
+    const seen = await page.evaluate(() => {
+      const face = (el: Element) => getComputedStyle(el).fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '');
+      const size = (el: Element) => Number.parseFloat(getComputedStyle(el).fontSize);
+      const input = document.getElementById('add-friend-input') as HTMLInputElement;
+      const title = document.querySelector('.add-friend-title')!;
+      // A child types a code, and the game says there is no such player.
+      input.value = 'cat111';
+      (document.getElementById('add-friend-btn') as HTMLButtonElement).click();
+      window.postMessage({ source: 'arc-auth-host', type: 'friend-add-failed', payload: { reason: 'too-many-tries' } }, '*');
+      return { input: { face: face(input), size: size(input) }, title: { face: face(title), size: size(title) } };
+    });
+    await page.waitForTimeout(100);
+    const answer = await page.evaluate(() => {
+      const msg = document.getElementById('add-friend-msg')!;
+      return { text: msg.textContent, face: getComputedStyle(msg).fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, ''), size: Number.parseFloat(getComputedStyle(msg).fontSize) };
+    });
+    expect(seen.input.face).toBe(BODY);
+    expect(seen.input.size).toBeGreaterThanOrEqual(18);
+    expect(seen.title.face).toBe(BODY);
+    expect(seen.title.size).toBeGreaterThanOrEqual(FLOOR);
+    expect(answer.text).toBe('Too many tries. Wait a bit.');
+    expect(answer.face).toBe(BODY);
+    expect(answer.size).toBeGreaterThanOrEqual(FLOOR);
+  });
 });

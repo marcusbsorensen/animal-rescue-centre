@@ -20,10 +20,24 @@ Most common exit. Bond-required. Counts toward `rehomed` total
 The animal returns to a habitat suited to its species. Triggered when
 the animal is well enough + bond ≥ threshold + species supports
 rewilding (fox → moorland, bunny → woodland, hedgehog → woodland,
-parrot → sea cliffs, bat → deep forest, snake → wetlands). Counts
+bat → deep forest, snake → wetlands). Counts
 toward `rewilded` total (feeds the Wildlife Trust grant). Highest-XP
 exit per animal — the kid earns recognition for restoring a wild
 animal to its proper place.
+
+**"Well enough" means can be released, not not-poorly.** An animal with
+a cold or a sore paw gets better and goes home like any other. The gate
+is `Animal.chronicIllness` (see route 7): an animal with a lasting
+condition is not offered the wild, and goes to expert keepers instead.
+
+**A parrot is never released.** It used to map to the sea cliffs. A
+parrot is not native British wildlife: letting a pet one go in the
+British countryside is illegal and harms the birds that live there, and
+a rescue game that teaches children to do it is the opposite of its
+point. Parrots are adopted and nothing else (six households take them).
+Do not restore the mapping as a "missing" route. A grass snake is
+different: it is British wildlife, belongs in wetlands, and keeps both
+routes.
 
 ### 3. Becoming the player's pet
 
@@ -112,13 +126,103 @@ added to a new `petRetirementHome` count.
   retirement polaroid sits on the photo wall like other rehoming
   polaroids.
 
+## 7. Placement with expert keepers (built 2026-10-11)
+
+> Marcus 2026-10-11. Not one of the original four, and not one of the
+> two below: it is built, and it is the exit for an animal that needs
+> expert care the shelter cannot give.
+
+A place on the map whose keepers look after an animal for good. It is
+a kind of forever home, so it is recorded in `rehomed` (under a
+`place:` id, not a household's), and counts wherever an adoption does.
+`PLACEMENTS` in `packages/game-logic/src/exits.ts` is the table:
+
+| Place | Takes | When |
+|---|---|---|
+| The hog hospital | hedgehog | only when it cannot be released |
+| The wildlife park | snake | always (the child's choice, beside adoption and the wild) |
+| The wildlife park | fox, bat | only when they cannot be released |
+
+The hog hospital is also the named helper who sees a hedgehog that *can*
+be released back to the woods: one place, both sides of the gate. The
+wildlife park is the natural home for any animal that needs expert care
+the shelter cannot give, so pointing another species at it is one line
+in `PLACEMENTS`. Both are map destinations of kind `placement`, and
+their names are placeholders (see [`naming-places.md`](naming-places.md)).
+
+**The gate is `Animal.chronicIllness`**, the flag the Pet Retirement
+Home plans for (route 4), so the two routes will share one concept. It
+means a *lasting* condition: a hurt that will not mend as much as an
+illness. It is not `sickAnimals`, which is poorly-now and heals. **Nothing
+in play sets it yet**, so no child reaches this route until the vet work
+in the implementation plan (Phase 4) does; every other piece, from the
+Paths card to the ceremony, is built and tested with the flag set by
+hand.
+
+There is no cooldown and no capacity, unlike a household: an animal with
+nowhere else to go must not meet "try again in a few days". The words
+follow the register below: a place it is going to, kind people there,
+the animal's own thanks. Nothing says why it is going, and nothing about
+an injury.
+
+## Two further routes, discussed but never written down until now
+
+> Marcus 2026-10-11, recalling the original planning. Recorded here
+> because neither existed anywhere in the repo and both were about to
+> be lost. Neither is designed yet — this is the intent, not a spec.
+
+### 5. Training an animal to support other animals
+
+An animal that has settled and bonded can be trained to help the
+animals that arrive after it — a calm older dog that steadies a
+frightened new arrival, rather than leaving itself. It is an exit from
+*needing care* rather than an exit from the building, which makes it
+different in kind from the four above.
+
+Worth noting what it solves: it gives a good outcome to an animal that
+is too bonded to rehome and too well to retire, and it rewards the
+patient play the game otherwise has no way to recognise.
+
+The groundwork exists. `walks.ts:186-221` already defines `TRICKS` and
+`canTrain` with no UI attached, and the `trainer` badge
+(`packages/badges/src/definitions.ts:112-117`) is currently unreachable
+because `animalsTrained` is hard-coded to 0.
+
+### 6. Loaning experienced animals to friends' centres
+
+Other rescue centres run by the player's friends, with experienced
+animals loaned between them. A loan is not an exit — the animal comes
+back — so it is the only route here that does not end in a permanent
+placement.
+
+It leans on the social layer that already exists: `FriendsScene`,
+`SocialScene`, and the gift edge functions that already track
+`rescue_stats` server-side.
+
+### Why the caps exist, and why they are not negotiable
+
+Lily's original idea was that she would rescue and keep hundreds and
+hundreds of animals, so she could play with them all. She and Marcus
+then worked out together that **every animal needs the care it needs,
+and no one person can look after hundreds.**
+
+That is the reason for the pet cap of ~3, for shelter capacity, and for
+every exit on this page. It is a teaching point the game is built
+around, not a technical convenience, and it should not be relaxed to
+make the game feel more generous.
+
+It also sets the tone for every piece of exit copy. An animal leaving
+is the **good** outcome, because it is going somewhere it will be
+properly cared for. No exit may read as the shelter getting rid of an
+animal, and none may read as the child having failed to keep it.
+
 ## Implementation backlog
 
 Not implemented yet. The design above is the spec. Implementation
 needs:
 
-- [ ] `Animal.chronicIllness?: boolean` field (or similar) on the
-      Animal type
+- [x] `Animal.chronicIllness?: boolean` field on the Animal type —
+      added 2026-10-11 for route 7. Nothing sets it yet.
 - [ ] Age threshold per species (`isElderly(species, ageDays)` helper)
 - [ ] Vet popup — new "Move to the Pet Retirement Home" option
       (gated by the three conditions above)
