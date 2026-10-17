@@ -24,7 +24,7 @@ function signedInWithFriend(): FakeSupabase {
     if (q.table === 'friendships') return { data: { user_id: SENDER }, error: null };
     if (q.table === 'gifts' && q.op === 'insert') {
       return {
-        data: { id: 'g1', gift_type: 'toy', message_preset_code: 'hello', sent_at: '2026-10-11T10:00:00Z' },
+        data: { id: 'g1', gift_type: 'toy', message_preset_code: 'hi', sent_at: '2026-10-11T10:00:00Z' },
         error: null,
       };
     }
@@ -32,7 +32,7 @@ function signedInWithFriend(): FakeSupabase {
   });
 }
 
-const giftBody = { toUserId: FRIEND, giftType: 'toy', messagePresetCode: 'hello' };
+const giftBody = { toUserId: FRIEND, giftType: 'toy', messagePresetCode: 'hi' };
 
 describe('send-gift', () => {
   it('refuses a caller with no session', async () => {
@@ -47,7 +47,7 @@ describe('send-gift', () => {
     const res = await handler(post(giftBody, { headers: { 'x-arc-session': TOKEN } }));
     expect(res.status).toBe(200);
     const [insert] = db.on('gifts', 'insert');
-    expect(insert.values).toMatchObject({ from_user: SENDER, to_user: FRIEND, message_preset_code: 'hello' });
+    expect(insert.values).toMatchObject({ from_user: SENDER, to_user: FRIEND, message_preset_code: 'hi' });
   });
 
   it('refuses a gift type that is not on the list', async () => {

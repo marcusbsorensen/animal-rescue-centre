@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { checkRateLimit, addressKey } from '../_shared/rate-limit.ts';
 import { requireSession } from '../_shared/session.ts';
+import { isGiftMessageCode } from '../_shared/gift-messages.ts';
 
 const VALID_GIFT_TYPES = ['treat_bundle', 'toy', 'blanket_pattern', 'decoration'];
 
@@ -29,7 +30,10 @@ Deno.serve(async (req) => {
     if (!giftType || !VALID_GIFT_TYPES.includes(giftType)) {
       return jsonResponse({ error: 'Invalid gift type' }, 400);
     }
-    if (!messagePresetCode || typeof messagePresetCode !== 'string') {
+    // One of the fifteen ready-made lines, and nothing else. The screen
+    // offers no box to type in, but a client that had been altered could
+    // put any text here and the recipient's inbox would print it.
+    if (!isGiftMessageCode(messagePresetCode)) {
       return jsonResponse({ error: 'Message preset required' }, 400);
     }
     if (userId === toUserId) {

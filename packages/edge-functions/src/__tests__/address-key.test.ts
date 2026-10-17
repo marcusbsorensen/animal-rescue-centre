@@ -85,7 +85,7 @@ const CASES: Array<{
   {
     name: 'send-gift',
     load: () => import('../../../../supabase/functions/send-gift/index.ts'),
-    body: { toUserId: 'friend', giftType: 'toy', messagePresetCode: 'hello' },
+    body: { toUserId: 'friend', giftType: 'toy', messagePresetCode: 'hi' },
     headers: { 'x-arc-session': 'a'.repeat(64) },
     prefixes: ['gift-ip:'],
     db: () => new FakeSupabase((q) =>

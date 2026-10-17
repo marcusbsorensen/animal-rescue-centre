@@ -259,7 +259,11 @@ export class SocialScene extends Phaser.Scene {
       // Gift type + message
       this.container.add(
         this.add.text(30, y + 8,
-          `${giftDef?.emoji ?? '[gift]'} "${message?.text ?? gift.messagePresetCode}"`, {
+          // Never the code itself. The server takes only the fifteen
+          // ready-made lines now, but a gift sent before it did could
+          // carry anything, and printing it in quotation marks would
+          // show a child whatever it said as though a friend wrote it.
+          `${giftDef?.emoji ?? '[gift]'} "${message?.text ?? 'A note from a friend'}"`, {
           fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
         }).setOrigin(0, 0.5)
       );
