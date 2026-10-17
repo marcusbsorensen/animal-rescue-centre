@@ -361,6 +361,12 @@ fi
 # ---- 5. what would change ------------------------------------------------------------------
 
 FLAGS=(-rlc --delete --itemize-changes --chmod=D755,F644 --exclude '.DS_Store' --exclude '.well-known/')
+# The website folder carries notes and review screenshots that are not the
+# website. Without these, site/README.md is readable at /README.md — internal
+# wording about what is and is not confirmed, on a children's site — and
+# site/shots/ puts 1.5MB of review images on the host, which its own README
+# says never to upload.
+if [ "$SITE" = 1 ]; then FLAGS+=(--exclude 'README.md' --exclude 'shots/'); fi
 for p in ${PROTECT[@]+"${PROTECT[@]}"}; do FLAGS+=(--exclude "$p"); done
 if [ -n "$TARGET" ]; then
   mkdir -p "$TARGET"      # a folder on THIS machine, standing in for the host

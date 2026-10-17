@@ -256,7 +256,9 @@ reset_logs
 GAME_SUM="$(cd "$FAKE_HOME/public_html/play" && find . -type f | sort | wc -l | tr -d ' ')"
 rd g2 --site --dry-run --game-dir public_html/play; expect_rc "site dry run, game nested" 0 $RC
 expect_in "works out that the game is inside public_html" "the game's folder is inside public_html, so the site deploy will not touch /play/" "$S/g2.out"
-expect_in "rsync protects .well-known and the game's folder" "--exclude .DS_Store --exclude .well-known/ --exclude /.well-known/ --exclude /play/ -n" "$FAKE_RSYNC_LOG"
+expect_in "rsync protects .well-known and the game's folder" "--exclude .DS_Store --exclude .well-known/ --exclude README.md --exclude shots/ --exclude /.well-known/ --exclude /play/ -n" "$FAKE_RSYNC_LOG"
+# The site folder holds notes and review screenshots that are not the website.
+expect_in "the site deploy leaves the notes and the screenshots at home" "--exclude README.md --exclude shots/" "$FAKE_RSYNC_LOG"
 expect_in "destination is public_html" "arcgame:$FAKE_HOME/public_html/" "$FAKE_RSYNC_LOG"
 expect_in "source is the holding folder" "$REPO/tools/site-holding/ arcgame:" "$FAKE_RSYNC_LOG"
 expect_in "the plan deletes the placeholder" "index.php" "$S/g2.out"
