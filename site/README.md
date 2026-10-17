@@ -105,18 +105,24 @@ Confirmed in code, so stated plainly:
   - There is an adoption office.
 - **Friends join by sharing a code.** `add-friend` adds the friend straight away from the code.
 
-Still marked `[check]` on the page:
+Confirmed since, so the `[check]` markers are off the page (2026-10-17, on
+`claude/crate-loading`):
 
-1. **"A ready-made secret name. Players pick a name from a list."** Only partly confirmed.
-   - Both signup screens offer only ready-made names: `signup.html:1618` "Pick a secret name", and `SignupScene.ts:481`.
-   - The signup function still accepts a typed name: `signup/index.ts:55` says "Older builds send a typed name without it, and still sign up as before". That name is only checked for letters, length and the blocklist.
-   - To confirm, the server should require `readyMadeName`.
-   - Also, sign-in still has the player type their secret name (`login.html:1465`). That is fine, but the page doesn't say otherwise.
-2. **"Kind notes between friends. Gifts carry ready-made messages."** Only partly confirmed.
-   - The gift screen offers preset messages only (`SocialScene.ts:402`), and there is no chat anywhere.
-   - But `send-gift/index.ts:32` only checks that the message is a string, with no length limit. `SocialScene.ts:262` then shows the raw code when it isn't on the list, so a modified client could deliver free text.
-   - To confirm, the server should check the message against the list.
-3. **"Unused accounts go after 3 years."** Not built on this branch. There is no cron or scheduled job, and it is being built on another branch. Remove the `[check]` once it lands.
+1. **"A ready-made secret name."** `signup` now requires `readyMadeName` to
+   create an account (`d72a170`). A name check is still answered without it,
+   so an old build is told whether a name is free; it is refused only at the
+   moment it would make the account, and is handed three names to pick from.
+   The cost is that a cached old build cannot make a new account. Signing in
+   is untouched.
+2. **"Kind notes between friends."** `send-gift` now takes only the fifteen
+   codes in `_shared/gift-messages.ts` (`a46bd5d`), and `SocialScene` prints
+   "A note from a friend" rather than an unknown code, because gifts already
+   in the database may hold anything. The gap was real: the screen offers no
+   box to type in, but an altered client could have put any text in another
+   child's inbox.
+3. **"Unused accounts go after 3 years."** Migrations 00019 and 00020 are on
+   the release branch and were applied to production on 14 Oct, with four
+   daily cron jobs.
 
 Also noted, but not claimed on the page:
 
@@ -143,7 +149,6 @@ Also noted, but not claimed on the page:
 
 ## Still open
 
-- **The three `[check]` items above.** Fix the code, or change the words.
 - **The support pages.** They must exist at `https://support.interfulgent.com/arc`, with a `#reports` anchor for "Make a report", and the privacy notice at `/arc/privacy`.
 - **The App Store URL,** once the app is live (id 6821467142). Apple's badge artwork too, if wanted.
 - **The logo source is only 512px wide,** so the hero logo is slightly soft on 2x screens above about 260px wide. A larger export of `arc-logo-full.png` would fix this.

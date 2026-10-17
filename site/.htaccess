@@ -45,6 +45,10 @@ RewriteRule ^(.*)$ https://arcgame.app/$1 [R=301,L]
   # These are "expr=" lines, not <FilesMatch> blocks: Apache ignores a <FilesMatch> that sits
   # inside an <If>, without a word in the error log, so the caching never happened.
   Header set Cache-Control "no-cache" "expr=%{REQUEST_FILENAME} =~ m#\.html?$#"
+  # And the scripts, for the same reason: config.js carries APP_STORE_URL, so a
+  # cached copy is the difference between the app block appearing and not. With no
+  # Cache-Control at all a browser caches them on a guess.
+  Header set Cache-Control "no-cache" "expr=%{REQUEST_FILENAME} =~ m#\.js$#"
   # Images, CSS and fonts: one hour.
   Header set Cache-Control "public, max-age=3600" "expr=%{REQUEST_FILENAME} =~ m#\.(?:webp|png|jpe?g|svg|ico|css|woff2)$#"
 </If>
