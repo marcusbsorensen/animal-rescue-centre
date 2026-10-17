@@ -52,7 +52,12 @@ The headers below are tied to the host name `arcgame.app`. If the game's folder 
 - **Redirects:** 301s from `arcgame.co.uk`, `www.arcgame.co.uk` and `www.arcgame.app` to `https://arcgame.app`, keeping the path. These are adapted from `tools/site-holding/.htaccess` on `claude/arcgame-hosting`, but without its 302-to-play rule. `/.well-known/` is left alone so certificate checks still work.
 - **Also:** `Options -Indexes` and `ErrorDocument 404 /404.html`.
 
-I could not test the `.htaccess` under Apache here, because there is no Apache in this environment. `tools/test-arcgame-htaccess.sh` on `claude/arcgame-hosting` should be pointed at it before deploying.
+Tested under macOS's Apache 2.4 on 2026-10-17, with the game's folder inside the site's as the worst case: `SITE_DIR=<this folder> tools/test-arcgame-htaccess.sh` (the script is in the repo's `tools/`). It checks every line above, that none of the three security headers reach the game's requests, and that each game response is the same as under the holding rules. It found two faults, both fixed:
+
+- **The caching never happened.** The `<FilesMatch>` blocks sat inside the `<If>`, and Apache ignores a `<FilesMatch>` inside an `<If>` without logging anything. They are now `Header ... "expr="` lines inside the `<If>`.
+- **A missing file under `/.well-known/` on `arcgame.co.uk` or `www` answered 301.** Apache fetched `/404.html` for the 404, and the redirect rule caught that fetch. Rule 1b now leaves Apache's own error-page fetches alone, so the answer stays a 404.
+
+This is Apache on a Mac, not 20i's. Rerun the script after any change to the `.htaccess`, and look at the live headers once the site is up.
 
 ## Checks run
 
@@ -142,6 +147,6 @@ Also noted, but not claimed on the page:
 - **The support pages.** They must exist at `https://support.interfulgent.com/arc`, with a `#reports` anchor for "Make a report", and the privacy notice at `/arc/privacy`.
 - **The App Store URL,** once the app is live (id 6821467142). Apple's badge artwork too, if wanted.
 - **The logo source is only 512px wide,** so the hero logo is slightly soft on 2x screens above about 260px wide. A larger export of `arc-logo-full.png` would fix this.
-- **The `.htaccess` is untested under Apache.**
+- **The `.htaccess` on 20i itself.** It passes under Apache on a Mac. Whether 20i's Apache and its proxy give the same headers is only known once the site is up.
 - **A screen-reader pass on a real device.**
 - **Deploying.** This branch does not deploy anything.

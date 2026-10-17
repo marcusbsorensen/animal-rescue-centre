@@ -19,6 +19,12 @@ RewriteEngine On
 # 1. Leave /.well-known/ alone on every host (certificate checks).
 RewriteRule ^\.well-known(?:/|$) - [L]
 
+# 1b. Leave an error page alone when Apache fetches it for a request (ErrorDocument sets
+#     REDIRECT_STATUS). Without this, a missing file under /.well-known/ on the names below
+#     would be sent on to /404.html and then redirected: a 301, not the 404 it should be.
+RewriteCond %{ENV:REDIRECT_STATUS} !^$
+RewriteRule ^ - [L]
+
 # 2. arcgame.co.uk and www.arcgame.co.uk: 301 to https://arcgame.app, same path and query.
 RewriteCond %{HTTP_HOST} ^(?:www\.)?arcgame\.co\.uk(?::\d+)?$ [NC]
 RewriteRule ^(.*)$ https://arcgame.app/$1 [R=301,L]
@@ -35,14 +41,12 @@ RewriteRule ^(.*)$ https://arcgame.app/$1 [R=301,L]
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
 
-  # Pages are always checked for a newer copy.
-  <FilesMatch "\.html?$">
-    Header set Cache-Control "no-cache"
-  </FilesMatch>
+  # Pages are always checked for a newer copy. ("/" counts: the test is on the file name on disk.)
+  # These are "expr=" lines, not <FilesMatch> blocks: Apache ignores a <FilesMatch> that sits
+  # inside an <If>, without a word in the error log, so the caching never happened.
+  Header set Cache-Control "no-cache" "expr=%{REQUEST_FILENAME} =~ m#\.html?$#"
   # Images, CSS and fonts: one hour.
-  <FilesMatch "\.(webp|png|jpe?g|svg|ico|css|woff2)$">
-    Header set Cache-Control "public, max-age=3600"
-  </FilesMatch>
+  Header set Cache-Control "public, max-age=3600" "expr=%{REQUEST_FILENAME} =~ m#\.(?:webp|png|jpe?g|svg|ico|css|woff2)$#"
 </If>
 </IfModule>
 
