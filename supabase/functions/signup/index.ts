@@ -184,11 +184,18 @@ Deno.serve(async (req) => {
     // A check is let through without it, because it creates nothing and
     // answering "is this free?" for an old build costs nobody anything.
     if (!isReadyMade && !isCheck) {
+      const offers = await offerSignInNames(supabase, 3);
       return jsonResponse(
         {
           error: 'Pick one of the names we offer',
           code: 'name_not_offered',
-          names: await offerSignInNames(supabase, 3),
+          // Under both keys on purpose. The current build reads `names`;
+          // the build this refusal is aimed at forwards only `message` and
+          // `suggestions` from a signup error, so without the second key a
+          // child on an old app is told to pick one of our names and shown
+          // none of them.
+          names: offers,
+          suggestions: offers,
         },
         400,
       );

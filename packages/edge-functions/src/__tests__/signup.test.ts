@@ -337,7 +337,10 @@ describe('signup: ready-made sign-in names', () => {
   it('offers names with the refusal, so an old build has somewhere to go', async () => {
     db = poolDatabase();
     const body = await json(await handler(post(signupBody({ readyMadeName: false }))));
-    expect((body as { names: string[] }).names).toEqual(OFFERED);
+    // Under both keys. The build being refused forwards only `message` and
+    // `suggestions` from a signup error, so `names` alone would tell a child
+    // to pick one of our names and show them none.
+    expect(body).toMatchObject({ names: OFFERED, suggestions: OFFERED });
   });
 
   it('still answers a name check from an older build, because it creates nothing', async () => {
