@@ -30,6 +30,16 @@ import { waitForGameReady, waitForScene } from '../e2e/helpers';
  *                        (e.g. made before the migrations), used instead of
  *                        a new one; run with -g to pick the tests that fit
  *
+ * Accounts. A child on an old build can still SIGN IN, and everything an
+ * existing account does through the old screens is checked below. What the
+ * old screens can no longer do is make a NEW account: since d72a170
+ * (2026-10-17) the server makes one only from a name off the list
+ * (`readyMadeName: true`), and the old screens have the child type a name.
+ * The first test records that refusal as the expected answer. The accounts
+ * the rest of the run uses are made by calling `signup` the way the new
+ * screens do (`makeAccount`), which needs the name pool filled (migration
+ * 00017 does that).
+ *
  * Every request to a hosted Supabase project is aborted and fails the test,
  * and the browser cannot resolve *.supabase.co at all.
  */
@@ -75,7 +85,11 @@ function letters(n: number): string {
   for (let i = 0; i < n; i++) s += pool[Math.floor(Math.random() * pool.length)];
   return s;
 }
-const acct = { name: `Marlo${letters(5)}`, hint: 'my favourite football shirt' };
+// What the old screens are given to type. No typed name makes an account any
+// more (see the first test), so this only ever meets the refusal.
+const typed = { name: `Marlo${letters(5)}`, hint: 'my favourite football shirt' };
+// The accounts the run signs in to, made through the list by makeAccount().
+const acct = { name: '' };
 const acct2 = { name: '' };
 const newAcct = { name: '', clue: '' };
 const saved = { field: '', value: 0 };
@@ -87,6 +101,38 @@ if (EXISTING) {
   acct.name = n;
   saved.field = f;
   saved.value = Number(v);
+}
+
+/** One of the local Edge Functions, called as the game calls it. */
+async function callFunction(name: string, body: Record<string, unknown>): Promise<{ status: number; json: Record<string, unknown> }> {
+  const key = anonKey();
+  const res = await fetch(`${API}/functions/v1/${name}`, {
+    method: 'POST',
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, json: (await res.json().catch(() => ({}))) as Record<string, unknown> };
+}
+
+/**
+ * An account made the way the signup screens make one now: ask for three
+ * names, take one, and sign up with `readyMadeName: true`. The old screens
+ * cannot do this (see the first test), and what this run is for is what an
+ * account that exists can still do through them. The same idiom as
+ * `newPlayer` in e2e/account-local.spec.ts. Returns the name.
+ */
+async function makeAccount(): Promise<string> {
+  const offer = await callFunction('signup', { offerNames: true });
+  expect(offer.status, JSON.stringify(offer.json)).toBe(200);
+  const [name] = offer.json.names as string[];
+  expect(name, 'the pool offered no names — is it seeded?').toBeTruthy();
+
+  const r = await callFunction('signup', {
+    username: name, readyMadeName: true, pin: PIN, avatarEmoji: '🦊', avatarBgColour: '#ffd0a0',
+  });
+  expect(r.status, JSON.stringify(r.json)).toBe(200);
+  expect((r.json.session as { username?: string }).username).toBe(name);
+  return name;
 }
 
 // ── A device: its own context, guarded ─────────────────────────────
@@ -236,6 +282,11 @@ async function oldSignInFromChip(page: Page, chip: string, pin = PIN): Promise<F
   return login;
 }
 
+/**
+ * Old client: the signup screens, from the typed name to the clue. The name
+ * check on the way is answered, and the last step is refused (the first
+ * test says why), so this returns what the server said at each.
+ */
 async function oldSignupThroughScreens(page: Page, name: string, hint: string): Promise<{ check: unknown; signup: unknown; status: number }> {
   const s = screen(page, 'signup');
   await s.locator('.name-field').fill(name);
@@ -277,19 +328,75 @@ async function playIntoGame(page: Page): Promise<void> {
 // The old client, against whatever server the stack runs
 // ════════════════════════════════════════════════════════════════════
 
-test('old: signs up with a typed name, signs out, signs in again with the same capitals', async ({ browser }) => {
+// ── A typed name no longer makes an account, and that is meant ─────
+//
+// This test used to sign up through the old screens with a typed name and
+// expect 200. It now expects the refusal, and the refusal is a decision, not
+// a regression.
+//
+// arcgame.app tells parents that players pick a secret name from a list.
+// The signup screens have offered nothing else since migration 00017, but
+// the server went on taking whatever an older build typed, so the sentence
+// was true of the screen and not of the account. On 2026-10-17 Marcus chose
+// to close the gap rather than soften the sentence (d72a170): `signup` now
+// makes an account only when the body says `readyMadeName: true`, and
+// otherwise answers 400 with `code: 'name_not_offered'` and three names.
+//
+// The cost was accepted knowingly: a child on a cached old build cannot make
+// a NEW account until the page reloads onto the new build. Signing in to an
+// account they already have is untouched, and a name check (`checkOnly`) is
+// still answered, because it creates nothing. The tests after this one
+// protect that: sign in, save, friends, gifts, the board.
+//
+// So a 200 here means the server has gone back to taking typed names. Any
+// other 400 means the refusal has changed meaning. Either way, ask why
+// before editing this test to match.
+test('old: a typed name is refused at signup with name_not_offered, and no account is made', async ({ browser }) => {
   const d = await device(browser, OLD);
   const { page } = d;
   await page.goto('/');
   await waitForGameReady(page, 60_000);
   await screen(page, 'welcome').getByRole('button', { name: 'New? Create account' }).click();
 
-  const r = await oldSignupThroughScreens(page, acct.name, acct.hint);
-  note('old.signup', { name: acct.name, ...r });
-  expect(r.status).toBe(200);
+  // The old screens go all the way to the last step: the name check is
+  // answered, so the child chooses a number and a clue and is refused only
+  // when the account would be made.
+  const r = await oldSignupThroughScreens(page, typed.name, typed.hint);
+  expect(r.check, 'the name check is still answered').toMatchObject({ available: true });
+  expect(r.status).toBe(400);
+  expect(r.signup).toMatchObject({ code: 'name_not_offered' });
+  expect((r.signup as { names?: unknown }).names, 'the refusal carries three names').toHaveLength(3);
+  expect(await session(page), 'the refused child is not signed in').toBeNull();
+
+  // Nothing was made: the same name is still free.
+  const after = await callFunction('signup', { username: typed.name, checkOnly: true });
+  expect(after.status).toBe(200);
+  expect(after.json.available).toBe(true);
+
+  // What the old screen shows for it: recorded, not asserted.
+  await page.waitForTimeout(1500);
+  const shown = ((await screen(page, 'signup').locator('#stage-select .error-sticker').textContent({ timeout: 3_000 }).catch(() => '')) ?? '').trim();
+  note('old.signup', { typed: typed.name, ...r, whatTheChildSees: shown });
+  await shot(page, '01a-typed-name-refused');
+  await finish(d, 'old.signup');
+});
+
+test('old: signs in to an account made from the list, signs out, signs in again with the same capitals', async ({ browser }) => {
+  // The account the rest of this run uses. The old screens cannot make one
+  // (the test above), so it is made the way the new screens make it.
+  if (!EXISTING) acct.name = await makeAccount();
+
+  const d = await device(browser, OLD);
+  const { page } = d;
+  await rememberOnDevice(page, [acct.name]);
+  const firstP = fnResponse(page, 'login');
+  await oldSignInFromChip(page, acct.name);
+  const fr = await firstP;
+  note('old.login.firstSignIn', { name: acct.name, status: fr.status(), body: redact(await bodyOf(fr)) });
+  expect(fr.status()).toBe(200);
   await expect.poll(async () => (await session(page))?.username, { timeout: 30_000 }).toBe(acct.name);
   await expect(screen(page, 'menu').locator('#continue-btn')).toBeVisible({ timeout: 30_000 });
-  await shot(page, '01-after-signup-menu');
+  await shot(page, '01b-after-sign-in-menu');
 
   // Sign out from the menu.
   await screen(page, 'menu').locator('#logout-btn').click();
@@ -307,10 +414,10 @@ test('old: signs up with a typed name, signs out, signs in again with the same c
   note('old.login.sameCapitals', { status: lr.status(), body: redact(await bodyOf(lr)) });
   await expect.poll(async () => (await session(page))?.username, { timeout: 30_000 }).toBe(acct.name);
   await expect(screen(page, 'menu').locator('#continue-btn')).toBeVisible({ timeout: 30_000 });
-  await finish(d, 'old.signup');
+  await finish(d, 'old.signIn');
 });
 
-test('old: a taken name in other capitals is refused, and a suggested name signs up', async ({ browser }) => {
+test('old: a taken name in other capitals is refused, and a suggested name is refused at signup', async ({ browser }) => {
   const d = await device(browser, OLD);
   const { page } = d;
   await page.goto('/');
@@ -331,17 +438,17 @@ test('old: a taken name in other capitals is refused, and a suggested name signs
   note('old.signup.otherCapitals.check', { typed: acct.name.toLowerCase(), check, refused: !onPin, noteText: taken ? await note1.innerText().catch(() => '') : '' });
   await shot(page, '02-taken-name-other-capitals');
 
+  let tried: string;
   if (!onPin) {
     await expect(stickers).toHaveCount(3, { timeout: 15_000 });
-    const pick = (await stickers.first().innerText()).trim();
+    tried = (await stickers.first().innerText()).trim();
     await stickers.first().click();
-    acct2.name = pick;
   } else {
     // This server let the same name in other capitals through: go back
-    // and use a different one, so the rest of the run has a second account.
+    // and use a different one, so the run can still reach the last step.
     await s.locator('#stage-pin [data-back-sticker]').click();
-    acct2.name = `Rowan${letters(5)}`;
-    await s.locator('.name-field').fill(acct2.name);
+    tried = `Rowan${letters(5)}`;
+    await s.locator('.name-field').fill(tried);
   }
   const r = await (async () => {
     const checkP2 = fnResponse(page, 'signup');
@@ -360,9 +467,14 @@ test('old: a taken name in other capitals is refused, and a suggested name signs
     const res = await signupP;
     return { check2, status: res.status(), body: redact(await bodyOf(res)) };
   })();
-  note('old.signup.suggestedName', { name: acct2.name, ...r });
-  expect(r.status).toBe(200);
-  await expect.poll(async () => (await session(page))?.username, { timeout: 30_000 }).toBe(acct2.name);
+  note('old.signup.suggestedName', { name: tried, ...r });
+  // Usually the name is one the server itself offered and nobody holds, and
+  // it is still refused: what is missing is the flag, not the name. The old
+  // screens never send `readyMadeName`, so an offered name ends here too,
+  // after the number and the clue. See the first test.
+  expect(r.status).toBe(400);
+  expect(r.body).toMatchObject({ code: 'name_not_offered' });
+  expect(await session(page), 'the refused child is not signed in').toBeNull();
   await finish(d, 'old.signup.otherCapitals');
 });
 
@@ -583,6 +695,9 @@ test('old: friend and gift calls, exactly as the old client makes them', async (
     return { status: r.status(), body: await bodyOf(r) };
   };
 
+  // The friend: a second account, made through the list like the first.
+  acct2.name = await makeAccount();
+
   const a = await fn('login', { username: acct.name, pin: PIN });
   const b = await fn('login', { username: acct2.name, pin: PIN });
   expect(a.status).toBe(200);
@@ -591,7 +706,12 @@ test('old: friend and gift calls, exactly as the old client makes them', async (
 
   const addFriend = await fn('add-friend', { joinCode: B.joinCode }, A.token);
   const friends = await rest(`friendships?select=friend:users!friendships_friend_id_fkey(id,username,avatar_emoji,avatar_bg_colour)&user_id=eq.${A.userId}`);
-  const sendGift = await fn('send-gift', { toUserId: B.userId, giftType: 'toy', messagePresetCode: 'thank_you' }, A.token);
+  // `thanks` ("Thanks for being my friend!") is a line the gift screen has
+  // offered since the first build; send-gift takes only the fifteen on that
+  // screen (_shared/gift-messages.ts). This used to send `thank_you`, which
+  // no client ever offered (it first appears in this suite) and the server
+  // now refuses.
+  const sendGift = await fn('send-gift', { toUserId: B.userId, giftType: 'toy', messagePresetCode: 'thanks' }, A.token);
   const inbox = await rest(`gifts?select=id,gift_type,message_preset_code,sent_at,sender:users!gifts_from_user_fkey(username,avatar_emoji)&to_user=eq.${B.userId}&claimed_at=is.null&order=sent_at.desc`);
   const giftId = sendGift.body?.gift?.id;
   const claim = giftId ? await fn('claim-gift', { giftId }, B.token) : { status: 0, body: { skipped: 'no gift id' } };
