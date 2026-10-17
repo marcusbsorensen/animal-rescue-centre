@@ -30,7 +30,10 @@ expect_no_file() { if [ -e "$2" ]; then bad "$1: $2 exists"; else ok "$1"; fi; }
 
 echo "setup: cloning the real build into a scratch copy"
 cp -Rc "$REPO/apps/game/dist" "$S/dist" 2>/dev/null || cp -R "$REPO/apps/game/dist" "$S/dist"
-NFILES="$(find "$S/dist" -type f | wc -l | tr -d ' ')"
+# What the deploy sends, not what is in dist: the rsync excludes .DS_Store, and Finder
+# leaves one in any folder it has been used to look at. The build sweeps them now, so
+# this should be the same number either way; it stays honest if one appears afterwards.
+NFILES="$(find "$S/dist" -type f ! -name .DS_Store | wc -l | tr -d ' ')"
 
 # ---- fakes -------------------------------------------------------------------------------------
 mkdir -p "$S/home"
