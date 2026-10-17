@@ -105,11 +105,24 @@ const ENV_PATH = path.resolve(
   '.env.local',
 );
 
-/** Read one key out of `.env.local`; Playwright does not load it. */
+/**
+ * Read one key, from the environment first and `.env.local` second —
+ * Playwright does not load the file, and Vite resolves it the same way round.
+ *
+ * The order matters. This used to read the file only, so `mintRealSession`
+ * talked to whatever `.env.local` named — production — while the page under
+ * test talked to wherever the dev server pointed. Against a local stack that
+ * handed the page a production session token, every `load-game` and
+ * `save-game` answered 401, and the spec reported it as a console error with
+ * no URL attached. It also meant three specs signed the harness account into
+ * production on every run.
+ */
 function envValue(key: string): string {
+  const fromEnv = process.env[key];
+  if (fromEnv !== undefined && fromEnv !== '') return fromEnv;
   const raw = fs.readFileSync(ENV_PATH, 'utf8');
   const line = raw.split('\n').find((l) => l.startsWith(`${key}=`));
-  if (!line) throw new Error(`${key} missing from ${ENV_PATH}`);
+  if (!line) throw new Error(`${key} missing from ${ENV_PATH} and from the environment`);
   return line.slice(key.length + 1).trim();
 }
 
@@ -157,17 +170,29 @@ export async function mintRealSession(): Promise<ArcSession> {
   const login = await callFunction('login', { username, pin });
   if (login.ok && login.json.session) return login.json.session as ArcSession;
 
-  const signup = await callFunction('signup', {
-    username,
-    pin,
-    avatarEmoji: '🦊',
-    avatarBgColour: '#BAE1FF',
-  });
-  if (signup.ok && signup.json.session) return signup.json.session as ArcSession;
+  // A typed name is refused since d72a170 — an account is only ever made
+  // from the pool. Ask for the offer and take the first name, which is what
+  // the signup screen does.
+  const offer = await callFunction('signup', { offerNames: true });
+  const names = (offer.json.names ?? offer.json.suggestions) as string[] | undefined;
+  if (offer.ok && names && names.length > 0) {
+    const made = await callFunction('signup', {
+      username: names[0],
+      readyMadeName: true,
+      pin,
+      avatarEmoji: '🦊',
+      avatarBgColour: '#BAE1FF',
+    });
+    if (made.ok && made.json.session) return made.json.session as ArcSession;
+    throw new Error(
+      `could not mint a session: login said ${JSON.stringify(login.json)}, ` +
+      `signup said ${JSON.stringify(made.json)}`,
+    );
+  }
 
   throw new Error(
     `could not mint a session: login said ${JSON.stringify(login.json)}, ` +
-    `signup said ${JSON.stringify(signup.json)}`,
+    `the name pool offered nothing (${JSON.stringify(offer.json)}) — is it seeded?`,
   );
 }
 
@@ -196,6 +221,28 @@ export function collectConsoleErrors(page: Page): string[] {
   page.on('pageerror', (err) => errors.push(err.message));
   page.on('console', (msg) => {
     if (msg.type() === 'error') errors.push(msg.text());
+  });
+  // The browser's own message for a failed fetch is "Failed to load resource:
+  // the server responded with a status of 401 (Unauthorized)" and names no
+  // URL, which makes a failing run say that something is wrong without saying
+  // what. Record the address and the method beside it.
+  // Worded the way the browser words it, so a spec's own noise filter still
+  // matches, with the address appended rather than left out.
+  page.on('response', (res) => {
+    if (res.status() >= 400) {
+      errors.push(
+        `Failed to load resource: the server responded with a status of ${res.status()}`
+        + ` — ${res.request().method()} ${res.url()}`,
+      );
+    }
+  });
+  page.on('requestfailed', (req) => {
+    // An aborted request is a cancellation, not a failure: a scene that takes
+    // its arrival iframe down mid-load cancels the fetch, and that is the
+    // iframe being dismissed correctly.
+    const why = req.failure()?.errorText ?? 'unknown';
+    if (why.includes('ERR_ABORTED')) return;
+    errors.push(`request failed ${req.method()} ${req.url()} (${why})`);
   });
   return errors;
 }

@@ -26,6 +26,8 @@ const PHONE = { width: 874, height: 402 };
 const ISLAND = 50;
 
 interface Rect { x: number; y: number; w: number; h: number }
+/** A control's exact vertical extent, before any rounding. See `controls`. */
+interface Span { top: number; bottom: number }
 interface Drawn extends Rect { label: string; depth: number; text?: string; texture?: string }
 
 interface Report {
@@ -33,8 +35,15 @@ interface Report {
   play: Rect;
   /** Everything navContainer drew, so the rail's controls can be named. */
   navChildren: Drawn[];
-  /** Interactive rectangles in the nav container, top to bottom. */
-  controls: { label: string; hit: Rect }[];
+  /**
+   * Interactive rectangles in the nav container, top to bottom. `hit` is
+   * rounded so the report reads cleanly; `span` is not, because the gap
+   * between two controls has to be measured before rounding. Rounding y and
+   * h apart turns an exact 12px gap into 11 whenever a cell height is
+   * fractional, which it is at 874x402 — that read as a layout fault for
+   * weeks and was arithmetic.
+   */
+  controls: { label: string; hit: Rect; span: Span }[];
   /** The room background's drawn rect, for the aspect it ends up at. */
   background: Rect | null;
   highDepth: { label: string; depth: number }[];
@@ -93,14 +102,17 @@ async function measure(page: import('@playwright/test').Page): Promise<Report> {
     const navChildren = walk(scene.navContainer);
     const hits = scene.navContainer.list
       .filter((o) => (o as unknown as { input?: unknown }).input)
-      .map((o) => rect(o))
+      .map((o) => {
+        const b = (o as unknown as { getBounds: () => Phaser.Geom.Rectangle }).getBounds();
+        return { ...rect(o), span: { top: b.y, bottom: b.y + b.height } };
+      })
       .sort((a, b) => a.y - b.y);
     const texts = navChildren.filter((d) => typeof d.text === 'string' && d.text.length > 0);
-    const controls = hits.map((hit) => {
+    const controls = hits.map(({ span, ...hit }) => {
       const inside = texts
         .filter((t) => t.y >= hit.y && t.y <= hit.y + hit.h)
         .sort((a, b) => b.y - a.y)[0];
-      return { label: inside?.text ?? '?', hit };
+      return { label: inside?.text ?? '?', hit, span };
     });
 
     // The background is the largest image in gameContainer.
@@ -189,8 +201,11 @@ test('the side-nav layout, next to the bottom bar it replaces', async ({ page })
     expect(c.hit.w, `rail control ${c.label} too narrow`).toBeGreaterThanOrEqual(48);
     expect(c.hit.h, `rail control ${c.label} too short`).toBeGreaterThanOrEqual(48);
   }
+  // Measured on the exact bounds, not the rounded ones: the rail spaces its
+  // cells by CELL_GAP, and a fractional cell height must not look like a
+  // layout that has closed up.
   for (let i = 1; i < sorted.length; i += 1) {
-    const gap = sorted[i].hit.y - (sorted[i - 1].hit.y + sorted[i - 1].hit.h);
+    const gap = sorted[i].span.top - sorted[i - 1].span.bottom;
     expect(gap, `rail controls ${sorted[i - 1].label}/${sorted[i].label} too close`).toBeGreaterThanOrEqual(12);
   }
 });

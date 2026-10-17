@@ -49,9 +49,12 @@ const EXPECTED_NOISE = [
   // two new collection sources are simply the next two unpainted ones.
   // Their forecourts draw the chrome signboard instead.
   'Failed to process file',
-  // The harness account is shared and the Supabase behind it is
-  // production, so a save from another run comes back as a version
-  // conflict. The merge path handles it; the 409 reaches the console.
+  // The harness account is shared, so a save from another run comes back as
+  // a version conflict — and so does the second viewport in this very test,
+  // saving from the copy the first one left. 409 is save-game's designed
+  // answer to a stale write: it carries the current server state and the
+  // client keeps it (supabase/functions/save-game/index.ts). The merge path
+  // handles it; the 409 reaches the console.
   'status of 409',
 ];
 const isNoise = (m: string) => EXPECTED_NOISE.some((n) => m.includes(n));

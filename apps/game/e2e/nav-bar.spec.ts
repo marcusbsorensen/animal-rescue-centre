@@ -68,7 +68,13 @@ test('the nav bar is drawn clear on every phone viewport', async ({ page }) => {
   const session = await mintRealSession();
   await installSession(page, session);
 
-  await page.goto('/');
+  // `?sideRail=0` on purpose. The side rail became the default on
+  // 2026-09-04 (dfb29b9), so a plain `/` gives the rail and this spec is
+  // about the bar the rail replaced — the bar is still shipped, still
+  // reachable, and still what three sessions of measurement were taken
+  // against. Without the flag this test silently measured the wrong
+  // component for six weeks.
+  await page.goto('/?sideRail=0');
   await waitForGameReady(page);
 
   // In through the front door: wait for the menu overlay and press
@@ -143,7 +149,7 @@ test('the nav bar is drawn clear on every phone viewport', async ({ page }) => {
     expect(
       r.controls.map((c) => c.label),
       `${vp.name}: wrong nav controls`,
-    ).toEqual(['Home', 'Care', 'Supplies', 'Walk', 'Social']);
+    ).toEqual(['Home', 'Care', 'Supplies', 'Walk', 'Map']);
     // Every one of them is art, not the two-letter text fallback that
     // stands in when a texture is missing.
     for (const c of r.controls) {
