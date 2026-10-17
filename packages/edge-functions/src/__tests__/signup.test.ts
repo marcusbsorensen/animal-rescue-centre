@@ -16,11 +16,22 @@ const NEW_USER = {
 };
 
 /** The database a first-time signup meets: the name is free. */
+/** The name is claimed from the pool on every signup now, so a database
+ *  built for a test about something else still has to answer the claim. */
+const claimsTheName = (fn: string) =>
+  (fn === 'arc_claim_sign_in_name' ? { data: true, error: null } : undefined);
+
 function freshDatabase(): FakeSupabase {
-  return new FakeSupabase((q: Query) => {
-    if (q.table === 'users' && q.op === 'insert') return { data: NEW_USER, error: null };
-    return undefined;
-  });
+  return new FakeSupabase(
+    (q: Query) => {
+      if (q.table === 'users' && q.op === 'insert') return { data: NEW_USER, error: null };
+      return undefined;
+    },
+    // Every signup takes its name from the pool now, so the claim has to
+    // succeed here or each of these tests fails on a name clash instead
+    // of on the thing it is about.
+    claimsTheName,
+  );
 }
 
 const signupBody = (extra: Record<string, unknown> = {}) => ({
@@ -28,6 +39,9 @@ const signupBody = (extra: Record<string, unknown> = {}) => ({
   pin: '4821',
   avatarEmoji: '🦊',
   avatarBgColour: '#ffd0a0',
+  // Required since 2026-10-17: an account is only made from a name off
+  // the list. Pass `readyMadeName: false` to play an older build.
+  readyMadeName: true,
   ...extra,
 });
 
@@ -135,7 +149,7 @@ describe('signup', () => {
         return { data: [{ display_name: 'MossyOtter' }, { display_name: 'MossyOtter2' }], error: null };
       }
       return undefined;
-    }));
+    }, claimsTheName));
     const res = await handler(post(signupBody({ displayName: 'MossyOtter' })));
     expect(res.status).toBe(200);
     const name = (db.on('users', 'insert')[0].values as Record<string, unknown>).display_name as string;
@@ -173,7 +187,7 @@ describe('signup', () => {
         return { data: NEW_USER, error: null };
       }
       return undefined;
-    }));
+    }, claimsTheName));
     const res = await handler(post(signupBody({ displayName: 'MossyOtter' })));
     expect(res.status).toBe(200);
     const [first, second] = db.on('users', 'insert').map((q) => (q.values as Record<string, unknown>).display_name);
@@ -305,12 +319,32 @@ describe('signup: ready-made sign-in names', () => {
     expect(release.filters).toContainEqual({ kind: 'is', column: 'claimed_by', value: null });
   });
 
-  it('still signs up a typed name from an older build, without claiming it first', async () => {
+  it('refuses a typed name from an older build, and makes no account', async () => {
+    // It used to sign them up. arcgame.app tells parents that players pick
+    // a name from a list, and that was only true of the screen: the server
+    // took whatever an older build sent. Marcus chose to close the gap
+    // rather than soften the sentence (2026-10-17). The cost lands here —
+    // a cached old build cannot make a NEW account, though signing in to
+    // an existing one is untouched.
     db = poolDatabase();
-    const res = await handler(post(signupBody()));
-    expect(res.status).toBe(200);
+    const res = await handler(post(signupBody({ readyMadeName: false })));
+    expect(res.status).toBe(400);
+    expect(await json(res)).toMatchObject({ code: 'name_not_offered' });
+    expect(db.on('users', 'insert')).toEqual([]);
     expect(db.rpcs.some((r) => r.fn === 'arc_claim_sign_in_name')).toBe(false);
-    expect(db.on('users', 'insert')).toHaveLength(1);
+  });
+
+  it('offers names with the refusal, so an old build has somewhere to go', async () => {
+    db = poolDatabase();
+    const body = await json(await handler(post(signupBody({ readyMadeName: false }))));
+    expect((body as { names: string[] }).names).toEqual(OFFERED);
+  });
+
+  it('still answers a name check from an older build, because it creates nothing', async () => {
+    db = poolDatabase();
+    const res = await handler(post({ username: 'Bramble', checkOnly: true }));
+    expect(res.status).toBe(200);
+    expect(db.on('users', 'insert')).toEqual([]);
   });
 
   it('suggests ready-made names for a taken typed name, never the typed name', async () => {

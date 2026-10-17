@@ -51,8 +51,18 @@ Deno.serve(async (req) => {
 
     // `readyMadeName` says the name was picked from the offered ones, not
     // typed. Such a name is claimed from the pool before the account is
-    // made, and refused if somebody else has just taken it. Older builds
-    // send a typed name without it, and still sign up as before.
+    // made, and refused if somebody else has just taken it.
+    //
+    // It is now required, not merely honoured. Older builds sent a typed
+    // name without it and signed up as before, which left arcgame.app
+    // promising parents that "players pick a name from a list" while the
+    // server would still take anything a child typed. Marcus chose to
+    // close the gap rather than soften the sentence (2026-10-17).
+    //
+    // What this costs: a child on a cached old build who makes a NEW
+    // account is refused and has to reload. Signing in is untouched, and
+    // the window shuts anyway when the moved page replaces the old
+    // address. See apps/game/e2e-compat/ for what old clients still do.
     const isReadyMade = readyMadeName === true;
 
     // `checkOnly` answers "is this name free?" and creates nothing.
@@ -164,6 +174,24 @@ Deno.serve(async (req) => {
           429,
         );
       }
+    }
+
+    // An account is only ever made from a name off the list. This sits
+    // after the address limits on purpose: an old build that keeps
+    // retrying must still be counted, or refusing it here would be a way
+    // to make unlimited requests.
+    //
+    // A check is let through without it, because it creates nothing and
+    // answering "is this free?" for an old build costs nobody anything.
+    if (!isReadyMade && !isCheck) {
+      return jsonResponse(
+        {
+          error: 'Pick one of the names we offer',
+          code: 'name_not_offered',
+          names: await offerSignInNames(supabase, 3),
+        },
+        400,
+      );
     }
 
     // Pre-check: is this username already claimed by another user, in
